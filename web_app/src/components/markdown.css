@@ -1,0 +1,402 @@
+/* =========================================================
+   CHAT MARKDOWN
+   Responsive styles for ReactMarkdown chatbot messages
+   ========================================================= */
+
+.chat-markdown {
+    font-family: 'Montserrat', 'Segoe UI', sans-serif;
+    color: var(--text-body);
+
+    /* Mobile */
+    font-size: 14px;
+    line-height: 22px;
+
+    letter-spacing: var(--tracking);
+    overflow-wrap: anywhere;
+    word-break: normal;
+}
+
+
+/* =========================
+   PARAGRAPHS
+   ========================= */
+
+.chat-markdown p {
+    margin: 0 0 10px 0;
+}
+
+.chat-markdown p:last-child {
+    margin-bottom: 0;
+}
+
+
+/* =========================
+   HEADINGS
+   ========================= */
+
+.chat-markdown h1,
+.chat-markdown h2,
+.chat-markdown h3,
+.chat-markdown h4,
+.chat-markdown h5,
+.chat-markdown h6 {
+    color: var(--black-900);
+    line-height: 1.35;
+    letter-spacing: var(--tracking);
+    margin-top: 18px;
+    margin-bottom: 8px;
+}
+
+.chat-markdown h1:first-child,
+.chat-markdown h2:first-child,
+.chat-markdown h3:first-child,
+.chat-markdown h4:first-child,
+.chat-markdown h5:first-child,
+.chat-markdown h6:first-child {
+    margin-top: 0;
+}
+
+.chat-markdown h1 {
+    font-size: 22px;
+    font-weight: 800;
+}
+
+.chat-markdown h2 {
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.chat-markdown h3 {
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.chat-markdown h4 {
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.chat-markdown h5 {
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.chat-markdown h6 {
+    font-size: 14px;
+    font-weight: 700;
+}
+
+
+/* =========================
+   BOLD / ITALIC
+   ========================= */
+
+.chat-markdown strong {
+    font-weight: 700;
+    color: var(--black-900);
+}
+
+.chat-markdown em {
+    font-style: italic;
+}
+
+
+/* =========================
+   LISTS
+   ========================= */
+
+.chat-markdown ul,
+.chat-markdown ol {
+    margin: 8px 0 12px 0;
+    padding-left: 24px;
+}
+
+.chat-markdown ul {
+    list-style-type: disc;
+}
+
+.chat-markdown ol {
+    list-style-type: decimal;
+}
+
+.chat-markdown li {
+    margin: 4px 0;
+    padding-left: 2px;
+}
+
+.chat-markdown li::marker {
+    color: var(--text-body);
+}
+
+.chat-markdown li > p {
+    margin: 0;
+}
+
+
+/* Nested lists */
+
+.chat-markdown ul ul,
+.chat-markdown ol ol,
+.chat-markdown ul ol,
+.chat-markdown ol ul {
+    margin-top: 4px;
+    margin-bottom: 4px;
+}
+
+
+/* =========================
+   LINKS
+   ========================= */
+
+.chat-markdown a {
+    color: var(--primary-default);
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    overflow-wrap: anywhere;
+}
+
+.chat-markdown a:hover {
+    color: var(--primary-light);
+}
+
+.chat-markdown a:focus-visible {
+    outline: 2px solid var(--primary-default);
+    outline-offset: 2px;
+    border-radius: 2px;
+}
+
+
+/* =========================
+   INLINE CODE
+   ========================= */
+
+.chat-markdown code {
+    font-family:
+        "SFMono-Regular",
+        Consolas,
+        "Liberation Mono",
+        Menlo,
+        monospace;
+
+    font-size: 0.875em;
+    background-color: var(--neutral-200);
+    color: var(--black-900);
+
+    padding: 2px 5px;
+    border-radius: 4px;
+}
+
+
+/* =========================
+   CODE BLOCKS
+   ========================= */
+
+.chat-markdown pre {
+    margin: 12px 0;
+    padding: 12px 14px;
+
+    background-color: var(--black-900);
+    color: var(--white-100);
+
+    border-radius: 8px;
+
+    overflow-x: auto;
+    max-width: 100%;
+
+    font-size: 12px;
+    line-height: 20px;
+}
+
+.chat-markdown pre code {
+    background: transparent;
+    color: inherit;
+    padding: 0;
+    border-radius: 0;
+
+    font-size: inherit;
+}
+
+
+/* =========================
+   BLOCKQUOTE
+   ========================= */
+
+.chat-markdown blockquote {
+    margin: 12px 0;
+    padding: 8px 14px;
+
+    border-left: 4px solid var(--primary-default);
+    background-color: var(--secondary-default);
+
+    color: var(--text-muted);
+    border-radius: 0 6px 6px 0;
+}
+
+.chat-markdown blockquote p {
+    margin: 0;
+}
+
+
+/* =========================
+   HORIZONTAL RULE
+   ========================= */
+
+.chat-markdown hr {
+    border: 0;
+    border-top: 1px solid var(--neutral-300);
+    margin: 16px 0;
+}
+
+
+/* =========================
+   TABLES
+   remarkGfm support
+   ========================= */
+
+.chat-markdown table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+
+    font-size: 13px;
+}
+
+.chat-markdown th,
+.chat-markdown td {
+    border: 1px solid var(--neutral-300);
+    padding: 8px 10px;
+    text-align: left;
+    vertical-align: top;
+}
+
+.chat-markdown th {
+    background-color: var(--neutral-200);
+    color: var(--black-900);
+    font-weight: 700;
+}
+
+.chat-markdown tbody tr:nth-child(even) {
+    background-color: var(--secondary-default);
+}
+
+
+/* =========================
+   IMAGES
+   ========================= */
+
+.chat-markdown img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    margin: 12px 0;
+}
+
+
+/* =========================================================
+   TABLET
+   >= 640px
+   ========================================================= */
+
+@media (min-width: 640px) {
+
+    .chat-markdown {
+        font-size: 15px;
+        line-height: 24px;
+    }
+
+    .chat-markdown h1 {
+        font-size: 24px;
+    }
+
+    .chat-markdown h2 {
+        font-size: 21px;
+    }
+
+    .chat-markdown h3 {
+        font-size: 19px;
+    }
+
+    .chat-markdown h4 {
+        font-size: 17px;
+    }
+
+    .chat-markdown h5 {
+        font-size: 16px;
+    }
+
+    .chat-markdown h6 {
+        font-size: 15px;
+    }
+
+    .chat-markdown pre {
+        font-size: 13px;
+        line-height: 21px;
+    }
+
+    .chat-markdown table {
+        font-size: 14px;
+    }
+}
+
+
+/* =========================================================
+   DESKTOP
+   >= 1024px
+   ========================================================= */
+
+@media (min-width: 1024px) {
+
+    .chat-markdown {
+        font-size: var(--body-m-size);
+        line-height: var(--body-m-lh);
+    }
+
+    .chat-markdown h1 {
+        font-size: 28px;
+    }
+
+    .chat-markdown h2 {
+        font-size: 24px;
+    }
+
+    .chat-markdown h3 {
+        font-size: 20px;
+    }
+
+    .chat-markdown h4 {
+        font-size: 18px;
+    }
+
+    .chat-markdown h5 {
+        font-size: 17px;
+    }
+
+    .chat-markdown h6 {
+        font-size: 16px;
+    }
+
+    .chat-markdown pre {
+        font-size: 14px;
+        line-height: 22px;
+    }
+
+    .chat-markdown table {
+        font-size: 14px;
+    }
+}
+
+
+/* =========================================================
+   LARGE DESKTOP
+   >= 1440px
+   ========================================================= */
+
+@media (min-width: 1440px) {
+
+    .chat-markdown {
+        font-size: var(--body-l-size);
+        line-height: var(--body-l-lh);
+    }
+}
