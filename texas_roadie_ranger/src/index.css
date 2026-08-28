@@ -1,0 +1,12 @@
+@import 'tailwindcss';
+
+
+:root {
+  --rh-green: #004B2B;
+  --rh-gold: #FFC72C;
+  --rh-wood: #1A120B;
+  --rh-cream: #FDFBF7;
+  --rh-sand: #F4EFE6;
+  --rh-charcoal: #2D251E;
+  --rh-muted: #7A7067;
+}
