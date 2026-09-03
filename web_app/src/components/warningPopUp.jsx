@@ -10,7 +10,7 @@ const WarningPopUp = ({ isOpen, onClose, message }) => {
         </p>
         <button
           onClick={onClose}
-          className="border py-2.5 px-6 rounded-[10px] w-40 bg-[#004B2B] text-[#FFC72C] font-semibold cursor-pointer transition-transform duration-150 active:scale-95"
+          className="border py-2.5 px-6 rounded-[10px] w-40 bg-[var(--success-default)] text-[var(--secondary-default)] font-semibold cursor-pointer transition-transform duration-150 active:scale-95"
         >
           Close
         </button>

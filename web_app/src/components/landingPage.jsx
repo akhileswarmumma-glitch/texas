@@ -1,375 +1,546 @@
-import { useEffect, useRef, useState } from "react";
-import Chat from "./chat.jsx";
-import texasImg from "../assets/texas-roadhouse.jpg";
-import texasLogo from "../assets/texas-logo.png";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FaUser } from "react-icons/fa";
-import { FiLogOut } from "react-icons/fi";
-import ContactCard from "./contactCard.jsx";
-import Contact1 from '../assets/contact1.png'
-import Contact2 from '../assets/contact2.png'
-import Contact3 from '../assets/contact3.png'
-import Accordion from "./accordian.jsx";
+import { FiLogOut, FiPlus, FiSend, FiMic, FiSquare, FiChevronDown } from "react-icons/fi";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import useTextAgent from "./aiTextResponse.jsx";
+import useVoiceAgent from "./aiVoiceResponse.jsx";
+import WarningPopUp from "./warningPopUp.jsx";
+import texasLogo from "../assets/texas-logo.png";
 
-// ---------------------------------------------------------
-// Scroll-Spy hook: on every scroll, checks each section's real
-// position on the page and picks whichever one has most recently
-// crossed just below the fixed header. That section becomes the
-// "active" nav item.
-//
-// This is more reliable than IntersectionObserver for tall
-// sections: IO can fire multiple "isIntersecting" entries in the
-// same batch (e.g. bottom of one section + top of the next both
-// visible at once), and whichever gets processed last in that
-// batch "wins" — causing the highlight to get stuck. Comparing
-// actual scroll position avoids that race, and also doesn't
-// depend on the nav's label order matching the DOM order of the
-// sections.
-// ---------------------------------------------------------
+const QUICK_INQUIRIES = [
+  { category: "HR & Benefits", text: "How do I enroll in or update my benefits?" },
+  { category: "HR & Payroll", text: "How do I update my W-4 or tax withholding forms?" },
+  { category: "POS & Billing", text: "How do I replace or redeem a damaged gift card?" },
+  { category: "Finance & Ops", text: "How do I contact travel, expense or vendor support?" },
+];
 
-function useScrollSpy(sectionIds, offsetPx = 120) {
-  const [activeId, setActiveId] = useState(sectionIds[0]);
+const MAX_MESSAGE_LENGTH = 2000;
 
-  useEffect(() => {
-    let ticking = false;
+function AgentAvatar() {
+  return <div className="w-8 h-8 flex-none rounded-full bg-[var(--tertiary-default)] text-black grid place-items-center text-lg font-extrabold">🤠</div>;
+}
 
-    const computeActive = () => {
-      // Among all sections that have crossed the offset line
-      // (top <= 0 after subtracting the header offset), pick the
-      // one whose top is CLOSEST to that line — i.e. the most
-      // recently entered section. This is based on each section's
-      // real position on the page, so it works correctly even if
-      // the nav's label order doesn't match the DOM order of the
-      // sections (as is the case here: "Opportunities" sits before
-      // "Knowledge Base" in the markup, but appears after it in nav).
-      let current = sectionIds[0];
-      let bestTop = -Infinity;
+function MessageBubble({ item }) {
+  const [showResources, setShowResources] = useState(false);
+  const [showConsent, setShowConsent] = useState(true);
+  const resources = item.resources || [];
+  const needsConsent = Boolean(item.link) || Boolean(item.consentRequired);
 
-      for (const id of sectionIds) {
-        const el = document.getElementById(id);
-        if (!el) continue;
-        const top = el.getBoundingClientRect().top - offsetPx;
-        if (top <= 0 && top > bestTop) {
-          bestTop = top;
-          current = id;
+  return (
+    <div className={`flex gap-3 items-start ${item.sender === "user" ? "justify-end" : ""}`}>
+      {/* {item.sender !== "user" && <AgentAvatar />} */}
+      <div className={`max-w-[80%] p-3.5 rounded-xl text-sm break-words ${item.sender === "user" ? 'bg-[var(--success-default)] border border-emerald-700 text-white rounded-br-[4px]' : 'bg-[var(--secondary-contrast)] border border-[#1c362d] text-gray-200 rounded-bl-[4px]'}`}>
+        {item.sender !== "user" && <div className="text-yellow-400 text-xs font-extrabold mb-1">✦ Roadie Ranger</div>}
+        <div>
+          <ReactMarkdown 
+            remarkPlugins={[remarkGfm]}
+            // components={{
+            //   a: ({ node, ...props }) => (
+            //     <a {...props} target="_blank" rel="noopener noreferrer" />
+            //   ),
+            // }}
+          >{item.message}</ReactMarkdown>
+        </div>
+
+        {resources.length > 0 && (
+          <div className="border-t border-emerald-900 mt-3 pt-2">
+            <button type="button" onClick={() => setShowResources((value) => !value)} className="w-full flex items-center justify-between text-yellow-400 text-xs font-extrabold">
+              <span>🔗 {resources.length} Sources Used</span>
+              <FiChevronDown className={showResources ? "transform rotate-180" : ""} />
+            </button>
+            {showResources && (
+              <div className="flex flex-col gap-2 mt-2">
+                {resources.map((resource, index) => (
+                  <a key={`${resource.url}-${index}`} href={resource.url} target="_blank" rel="noreferrer" className="flex gap-2 items-center bg-[#08281d] border border-emerald-800 rounded-lg p-2 text-sm text-gray-200 no-underline">
+                    📄 <span>{resource.name || resource.url}</span>
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {needsConsent && showConsent && (
+          <div className="flex gap-2 mt-3">
+            <button type="button" onClick={() => item.link && window.open(item.link, "_blank", "noopener,noreferrer")} className="rounded-md bg-yellow-400 text-black px-3 py-1 text-sm font-bold">Grant Consent</button>
+            <button type="button" onClick={() => setShowConsent(false)} className="rounded-md border px-3 py-1 text-sm">Cancel</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TypingIndicator() {
+  return (
+    <div className="flex gap-3 items-start">
+      <AgentAvatar />
+      <div className="max-w-[80%] p-3.5 rounded-xl text-sm break-words bg-[var(--secondary-contrast)] border border-[#1c362d] text-gray-200">
+        <div className="text-yellow-400 text-xs font-extrabold mb-1">✦ Roadie Ranger</div>
+        <div className="flex gap-1"><span className="w-2 h-2 bg-[var(--success-default)] rounded-full animate-pulse"/><span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse delay-75"/><span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse delay-150"/></div>
+      </div>
+    </div>
+  );
+}
+
+function ChatExperience({ firstName, sessionId, onNewChat, onLogout }) {
+  const [messages, setMessages] = useState([]);
+  const [draft, setDraft] = useState("");
+  const [mode, setMode] = useState(null); // null = choose mode on landing, 'text' or 'voice'
+  const [showModeWarning, setShowModeWarning] = useState(false);
+  const textareaRef = useRef(null);
+  const [loading, setLoading] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const messagesEndRef = useRef(null);
+  const profileRef = useRef(null);
+  const wasVoiceActive = useRef(false);
+
+  const addMessage = useCallback((message, sender = "ai", meta = {}) => {
+    const streaming = Boolean(meta.streaming);
+    setMessages((previous) => {
+      if (sender === "ai" && streaming) {
+        const index = [...previous].map((item, i) => ({ item, i })).reverse().find(({ item }) => item.sender === "ai" && item.streaming)?.i;
+        if (index !== undefined) {
+          return previous.map((item, i) => i === index ? { ...item, message: item.message + message } : item);
+        }
+        return [...previous, { id: `${Date.now()}-ai`, sender: "ai", message, streaming: true, ...meta }];
+      }
+
+      if (sender === "ai") {
+        const index = [...previous].map((item, i) => ({ item, i })).reverse().find(({ item }) => item.sender === "ai" && item.streaming)?.i;
+        if (index !== undefined) {
+          return previous.map((item, i) => i === index ? {
+            ...item,
+            message,
+            streaming: false,
+            message_id: meta.message_id || item.message_id,
+            link: meta.link || item.link,
+            resources: meta.resources || item.resources,
+            consentRequired: meta.consentRequired,
+          } : item);
         }
       }
 
-      // Special case: if the user has scrolled to the very
-      // bottom of the page, force the last section active
-      // (handles short/empty final sections gracefully).
-      const atBottom =
-        window.innerHeight + window.scrollY >=
-        document.documentElement.scrollHeight - 2;
-      if (atBottom) {
-        current = sectionIds[sectionIds.length - 1];
-      }
+      return [...previous, { id: `${Date.now()}-${Math.random()}`, sender, message, streaming: false, ...meta }];
+    });
+  }, []);
 
-      setActiveId(current);
-      ticking = false;
+  const handleLogout = useCallback(async () => {
+    await onLogout();
+  }, [onLogout]);
+
+  const { sendMessage: sendTextMessage } = useTextAgent(
+    addMessage,
+    setLoading,
+    handleLogout,
+    sessionId
+  );
+
+  const { isVoiceActive, startVoiceSession, stopVoiceSession, micLevel, status: voiceStatus } = useVoiceAgent(
+    addMessage,
+    setLoading
+  );
+
+  useEffect(() => {
+    if (wasVoiceActive.current && !isVoiceActive) {
+      onNewChat();
+    }
+    wasVoiceActive.current = isVoiceActive;
+  }, [isVoiceActive, onNewChat]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, loading]);
+
+  useEffect(() => {
+    const handleOutside = (event) => {
+      if (profileRef.current && !profileRef.current.contains(event.target)) setShowProfile(false);
     };
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, []);
 
-    const handleScroll = () => {
-      if (!ticking) {
-        window.requestAnimationFrame(computeActive);
-        ticking = true;
-      }
-    };
+  const submit = useCallback(() => {
+    const text = draft.trim();
+    if (!text || loading || isVoiceActive) return;
+    addMessage(text, "user");
+    setDraft("");
+    void sendTextMessage(text);
+  }, [addMessage, draft, isVoiceActive, loading, sendTextMessage]);
 
-    computeActive(); // set correct state on initial mount
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    window.addEventListener("resize", handleScroll);
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-      window.removeEventListener("resize", handleScroll);
-    };
-  }, [sectionIds, offsetPx]);
+  const selectInquiry = useCallback((text) => {
+    // kept for legacy use; prefer populateQuery
+    if (loading || isVoiceActive) return;
+    addMessage(text, "user");
+    void sendTextMessage(text);
+  }, [addMessage, isVoiceActive, loading, sendTextMessage]);
 
-  return activeId;
+  const populateQuery = useCallback((text) => {
+    // place query into input instead of sending
+    if (isVoiceActive) return;
+    setMode("text");
+    setDraft(text);
+    // focus the textarea after it renders
+    setTimeout(() => textareaRef.current?.focus(), 50);
+  }, [isVoiceActive]);
+
+  const conversationStarted = messages.length > 0;
+  const inputPlaceholder = isVoiceActive
+    ? `Voice active (${voiceStatus})...`
+    : "Ask Roadie Ranger anything... (e.g., benefits, W-4, gift cards, POS, travel & expense)";
+
+  return (
+    <main className="min-h-screen bg-[#faf5ea] text-gray-200 font-sans flex flex-col">
+      <header className="h-20 flex items-center justify-between px-8 border-b border-emerald-900 bg-[var(--secondary-contrast)] sticky top-0 z-20">
+        
+        <div className="flex items-center gap-3">
+          <div className="flex h-[50px] ml-3 ">
+            <img src={texasLogo} alt="" />
+          </div>
+          <div className="w-9 h-9 ml-5 rounded-full bg-[var(--warning-default)] text-black grid place-items-center text-lg font-extrabold">🤠</div>
+          <div>
+            <div className="font-extrabold text-sm">Roadie Ranger</div>
+            <div className="text-xs text-emerald-300 mt-0.5 flex items-center"><span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--success-default)] mr-2"/> Online now</div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button type="button" onClick={onNewChat} className="inline-flex items-center gap-2 border border-emerald-800 bg-[var(--success-default)] text-white rounded-full px-3 py-2 font-bold text-sm hover:border-yellow-400">
+            <FiPlus /> New Chat
+          </button>
+          <div className="relative" ref={profileRef}>
+            <button type="button" onClick={() => setShowProfile((value) => !value)} className="w-9 h-9 rounded-full border border-yellow-400 bg-yellow-400 text-black font-bold grid place-items-center">
+              {firstName ? firstName.slice(0, 2).toUpperCase() : <FaUser />}
+            </button>
+            {showProfile && (
+              <div className="absolute right-0 top-12 w-44 bg-[#0c1a15] border border-[#1c362d] rounded-xl p-2 shadow-lg">
+                <div className="px-2 py-2 text-sm text-gray-200 font-bold">{firstName || "Roadie"}</div>
+                <button type="button" onClick={onLogout} className="w-full flex items-center gap-2 text-sm text-gray-200 p-2 rounded-md hover:bg-emerald-900"><FiLogOut /> Logout</button>
+              </div>
+            )}
+          </div>
+        </div>
+      </header>
+
+      <section className={`mx-auto w-full max-w-[900px] px-4 py-14 flex-1 ${conversationStarted ? "" : ""}`}>
+        {!conversationStarted && (
+          <div className="text-center transition-all">
+            <h1 className="m-0 mb-4 text-[var(--secondary-contrast)] text-3xl md:text-5xl leading-tight font-extrabold tracking-tight">Hey{firstName ? ` ${firstName}` : ""}, how can we help today?</h1>
+            <p className="text-[var(--secondary-contrast)] max-w-[750px] mx-auto mb-3"><strong>I'm Roadie Ranger</strong> — your quick-answer sidekick on the floor.</p>
+            <p className="text-[var(--secondary-contrast)] max-w-[750px] mx-auto mb-4">Ask me anything you need help with, from HR and payroll to restaurant operations and day-to-day tasks. I'll get you clear, trusted guidance in seconds.</p>
+            <div className="mt-6 text-[var(--primary-bg)] font-extrabold text-sm">Need help right now? I'm just a tap away.</div>
+          </div>
+        )}
+
+        <div className="flex flex-col gap-4 max-h-[calc(100vh-400px)] overflow-y-auto p-2" role="log" aria-live="polite">
+          {messages.map((item) => <MessageBubble key={item.id} item={item} />)}
+          {loading && <TypingIndicator />}
+          <div ref={messagesEndRef} />
+        </div>
+        <div style={{ width: "100%", display: "flex", justifyContent: "center", padding: "10px 16px" }}>
+            <div style={{ display: "flex", gap:"12px"}}>
+              <button
+                type="button"
+                onClick={() => {
+                  if (mode === null) return setMode("text");
+                  if (mode === "text") return; // no change
+                  // trying to switch from voice->text or text->voice
+                  setShowModeWarning(true);
+                }}
+                style={{
+                  backgroundColor: mode === "text" ? "var(--primary-default)" : "var(--white-100)",
+                  color: mode === "text" ? "var(--primary-contrast)" : "var(--text-muted)",
+                  padding: "10px 18px",
+                  borderRadius: 8,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  border: mode === "text" ? "none" : "1px solid var(--neutral-300)",
+                }}
+              >
+                Text Mode
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (mode === null) return setMode("voice");
+                  if (mode === "voice") return;
+                  setShowModeWarning(true);
+                }}
+                style={{
+                  backgroundColor: mode === "voice" ? "var(--danger-default)" : "var(--white-100)",
+                  color: mode === "voice" ? "var(--danger-contrast)" : "var(--text-muted)",
+                  padding: "10px 18px",
+                  borderRadius: 8,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  border: mode === "voice" ? "none" : "1px solid var(--neutral-300)",
+                }}
+              >
+                Voice Mode
+              </button>
+            </div>
+            {/* <div
+              style={{
+                display: "inline-flex",
+                position: "relative",
+                padding: 4,
+                borderRadius: 999,
+                backgroundColor: "var(--neutral-100)",
+                border: "1px solid var(--neutral-300)",
+                width: 260,
+              }}
+            >
+              <div
+                style={{
+                  position: "absolute",
+                  top: 4,
+                  bottom: 4,
+                  left: mode === "voice" ? "50%" : 4,
+                  width: "calc(50% - 4px)",
+                  borderRadius: 999,
+                  backgroundColor:
+                    mode === "voice" ? "var(--danger-default)" : "var(--primary-default)",
+                  transition: "left 0.2s ease, background-color 0.2s ease",
+                }}
+              />
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (mode === null) return setMode("text");
+                  if (mode === "text") return; // no change
+                  setShowModeWarning(true);
+                }}
+                style={{
+                  position: "relative",
+                  zIndex: 1,
+                  flex: 1,
+                  background: "transparent",
+                  border: "none",
+                  padding: "8px 16px",
+                  borderRadius: 999,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  color: mode === "text" ? "var(--primary-contrast)" : "var(--text-muted)",
+                  transition: "color 0.2s ease",
+                }}
+              >
+                Text Mode
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (mode === null) return setMode("voice");
+                  if (mode === "voice") return;
+                  setShowModeWarning(true);
+                }}
+                style={{
+                  position: "relative",
+                  zIndex: 1,
+                  flex: 1,
+                  background: "transparent",
+                  border: "none",
+                  padding: "8px 16px",
+                  borderRadius: 999,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  color: mode === "voice" ? "var(--danger-contrast)" : "var(--text-muted)",
+                  transition: "color 0.2s ease",
+                }}
+              >
+                Voice Mode
+              </button>
+            </div> */}
+          </div>
+        <section className="bg-[var(--primary-contrast)] border border-[#1c362d] rounded-xl p-4 shadow-xl w-full">
+          {/* Mode selector always on top of input */}
+          
+
+          <div className="flex items-start gap-3">
+            <div className="bg-[var(--warning-default)] h-9 w-9 flex items-center justify-center rounded-full text-lg pt-1">🤠</div>
+
+            {/* Text input only when text mode selected */}
+            {mode === "text" && (
+              <textarea
+                ref={textareaRef}
+                className="flex-1 min-h-11 max-h-[150px] overflow-y-auto resize-none rounded-md bg-transparent text-[var(--secondary-contrast)] px-4 py-2 placeholder:text-[var(--text-muted)] focus:outline-none"
+                value={draft}
+                maxLength={MAX_MESSAGE_LENGTH}
+                rows={1}
+                disabled={isVoiceActive}
+                placeholder={inputPlaceholder}
+                onChange={(event) => {
+                  const textarea = event.target;
+                  textarea.style.height = "auto";
+                  textarea.style.height = `${Math.min(textarea.scrollHeight, 150)}px`;
+                  setDraft(textarea.value.slice(0, MAX_MESSAGE_LENGTH));
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !event.shiftKey) {
+                    event.preventDefault();
+                    submit();
+                  }
+                }}
+              />
+            )}
+
+            {/* If no mode selected, show placeholder input disabled to match layout */}
+            {mode === null && (
+              <textarea
+                className="flex-1 min-h-11 max-h-[150px] overflow-y-auto resize-none rounded-md bg-transparent text-[var(--secondary-contrast)] px-4 py-2 placeholder:text-[var(--text-muted)] focus:outline-none"
+                value={draft}
+                maxLength={MAX_MESSAGE_LENGTH}
+                rows={1}
+                disabled
+                placeholder={"Select Text or Voice mode above to continue"}
+              />
+            )}
+
+            {/* If voice mode selected, hide textarea entirely (no input) */}
+              {/* If voice mode selected, show disabled placeholder instructing user to create a new chat */}
+              {mode === "voice" && (
+                <textarea
+                  className="flex-1 h-11 rounded-md bg-transparent text-[var(--secondary-contrast)] px-4 py-2 placeholder:text-[var(--text-muted)] focus:outline-none opacity-80"
+                  value={""}
+                  maxLength={MAX_MESSAGE_LENGTH}
+                  rows={1}
+                  disabled
+                  placeholder={"Coming soon — please create a new chat and choose Text mode to continue"}
+                />
+              )}
+          </div>
+          <div className="flex items-center justify-between gap-4 border-t border-emerald-900 pt-3 mt-3">
+            <div className="text-xs text-[var(--text-muted)] flex items-center gap-2">
+              Press <span className="border border-emerald-800 rounded px-2 py-0.5 text-[var(--text-muted)]">Enter ↵</span> to submit or tap mic to speak
+              <small className="text-[var(--text-muted)] ml-2">{draft.length}/{MAX_MESSAGE_LENGTH}</small>
+            </div>
+            <div className="flex items-center gap-2">
+              {/* Controls: show mic only for voice mode, send only for text mode */}
+              {mode === "voice" && (
+                <button
+                  type="button"
+                  title="Coming soon"
+                  style={{ boxShadow: isVoiceActive ? `0 0 ${8 + micLevel * 18}px rgba(255,183,3,.55)` : "none" }}
+                  onClick={() => (isVoiceActive ? stopVoiceSession() : startVoiceSession())}
+                  aria-label={isVoiceActive ? "Stop voice" : "Start voice"}
+                  className={`w-9 h-9 rounded-full grid place-items-center cursor-pointer border border-emerald-800 ${isVoiceActive ? 'bg-red-600 text-white' : 'bg-[#102a20] text-gray-200'}`}
+                >
+                  {isVoiceActive ? <FiSquare /> : <FiMic />}
+                </button>
+              )}
+
+              {mode === "text" && (
+                <button
+                  type="button"
+                  disabled={!draft.trim() || loading || isVoiceActive}
+                  onClick={submit}
+                  className={`w-9 h-9 rounded-full grid place-items-center ${!draft.trim() || loading || isVoiceActive ? 'bg-[var(--success-default)] text-[--success-contrast] border-emerald-900 cursor-not-allowed' : 'bg-[var(--primary-bg)] text-black border-yellow-400'}`}
+                >
+                  <FiSend />
+                </button>
+              )}
+
+              {/* Allow changing mode on landing after a selection */}
+              {/* removed Change Mode button per layout request */}
+            </div>
+          </div>
+          {/* Mode switch warning popup */}
+          <WarningPopUp isOpen={showModeWarning} onClose={() => setShowModeWarning(false)} message={"To switch agents you must create a new chat session. Click 'New Chat' in the header to start a fresh session."} />
+        </section>
+
+        {!conversationStarted && (
+          <section className="mt-7">
+            <div className="text-xs font-extrabold text-[var(--success-default)] tracking-wider mb-3">POPULAR ROADIE INQUIRIES:</div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {QUICK_INQUIRIES.map((inquiry) => (
+                <button key={inquiry.text} type="button" onClick={() => populateQuery(inquiry.text)} className="bg-[var(--primary-contrast)] border border-[var(--primary-default)] rounded-xl p-4 text-left text-white cursor-pointer transition">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="bg-[var(--neutral-200)] text-[var(--primary-default)] rounded-full px-3 py-1 text-xs font-extrabold">{inquiry.category}</span>
+                    <b className="text-emerald-600">❯</b>
+                  </div>
+                  <p className="m-0 text-[12px] font-[500] text-[var(--secondary-contrast)] leading-tight">"{inquiry.text}"</p>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+      </section>
+      <footer className="text-center py-4 text-[var(--text-body)] text-xs border-t border-emerald-900">Texas Roadhouse • Roadie Ranger employee support</footer>
+    </main>
+  );
 }
 
 const LandingPage = () => {
-    // Nav items in the same order they appear on the page.
-    // Update the `id`s here if your section wrapper ids differ.
-    const headerRef = useRef(null);
-    const [headerHeight, setHeaderHeight] = useState(96);
+  const [userInfo, setUserInfo] = useState("");
+  const [userEmail, setUserEmail] = useState("");
+  const [sessionId, setSessionId] = useState("");
+  const [chatKey, setChatKey] = useState(0);
 
-
-    const NAV_ITEMS = [
-      { id: "screen-home", label: "Home" },
-      { id: "contact-section", label: "My Queries" },
-      // { id: "faq-section", label: "Knowledge Base" },
-      // { id: "opportunities-section", label: "Opportunities" },
-    ];
-     useEffect(() => {
-    const measure = () => {
-      if (headerRef.current) {
-        setHeaderHeight(headerRef.current.getBoundingClientRect().height);
-      }
-    };
-    measure();
-    window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
-  }, []);
-
-  const activeSection = useScrollSpy(
-    NAV_ITEMS.map((item) => item.id),
-    headerHeight + 16 // small buffer past the header
-  );
-
-  const queryCards = [
-    {
-      id: 1,
-      icon: "💻",
-      title: "IT & Technical Support",
-      description:
-        "Password resets, POS/device issues, or access requests — get instant help or escalate to the IT Helpdesk.",
-      buttonText: "Submit IT Ticket",
-      type: "it-support",
-      buttonColor: "#0D47A1",
-      buttonBorderColor: "#0D47A1",
-      buttonTextColor: "#FFFFFF"
-    },
-    {
-      id: 2,
-      icon: "💰",
-      title: "HR & Payroll",
-      description:
-        "Questions on pay stubs, benefits enrollment, PTO balances, or scheduling — answered instantly by Roadie Ranger.",
-      buttonText: "Ask HR",
-      type: "hr-payroll",
-      buttonColor: "#2E7D32",
-      buttonBorderColor: "#2E7D32",
-      buttonTextColor: "#FFFFFF"
-    },
-    {
-      id: 3,
-      icon: "🛡️",
-      title: "Employee Relations Hotline",
-      description:
-        "Have a concern to report confidentially? Reach our employee relations hotline anytime, day or night.",
-      buttonText: "Report a Concern",
-      type: "employee-relations",
-      buttonColor: "#FFFFFF",
-      buttonBorderColor: "#D32F2F",
-      buttonTextColor: "#D32F2F"
-    },
-  ];
-  const [userInfo, setUserInfo] = useState("")
-  const [userEmail, setUserEmail] = useState("")
-  const [userLoading, setUserLoading] = useState(true)
-
-  useEffect(()=>{
-    
-    // Try to load from sessionStorage first
+  useEffect(() => {
     const cachedName = sessionStorage.getItem("userInfo");
     const cachedEmail = sessionStorage.getItem("userEmail");
-    
-    if (cachedName && cachedEmail) {
-      setUserInfo(cachedName);
-      setUserEmail(cachedEmail);
-      setUserLoading(false);
-      return;
-    }
+    if (cachedName) setUserInfo(cachedName);
+    if (cachedEmail) setUserEmail(cachedEmail);
 
-    const fetchUserDetails = async ()=>{
+    const fetchUserDetails = async () => {
       try {
-        const resp = await fetch("https://txrh-app-roadierangerdev-6279-stosup-phmo.azurewebsites.net/get_user_details",{
+        const response = await fetch("https://txrh-app-roadierangerdev-6279-stosup-phmo.azurewebsites.net/get_user_details", {
           method: "GET",
-          credentials: "include"
-        })
-        
-        
-        if (!resp.ok) {
-          throw new Error(`API returned status ${resp.status}`);
-        }
-
-        const resp_data = await resp.json();
-
-        const data = resp_data.data;
-        const name = data?.name || "";
-        const email = data?.preferred_username || "";
-        // Store in sessionStorage for faster subsequent loads
+          credentials: "include",
+        });
+        if (!response.ok) return;
+        const responseData = await response.json();
+        const data = responseData.data || {};
+        const name = data.name || "";
+        const email = data.preferred_username || "";
         if (name) sessionStorage.setItem("userInfo", name);
         if (email) sessionStorage.setItem("userEmail", email);
-
         setUserInfo(name);
         setUserEmail(email);
       } catch (error) {
-        console.error("❌ [LandingPage] Error fetching user details:", error);
-        setUserInfo("");
-        setUserEmail("");
-      } finally {
-        setUserLoading(false);
-        console.log("⏹️ [LandingPage] Finished fetching user details")
-      }
-    } 
-    
-    fetchUserDetails();
-  }, []
-  )
-    const [showMenu, setShowMenu] = useState(false);
-    const profileRef = useRef(null);
-    useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (
-        profileRef.current &&
-        !profileRef.current.contains(event.target)
-      ) {
-        setShowMenu(false);
+        console.error("Failed to fetch user details:", error);
       }
     };
-
-    document.addEventListener("mousedown", handleClickOutside);
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    void fetchUserDetails();
   }, []);
 
-    const handleLogout = async () => {
-        // Clear cached user data
-        sessionStorage.removeItem("userInfo");
-        sessionStorage.removeItem("userEmail");
-        
-        await fetch("/logout", {
-            method: "POST",
-            credentials: "include",
-        });
+  const handleNewChat = useCallback(async () => {
+    try {
+      const response = await fetch("https://txrh-app-roadierangerdev-6279-stosup-phmo.azurewebsites.net/api/get_conversation_id", {
+        method: "GET",
+        credentials: "include",
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setSessionId(data.conversation_id || "");
+      }
+    } catch (error) {
+      console.error("Failed to start new chat session:", error);
+    } finally {
+      setChatKey((value) => value + 1);
+    }
+  }, []);
 
-        window.location.href = "/";
-    };
+  useEffect(() => {
+    void handleNewChat();
+  }, [handleNewChat]);
 
-    return (
-        <>
-            <div className="w-full">
-                <div className="" id="screen-home">
-                    <div
-                        className="min-h-screen bg-center bg-cover bg-no-repeat"
-                    >
-                        <header ref={headerRef} className="flex justify-between items-center  w-full mx-auto p-4 bg-[var(--secondary-contrast)] sticky top-0 left-0 z-50">
-                            <div className="flex h-[50px] ml-6 ">
-                                <img src={texasLogo} alt="" />
-                            </div>
-                            <nav className="flex gap-7 text-[16px] font-bold">
-                                {NAV_ITEMS.map((item) => (
-                                    <a
-                                        key={item.id}
-                                        href={`#${item.id}`}
-                                        className={`pb-1 ${activeSection === item.id
-                                                ? "border-b-2 border-[var(--tertiary-default)] text-[var(--primary-contrast)]"
-                                                : "text-[var(--primary-contrast)]"
-                                            }`}
-                                    >
-                                        {item.label}
-                                    </a>
-                                ))}
-                            </nav>
+  const handleLogout = useCallback(async () => {
+    sessionStorage.removeItem("userInfo");
+    sessionStorage.removeItem("userEmail");
+    try {
+      await fetch("/logout", { method: "POST", credentials: "include" });
+    } finally {
+      window.location.href = "/";
+    }
+  }, []);
 
-                            <div ref={profileRef} className="relative flex items-center mr-4">
-                            <button
-                                onClick={() => setShowMenu(!showMenu)}
-                                className="flex items-center justify-center border rounded-full h-[40px] w-[40px] font-bold bg-[var(--tertiary-default)] text-white cursor-pointer"
-                            >
-                                {
-                                  userInfo
-                                    ? userInfo
-                                        .split(" ")
-                                        .slice(0, 2)
-                                        .map(name => name[0])
-                                        .join("")
-                                        .toUpperCase()
-                                    : <FaUser size={18} />
-                                }
-                            </button>
+  const firstName = useMemo(() => userInfo ? userInfo.split(" ")[0] : "Roadie", [userInfo]);
 
-                            {/* {showMenu && (
-                                <div className="absolute top-12 right-0 min-w-[140px] bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50">
-                                  <div className="w-full flex items-center cursor-pointer gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                                      {userInfo}
-                                  </div>
-                                  <div className="w-full flex items-center cursor-pointer gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                                      {userEmail}
-                                  </div>
-                                    <button
-                                        className="w-full flex items-center cursor-pointer gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                        onClick={handleLogout}
-                                    >
-                                        <FiLogOut size={16} />
-                                        Logout
-                                    </button>
-                                </div>
-                            )} */}
-                            {showMenu && (
-                              <div className="absolute top-12 right-0 min-w-[140px] bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden z-50">
-                                
-                                <div className="px-4 py-3 border-b border-gray-100">
-                                  <p className="text-sm font-semibold text-gray-900 truncate">
-                                    {userInfo}
-                                  </p>
-                                  <p className="text-xs text-gray-500 truncate">
-                                    {userEmail}
-                                  </p>
-                                </div>
+  return <ChatExperience key={`${chatKey}-${sessionId}`} firstName={firstName} sessionId={sessionId} onNewChat={handleNewChat} onLogout={handleLogout} />;
+};
 
-                                <button
-                                  className="w-full flex items-center justify-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
-                                  onClick={handleLogout}
-                                >
-                                  <FiLogOut size={16} />
-                                  Logout
-                                </button>
-                              </div>
-                            )}
-                            
-                        </div>
-                        </header>
-                        <section className="flex items-center relative h-[420px] bg-cover bg-center m-o"
-                            style={{
-                                backgroundImage:
-                                    "linear-gradient(var(--primary-lighter), rgba(0,0,0,0.6)), url('https://images.unsplash.com/photo-1556742393-d75f468bfcb0?q=80&w=1600')",
-                                position: "relative"
-                            }}>
-                            <div className="max-w-[900px] w-full mx-auto text-center text-white px-10">
-                                <div className="text-[var(--secondary-contrast)] text-[14px] font-[800] mb-4 tracking-[2px]">
-                                    YOUR SUPPORT HUB
-                                </div>
-                                <h1 className="text-white leading-[1.2]">Hey {!userLoading && userInfo? userInfo.split(" ")[0] : (!userLoading ? "Roadie" : "...")}, how can we help today?</h1>
-                                <p className="max-w-[600px] mx-auto text-[var(--neutral-200)] leading-8 text-center text-[18px] text-center mt-7">
-                                    Resolve HR &amp; IT queries, browse the knowledge base, or discover new
-                                    opportunities across Texas Roadhouse. Need to talk it through? Roadie
-                                    Ranger is just a tap away in the corner.
-                                </p>
-                            </div>
-                        </section>
-                        <div className="flex justify-center bg-[var(--black-900)] text-[var(--white-100)] items-center pl-[20px] pr-[20px] pt-[14px] pb-[14px]">
-                            📢 New: Support is here whenever you need it — reach out anytime for help.Get Support
-                            {/* <a href="#opportunities-section" className="text-[var(--tertiary-tint)] font-[800] text-decoration: underline">View Opportunities</a> */}
-                        </div>
-                        <section id="contact-section" className="flex flex-col justify-center items-center m-0 p-[80px_40px_40px_40px] bg-[var(--primary-bg)]">
-                            <div className="text-[var(--primary-contrast)] tracking-[2px] font-[700] text-[14px] mb-[12px]">
-                                MY QUERIES
-                            </div>
-                            <h2 className="!mb-[12px]">What do you need help with?</h2>
-                            <p className="max-w-[620px] mb-10 text-center text-[var(--primary-contrast)]">Submit a ticket, ask a question, or report a concern — routed instantly to the
-                                right team or to Roadie Ranger.</p>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[24px] ">
-                                {queryCards.map((card) => (
-                                    <div key={card.id} className="flex flex-col border gap-4 border-[var(--neutral-300)] items-start justify-center rounded-[16px] p-5 bg-[var(--white-100)] border">
-                                        <div className="text-4xl mb-4">{card.icon}</div>
-
-                                        <h6>{card.title}</h6>
-
-                                        <p>{card.description}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        </section>
-                        <Chat handleLogout={handleLogout} />
-                    </div>
-                </div>
-            </div>
-        </>
-    )
-}
-
-export default LandingPage
+export default LandingPage;

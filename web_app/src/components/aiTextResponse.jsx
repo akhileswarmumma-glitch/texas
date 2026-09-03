@@ -11,7 +11,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
  */
 const CHAT_ENDPOINT = 'https://txrh-app-roadierangerdev-6279-stosup-phmo.azurewebsites.net/api/chatV1'; // same-origin BFF route; adjust if BFF is on a different host
 
-const useTextAgent = (onAgentMessage, setLoading, handleLogout) => {
+const useTextAgent = (onAgentMessage, setLoading, handleLogout, initialSessionId = "") => {
   const [messages, setMessages] = useState([]);
   const [currentDelta, setCurrentDelta] = useState('');
   const [status, setStatus] = useState('disconnected'); // 'disconnected' | 'connecting' | 'connected' | 'streaming'
@@ -20,7 +20,7 @@ const useTextAgent = (onAgentMessage, setLoading, handleLogout) => {
 
   const callbackRef = useRef(onAgentMessage);
   const currentDeltaRef = useRef('');
-  const conversationIdRef = useRef(null);
+  const conversationIdRef = useRef(initialSessionId || null);
   const previousResponseIdRef = useRef('');
   const abortControllerRef = useRef(null);
 
@@ -43,7 +43,7 @@ const useTextAgent = (onAgentMessage, setLoading, handleLogout) => {
 
     setStatus('connected');
     setTextActive(true);
-  }, []);
+  }, [initialSessionId]);
 
   const disconnect = useCallback(() => {
     if (abortControllerRef.current) {

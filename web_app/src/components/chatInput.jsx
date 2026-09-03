@@ -5,6 +5,7 @@ import useVoiceAgent from "./aiVoiceResponse";
 const ChartInput = ({ messages = [], sessionId, onSendMessage, setLoading,handleNewChat, setShowWarning, handleLogout}) => {
     const [message, setMessage] = useState("");
     const [isTextActive, setIsTextActive] = useState(false)
+    const [mode, setMode] = useState(null); // null = not selected, 'text' or 'voice'
 
     const wasVoiceActive = useRef(false)
 
@@ -96,51 +97,100 @@ const ChartInput = ({ messages = [], sessionId, onSendMessage, setLoading,handle
     };
 
     return (
-        <div className="flex w-full h-[70px] items-center justify-center bg-white border-t border-[#D5CFC6]" style={containerStyle}>
-            <div className="w-full px-4 py-3 flex items-center gap-3">
-                <input
-                    readOnly={isVoiceActive}
-                    // onClick={handleInputClick}
-                    className={`flex-1 h-11 rounded-full bg-white text-black px-5 text-sm border-[1.5px] border-[#D5CFC6] outline-none transition-all duration-200 focus:border-[#004B2B] ${
-                        isVoiceActive ? "bg-gray-100 cursor-pointer" : ""
-                    }`}
-                    type="text"
-                    placeholder={isVoiceActive ? `Voice active (${status})... stop voice call or create new chat to switch mode` : "Type here to start text mode..."}
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                            e.preventDefault();
-                            handlesend();
-                        }
-                    }}
-                />
+        <div className="flex w-full items-center justify-center bg-white border-t border-[var(--neutral-300)]" style={containerStyle}>
+            {/* Initial selection: show prominent buttons when no mode selected */}
+            {mode === null ? (
+                <div className="w-full px-6 py-4 flex items-center justify-center">
+                    <div className="flex items-center justify-center gap-4">
+                        <button
+                            onClick={() => setMode("text")}
+                            className="px-5 py-3 rounded-lg text-lg font-semibold shadow-md"
+                            style={{
+                                backgroundColor: 'var(--primary-default)',
+                                color: 'var(--primary-contrast)'
+                            }}
+                        >
+                            Text Mode
+                        </button>
 
-                <button
-                    title={isTextActive? "create new chat to access voice call" : isVoiceActive ? "Stop Voice Call" : "Start Voice Call"}
-                    // onClick={startVoiceSession}
-                    disabled
-                    style={{
-                        boxShadow: isVoiceActive ? `0 0 ${8 + micLevel * 12}px #dc2626` : 'none',
-                    }}
-                    className={`flex h-10 w-10 rounded-full cursor-pointer items-center justify-center text-lg transition-all duration-200 ${
-                        isVoiceActive
-                        ? "bg-red-600 text-white animate-pulse"
-                        : "bg-[#F4EFE6] text-[#6B6B6B]"
-                    }`}
-                >
-                    {isVoiceActive ? "⏹️" :  "🎙️"}
-                </button>
+                        <button
+                            onClick={() => setMode("voice")}
+                            className="px-5 py-3 rounded-lg text-lg font-semibold shadow-md"
+                            style={{
+                                backgroundColor: 'var(--danger-default)',
+                                color: 'var(--danger-contrast)'
+                            }}
+                        >
+                            Voice Mode
+                        </button>
+                    </div>
+                </div>
+            ) : (
+                <div className="w-full px-4 py-3 flex items-center gap-3">
+                    {/* Compact mode indicator + change control */}
+                    <div className="flex items-center gap-2">
+                        <div className="text-sm px-3 py-1 rounded-full" style={{
+                            backgroundColor: mode === "text" ? 'var(--primary-default)' : 'var(--danger-default)',
+                            color: 'var(--white-100)'
+                        }}>
+                            {mode === "text" ? 'Text' : 'Voice'}
+                        </div>
+                    </div>
 
-                <button
-                    title={isVoiceActive ? "stop voice call or create new chat to access text agent": "Start text chat"}
-                    disabled={isVoiceActive}
-                    className="flex h-10 w-10 rounded-full bg-[#004B2B] cursor-pointer items-center justify-center text-lg text-[#FFC72C] disabled:bg-[#449774] disabled:cursor-not-allowed"
-                    onClick={handlesend}
-                >
-                    ➤
-                </button>
-            </div>
+                    {/* Text mode UI */}
+                    {mode === "text" && (
+                        <>
+                            <input
+                                readOnly={isVoiceActive}
+                                className={`flex-1 h-11 rounded-full bg-white text-black px-5 text-sm border-[1.5px] border-[var(--neutral-300)] outline-none transition-all duration-200 focus:border-[var(--primary-light)] ${
+                                    isVoiceActive ? "bg-gray-100 cursor-pointer" : ""
+                                }`}
+                                type="text"
+                                placeholder={isVoiceActive ? `Voice active (${status})... stop voice call or create new chat to switch mode` : "Type here to start text mode..."}
+                                value={message}
+                                onChange={(e) => setMessage(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                        e.preventDefault();
+                                        handlesend();
+                                    }
+                                }}
+                            />
+
+                            <button
+                                title={isVoiceActive ? "stop voice call or create new chat to access text agent": "Start text chat"}
+                                disabled={isVoiceActive}
+                                className="flex h-10 w-10 rounded-full cursor-pointer items-center justify-center text-lg disabled:cursor-not-allowed"
+                                onClick={handlesend}
+                                style={{
+                                    backgroundColor: 'var(--primary-light)',
+                                    color: 'var(--primary-contrast)'
+                                }}
+                            >
+                                ➤
+                            </button>
+                        </>
+                    )}
+
+                    {/* Voice mode UI */}
+                    {mode === "voice" && (
+                        <button
+                            title={isTextActive? "create new chat to access voice call" : isVoiceActive ? "Stop Voice Call" : "Start Voice Call"}
+                            onClick={startVoiceSession}
+                            style={{
+                                boxShadow: isVoiceActive ? `0 0 ${8 + micLevel * 12}px var(--danger-default)` : 'none',
+                                backgroundColor: isVoiceActive ? 'var(--danger-default)' : 'var(--secondary-default)',
+                                color: isVoiceActive ? 'var(--danger-contrast)' : 'var(--text-muted)'
+                            }}
+                            className={`flex h-10 w-10 rounded-full cursor-pointer items-center justify-center text-lg transition-all duration-200 ${
+                                isVoiceActive ? "animate-pulse" : ""
+                            }`}
+                        >
+                            {isVoiceActive ? "⏹️" :  "🎙️"}
+                        </button>
+                    )}
+                </div>
+            )}
         </div>
     );
 };

@@ -1,7 +1,7 @@
 const Loader = () =>{
     return (
         <>
-            <div className="flex w-full">
+            <div className="flex w-full bg-[var(--secondary-contrast)]">
                 {/* <div className="flex h-[32px] w-[32px] border items-center justify-center rounded-[50%] mr-2.5 bg-[#004B2B] text-sm text-[#FFC72C]">
                     RR
                 </div> */}
