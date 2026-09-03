@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>/voice/chat test client (via BFF)</title>
+<style>
+  body { font-family: -apple-system, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; background: #0b0c0f; color: #e8e9ec; }
+  h1 { font-size: 1.1rem; }
+  #url { width: 100%; padding: 8px; margin-bottom: 8px; background: #14161b; color: #e8e9ec; border: 1px solid #333; border-radius: 6px; }
+  button { padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-size: 1rem; margin-right: 8px; user-select: none; touch-action: none; }
+  #connectBtn { background: #4f8cff; color: white; }
+  #micBtn { background: #ff4f4f; color: white; }
+  #micBtn.speaking { background: #ff8a4f; }
+  #micBtn:disabled, #connectBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+  #status { color: #8a8f98; margin: 12px 0; }
+  #log { background: #14161b; border-radius: 8px; padding: 12px; height: 320px; overflow-y: auto; font-family: monospace; font-size: 0.85rem; white-space: pre-wrap; }
+  .you { color: #e8e9ec; }
+  .agent { color: #4f8cff; }
+  .sys { color: #8a8f98; }
+  .err { color: #ff4f4f; }
+  .barge { color: #ff8a4f; }
+  .consent { color: #ffb84f; }
+
+  /* ---- Session info panel (replaces the old manual-token auth card; auth is now
+     handled entirely by the BFF via the browser's existing session cookie) ---- */
+  .sessionCard { background: #14161b; border: 1px solid #262a33; border-radius: 8px; padding: 14px 16px; margin-bottom: 16px; }
+  .sessionCard .section-title { font-weight: 600; font-size: 0.95rem; margin: 0 0 10px; color: #e8e9ec; }
+  .hint { color: #6b7280; font-size: 0.72rem; margin: 4px 0 0; }
+  #sessionIdDisplay { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.82rem; color: #4f8cff; }
+
+  /* ---- Agent audio player (native browser play/pause/seek widget) ---- */
+  #player { width: 100%; margin: 10px 0; }
+</style>
+</head>
+<body>
+  <h1>/voice/chat WebSocket test client (via BFF)</h1>
+
+  <div class="sessionCard">
+    <p class="section-title">🔐 Session</p>
+    <p class="hint">
+      Auth tokens are no longer entered here — the BFF resolves them server-side from your
+      signed-in session cookie. A new <code>session_id</code> is generated in the browser
+      every time you click <b>Connect</b> and is sent to the BFF as the first frame, which
+      forwards it to the Voice Backend so the whole conversation is tracked under one id.
+    </p>
+    <p class="hint">Current session_id: <span id="sessionIdDisplay">(none yet)</span></p>
+  </div>
+
+  <input id="url" value="wss://localhost:8000/voice/chat" />
+  <div>
+    <button id="connectBtn">Connect</button>
+    <button id="micBtn" disabled>● Click to start listening</button>
+  </div>
+  <p id="status">Not connected</p>
+  <audio id="player" controls></audio>
+  <div id="log"></div>
+
+  <script>
+    const urlInput = document.getElementById('url');
+    const connectBtn = document.getElementById('connectBtn');
+    const micBtn = document.getElementById('micBtn');
+    const statusEl = document.getElementById('status');
+    const logEl = document.getElementById('log');
+    const sessionIdDisplayEl = document.getElementById('sessionIdDisplay');
+    const playerEl = document.getElementById('player'); // native <audio controls> widget
+
+    // One session_id is generated here, client-side, per NEW connection (i.e. per
+    // click of Connect) and sent to the BFF as the first frame:
+    //   {"type": "init", "session_id": "<uuid>"}
+    // The BFF forwards it to the Voice Backend as the X-Session-Id header, so the
+    // frontend, BFF, and backend all key the same conversation under one id —
+    // instead of the backend minting its own uuid, as it used to.
+    let currentSessionId = null;
+
+    let ws, audioContext, micStream, micNode;
+    // playbackAudio now points at the persistent, visible <audio> element (playerEl)
+    // instead of a headless `new Audio()` object, so the user gets native play/pause/
+    // seek controls. Everything else about how it's driven (src swaps, play(), pause(),
+    // playback_started/playback_ended acks) works the same as before.
+    let playbackAudio = playerEl;
+    // Guards against double/incorrect playback_ended acks:
+    //  - playbackEndedNotified: natural completion fires 'pause' then 'ended' on the
+    //    same element — we only want to notify the server once per stoppage.
+    //  - suppressPauseNotify: we call .pause() ourselves in a few places (swapping to
+    //    a new clip, barge-in). Those are NOT the user manually pausing, so we arm this
+    //    flag right before any programmatic pause and the 'pause' listener consumes it
+    //    without notifying. Only set when the element is actually playing, since
+    //    .pause() on an already-paused element never fires 'pause' at all — otherwise
+    //    the flag could go stale and swallow a later, genuine manual pause.
+    let playbackEndedNotified = false;
+    let suppressPauseNotify = false;
+    let recording = false;
+    let agentSpeaking = false;
+    let authed = false; // becomes true once the Voice Backend (relayed via BFF) sends session_ready
+
+    function log(text, cls = 'sys') {
+      const line = document.createElement('div');
+      line.className = cls;
+      line.textContent = text;
+      logEl.appendChild(line);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    // Stops whatever the agent is currently saying, right now. Called when the server
+    // acknowledges a barge-in (see the 'status'/'interrupted' handler below).
+    function stopAgentPlayback() {
+      if (playbackAudio) {
+        if (!playbackAudio.paused) suppressPauseNotify = true; // programmatic, not user-initiated
+        playbackAudio.pause();
+        playbackAudio.currentTime = 0;
+      }
+      agentSpeaking = false;
+      micBtn.classList.remove('speaking');
+    }
+
+    // Single place that tells the server "the agent's audio is no longer playing" —
+    // whether the clip finished naturally or the user manually hit pause on the native
+    // <audio controls> widget. playbackEndedNotified de-dupes so only one ack goes out
+    // per stoppage (natural completion fires both 'pause' and 'ended').
+    function notifyPlaybackStopped() {
+      if (playbackEndedNotified) return;
+      playbackEndedNotified = true;
+      agentSpeaking = false;
+      micBtn.classList.remove('speaking');
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'playback_ended' }));
+      }
+    }
+
+    // Attached once, since playbackAudio is now a persistent DOM element (not recreated
+    // per-clip). 'pause' covers a manual click on the native pause button; 'ended'
+    // covers natural completion (belt-and-suspenders alongside 'pause', de-duped by
+    // notifyPlaybackStopped). Programmatic pauses (clip swap / barge-in) are skipped via
+    // suppressPauseNotify so they don't falsely report the agent as having stopped.
+    playbackAudio.addEventListener('pause', () => {
+      if (suppressPauseNotify) {
+        suppressPauseNotify = false;
+        return;
+      }
+      notifyPlaybackStopped();
+    });
+    playbackAudio.addEventListener('ended', notifyPlaybackStopped);
+
+    // ---------------- Connection URL persistence (localStorage) ----------------
+    // Only the BFF URL is worth remembering now — no tokens are ever stored
+    // client-side, since the BFF resolves them server-side from the session cookie.
+    const LS_KEY = "voice_test_client_url_v1";
+
+    function loadSavedUrl() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(LS_KEY) || "{}");
+        if (saved.wsUrl) urlInput.value = saved.wsUrl;
+      } catch {}
+    }
+
+    function saveUrl() {
+      localStorage.setItem(LS_KEY, JSON.stringify({ wsUrl: urlInput.value.trim() }));
+    }
+
+    loadSavedUrl();
+
+    connectBtn.addEventListener('click', () => {
+      if (ws && ws.readyState === WebSocket.OPEN) { ws.close(); return; }
+
+      saveUrl();
+
+      // A brand-new session_id per new connection/session, generated client-side.
+      currentSessionId = crypto.randomUUID();
+      sessionIdDisplayEl.textContent = currentSessionId;
+
+      authed = false;
+      ws = new WebSocket(urlInput.value);
+
+      ws.addEventListener('open', () => {
+        statusEl.textContent = 'Initializing session...';
+        log(`[connected] sending init frame (session_id=${currentSessionId})...`);
+        connectBtn.disabled = true;
+        // FIRST frame tells the BFF which session_id to use for this conversation.
+        // No tokens are sent from the browser at all — the BFF resolves those from
+        // this browser's existing (cookie-based) signed-in session.
+        ws.send(JSON.stringify({
+          type: 'init',
+          session_id: currentSessionId,
+        }));
+      });
+
+      ws.addEventListener('message', (evt) => {
+        const msg = JSON.parse(evt.data);
+        if (msg.type === 'session_ready') {
+          authed = true;
+          statusEl.textContent = 'Connected';
+          const idMatch = msg.session_id === currentSessionId ? 'matches client id ✔' : 'MISMATCH ⚠';
+          log(`[session_ready] session=${msg.session_id} (${idMatch})` + (msg.user_upn ? ` user=${msg.user_upn}` : ''));
+          micBtn.disabled = false;
+        } else if (msg.type === 'auth_error') {
+          authed = false;
+          statusEl.textContent = 'Auth failed';
+          log(`[auth_error] ${msg.code || ''}: ${msg.message || ''}`, 'err');
+        } else if (msg.type === 'status') {
+          statusEl.textContent = msg.text;
+          if (msg.text === 'interrupted') {
+            log('[barge-in acknowledged by server]', 'barge');
+            stopAgentPlayback();
+          } else {
+            log(`[status] ${msg.text}`);
+          }
+        } else if (msg.type === 'user_text') {
+          log('You: ' + msg.text, 'you');
+        } else if (msg.type === 'agent_text') {
+          log('Agent: ' + msg.text, 'agent');
+        } else if (msg.type === 'consent') {
+          log('[consent required] ' + (msg.text || '') + (msg.link ? ' -> ' + msg.link : ''), 'consent');
+        } else if (msg.type === 'agent_audio') {
+          log(`[agent_audio] ${msg.format}, playing...`);
+          const bin = atob(msg.audio_base64);
+          const bytes = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+          const blob = new Blob([bytes], { type: 'audio/mpeg' });
+          const url = URL.createObjectURL(blob);
+          // Stop whatever's currently playing (e.g. a perceived-latency filler clip)
+          // and immediately switch to the new one — this is what makes a filler clip
+          // get cut short the instant the real answer's audio arrives, with no extra
+          // client-side logic needed for that transition.
+          if (!playbackAudio.paused) suppressPauseNotify = true; // programmatic swap, not user-initiated
+          playbackAudio.pause();
+          playbackAudio.src = url;
+          playbackEndedNotified = false; // new clip starting — arm the guard again
+          agentSpeaking = true;
+          micBtn.classList.add('speaking');
+          ws.send(JSON.stringify({ type: 'playback_started' }));
+          playbackAudio.play();
+        } else if (msg.type === 'error') {
+          log('[error] ' + msg.message, 'err');
+        } else {
+          log('[' + msg.type + '] ' + JSON.stringify(msg));
+        }
+      });
+
+      ws.addEventListener('close', () => {
+        statusEl.textContent = 'Disconnected';
+        log('[disconnected]');
+        authed = false;
+        connectBtn.disabled = false;
+        micBtn.disabled = true;
+      });
+
+      ws.addEventListener('error', (e) => log('[ws error] ' + e, 'err'));
+    });
+
+    async function startMic() {
+      micStream = await navigator.mediaDevices.getUserMedia({
+        audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+      });
+      audioContext = new AudioContext({ sampleRate: 16000 });
+      const source = audioContext.createMediaStreamSource(micStream);
+      micNode = audioContext.createScriptProcessor(4096, 1, 1);
+      source.connect(micNode);
+      micNode.connect(audioContext.destination);
+
+      micNode.onaudioprocess = (evt) => {
+        if (!recording || !ws || ws.readyState !== WebSocket.OPEN) return;
+        const float32 = evt.inputBuffer.getChannelData(0);
+        const pcm16 = new Int16Array(float32.length);
+        for (let i = 0; i < float32.length; i++) {
+          const s = Math.max(-1, Math.min(1, float32[i]));
+          pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+        }
+        ws.send(pcm16.buffer);
+      };
+    }
+
+    // Click-to-toggle: click once to start listening (continuous recognition runs
+    // server-side; each pause the user takes automatically triggers a turn), click
+    // again to stop. Barge-in is fully automatic now — the server detects the user
+    // talking again (Speech SDK's interim `recognizing` event) and sends
+    // {"type":"status","text":"interrupted"}, which stops playback locally (see the
+    // 'status' handler above). Audio keeps streaming to the server the whole time
+    // listening is on, including while the agent is talking, so voice barge-in works;
+    // the browser's echo cancellation (see startMic) keeps the agent's own played-back
+    // audio from being picked up as fake user speech.
+    let listening = false;
+
+    async function toggleListening() {
+      if (!ws || ws.readyState !== WebSocket.OPEN || !authed) return;
+
+      if (!listening) {
+        if (!audioContext) await startMic();
+
+        ws.send(JSON.stringify({ type: 'start_listening' }));
+        listening = true;
+        recording = true;
+        micBtn.textContent = '● Listening... click to stop';
+        log('[listening started]');
+      } else {
+        ws.send(JSON.stringify({ type: 'stop_listening' }));
+        listening = false;
+        recording = false;
+        micBtn.textContent = '● Click to start listening';
+        log('[listening stopped]');
+      }
+    }
+
+    micBtn.addEventListener('click', toggleListening);
+  </script>
+</body>
+</html>
