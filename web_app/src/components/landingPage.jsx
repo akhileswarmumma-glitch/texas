@@ -84,7 +84,7 @@ function TypingIndicator() {
   );
 }
 
-function ChatExperience({ firstName, sessionId, onNewChat, onLogout }) {
+function ChatExperience({ firstName, userInfo, initials, sessionId, onNewChat, onLogout }) {
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState("");
   const [mode, setMode] = useState(null); // null = choose mode on landing, 'text' or 'voice'
@@ -626,7 +626,17 @@ const LandingPage = () => {
     return combined || (first || '').toUpperCase();
   }, [userInfo]);
 
-  return <ChatExperience key={`${chatKey}-${sessionId}`} firstName={firstName} sessionId={sessionId} onNewChat={handleNewChat} onLogout={handleLogout} />;
+  return (
+    <ChatExperience
+      key={`${chatKey}-${sessionId}`}
+      firstName={firstName}
+      userInfo={userInfo}
+      initials={initials}
+      sessionId={sessionId}
+      onNewChat={handleNewChat}
+      onLogout={handleLogout}
+    />
+  );
 };
 
 export default LandingPage;
