@@ -137,9 +137,38 @@ function ChatExperience({ firstName, sessionId, onNewChat, onLogout }) {
     sessionId
   );
 
-  const { isVoiceActive, startVoiceSession, stopVoiceSession, micLevel, status: voiceStatus } = useVoiceAgent(
+  const audioRef = useRef(null);
+  const suppressPauseNotifyRef = useRef(false);
+  const playbackEndedNotifiedRef = useRef(false);
+  const [agentSpeaking, setAgentSpeaking] = useState(false);
+
+  const handleAudio = useCallback(({ url, blob, format }) => {
+    try {
+      if (!audioRef.current) return;
+      // programmatic swap: mark suppress so pause handler doesn't notify
+      if (!audioRef.current.paused) {
+        suppressPauseNotifyRef.current = true;
+        audioRef.current.pause();
+      }
+      audioRef.current.src = url;
+      playbackEndedNotifiedRef.current = false;
+      setAgentSpeaking(true);
+      // attempt to play and notify server via hook when started (hook returns notifier)
+      const playPromise = audioRef.current.play();
+      if (playPromise && typeof playPromise.then === 'function') {
+        playPromise.catch((err) => {
+          console.warn('Autoplay blocked or failed:', err);
+        });
+      }
+    } catch (err) {
+      console.error('handleAudio error', err);
+    }
+  }, []);
+
+  const { isVoiceActive, startVoiceSession, stopVoiceSession, micLevel, status: voiceStatus, speakingPaused, pauseSpeaking, resumeSpeaking, notifyPlaybackStarted, notifyPlaybackEnded } = useVoiceAgent(
     addMessage,
-    setLoading
+    setLoading,
+    { onAudio: handleAudio }
   );
 
   useEffect(() => {
@@ -211,7 +240,7 @@ function ChatExperience({ firstName, sessionId, onNewChat, onLogout }) {
           </button>
           <div className="relative" ref={profileRef}>
             <button type="button" onClick={() => setShowProfile((value) => !value)} className="w-9 h-9 rounded-full border border-yellow-400 bg-yellow-400 text-black font-bold grid place-items-center">
-              {firstName ? firstName.slice(0, 2).toUpperCase() : <FaUser />}
+              {userInfo ? initials : <FaUser />}
             </button>
             {showProfile && (
               <div className="absolute right-0 top-12 w-44 bg-[#0c1a15] border border-[#1c362d] rounded-xl p-2 shadow-lg">
@@ -402,14 +431,63 @@ function ChatExperience({ firstName, sessionId, onNewChat, onLogout }) {
             {/* If voice mode selected, hide textarea entirely (no input) */}
               {/* If voice mode selected, show disabled placeholder instructing user to create a new chat */}
               {mode === "voice" && (
-                <textarea
-                  className="flex-1 h-11 rounded-md bg-transparent text-[var(--secondary-contrast)] px-4 py-2 placeholder:text-[var(--text-muted)] focus:outline-none opacity-80"
-                  value={""}
-                  maxLength={MAX_MESSAGE_LENGTH}
-                  rows={1}
-                  disabled
-                  placeholder={"Coming soon — please create a new chat and choose Text mode to continue"}
-                />
+                <div className="flex-1 flex flex-col gap-2">
+                  <div className="flex items-center gap-4">
+                    <div className={`w-14 h-14 rounded-full grid place-items-center ${isVoiceActive ? 'bg-[var(--danger-default)]' : 'bg-[#102a20]'} text-white`} style={{ boxShadow: isVoiceActive && !speakingPaused ? `0 0 ${8 + micLevel * 18}px rgba(255,99,71,0.45)` : 'none' }}>
+                      <div className="text-2xl">{isVoiceActive ? '🎙️' : '🤖'}</div>
+                    </div>
+
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm font-bold text-[var(--secondary-contrast)]">Live voice session {isVoiceActive ? `· ${voiceStatus}` : ''}</div>
+                        <div className="text-xs text-[var(--text-muted)]">{agentSpeaking ? (speakingPaused ? 'Playback paused' : 'Speaking') : 'Idle'}</div>
+                      </div>
+                      <div className="mt-2 flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (audioRef.current) {
+                              if (audioRef.current.paused) {
+                                const p = audioRef.current.play();
+                                if (p && p.then) p.catch(() => {});
+                                notifyPlaybackStarted();
+                                setAgentSpeaking(true);
+                              } else {
+                                audioRef.current.pause();
+                                // notify will be handled by pause event
+                              }
+                            }
+                          }}
+                          className={`w-9 h-9 rounded-full grid place-items-center cursor-pointer ${audioRef.current && !audioRef.current?.paused ? 'bg-[var(--neutral-800)] text-white' : 'bg-[var(--primary-default)] text-black'}`}
+                        >
+                          {audioRef.current && !audioRef.current.paused ? '⏸' : '▶️'}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => (isVoiceActive ? stopVoiceSession() : startVoiceSession())}
+                          aria-label={isVoiceActive ? "Stop voice" : "Start voice"}
+                          className={`w-9 h-9 rounded-full grid place-items-center cursor-pointer border border-emerald-800 ${isVoiceActive ? 'bg-red-600 text-white' : 'bg-[#102a20] text-gray-200'}`}
+                        >
+                          {isVoiceActive ? <FiSquare /> : <FiMic />}
+                        </button>
+
+                        <div className="flex-1 h-3 bg-[#08281d] rounded-full overflow-hidden" aria-hidden>
+                          <div className="h-full bg-[var(--danger-default)]" style={{ width: `${Math.min(100, Math.round(micLevel * 100))}%`, transition: 'width 120ms linear' }} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <audio ref={audioRef} id="player" controls onPlay={() => { notifyPlaybackStarted(); setAgentSpeaking(true); playbackEndedNotifiedRef.current = false; }} onPause={() => {
+                    if (suppressPauseNotifyRef.current) { suppressPauseNotifyRef.current = false; return; }
+                    if (!playbackEndedNotifiedRef.current) {
+                      playbackEndedNotifiedRef.current = true;
+                      notifyPlaybackEnded();
+                      setAgentSpeaking(false);
+                    }
+                  }} onEnded={() => { if (!playbackEndedNotifiedRef.current) { playbackEndedNotifiedRef.current = true; notifyPlaybackEnded(); setAgentSpeaking(false); } }} />
+                </div>
               )}
           </div>
           <div className="flex items-center justify-between gap-4 border-t border-emerald-900 pt-3 mt-3">
@@ -539,6 +617,14 @@ const LandingPage = () => {
   }, []);
 
   const firstName = useMemo(() => userInfo ? userInfo.split(" ")[0] : "Roadie", [userInfo]);
+  const initials = useMemo(() => {
+    if (!userInfo) return '';
+    const parts = userInfo.trim().split(/\s+/);
+    const first = parts[0] ? parts[0][0] : '';
+    const second = parts[1] ? parts[1][0] : '';
+    const combined = (first + second).toUpperCase();
+    return combined || (first || '').toUpperCase();
+  }, [userInfo]);
 
   return <ChatExperience key={`${chatKey}-${sessionId}`} firstName={firstName} sessionId={sessionId} onNewChat={handleNewChat} onLogout={handleLogout} />;
 };

@@ -2,11 +2,12 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { AudioCapture } from './audioCapture';
 import { AudioPlayback } from './audioPlayback';
 
-const useVoiceAgent = (onAgentMessage, setLoading) => {
+const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
   const [status, setStatus] = useState('disconnected'); // 'disconnected' | 'connecting' | 'connected' | 'listening' | 'speaking' | 'ready'
   const [sessionId, setSessionId] = useState(null);
   const [isVoiceActive, setIsVoiceActive] = useState(false);
   const [micLevel, setMicLevel] = useState(0);
+  const [speakingPaused, setSpeakingPaused] = useState(false);
 
   const wsRef = useRef(null);
   const audioCaptureRef = useRef(null);
@@ -36,6 +37,7 @@ const useVoiceAgent = (onAgentMessage, setLoading) => {
     setIsVoiceActive(false);
     setStatus('disconnected');
     setLoading?.(false);
+    setSpeakingPaused(false);
   }, [setLoading]);
 
   const startVoiceSession = useCallback(async () => {
@@ -113,8 +115,27 @@ const useVoiceAgent = (onAgentMessage, setLoading) => {
               break;
 
             case 'audio_chunk':
-              setStatus('speaking');
+              if (!speakingPaused) setStatus('speaking');
               audioPlaybackRef.current?.enqueue(data.data);
+              break;
+
+            case 'agent_audio':
+              // server sent a ready-to-play audio clip (e.g. mp3)
+              try {
+                const bin = atob(data.audio_base64 || '');
+                const bytes = new Uint8Array(bin.length);
+                for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+                const blob = new Blob([bytes], { type: data.format || 'audio/mpeg' });
+                const url = URL.createObjectURL(blob);
+                if (options.onAudio && typeof options.onAudio === 'function') {
+                  options.onAudio({ url, blob, format: data.format || 'audio/mpeg' });
+                } else {
+                  // fallback: enqueue via WebAudio if available (not ideal for encoded formats)
+                  audioPlaybackRef.current?.enqueue(data.audio_base64);
+                }
+              } catch (err) {
+                console.error('Failed to handle agent_audio:', err);
+              }
               break;
 
             case 'agent_text_delta':
@@ -170,6 +191,30 @@ const useVoiceAgent = (onAgentMessage, setLoading) => {
     };
   }, [stopVoiceSession]);
 
+  const pauseSpeaking = useCallback(() => {
+    audioPlaybackRef.current?.pause?.();
+    setSpeakingPaused(true);
+    setStatus('speaking_paused');
+  }, []);
+
+  const resumeSpeaking = useCallback(() => {
+    audioPlaybackRef.current?.resume?.();
+    setSpeakingPaused(false);
+    setStatus('speaking');
+  }, []);
+
+  const notifyPlaybackStarted = useCallback(() => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'playback_started' }));
+    }
+  }, []);
+
+  const notifyPlaybackEnded = useCallback(() => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'playback_ended' }));
+    }
+  }, []);
+
   return {
     isVoiceActive,
     startVoiceSession,
@@ -177,6 +222,11 @@ const useVoiceAgent = (onAgentMessage, setLoading) => {
     status,
     sessionId,
     micLevel,
+    speakingPaused,
+    pauseSpeaking,
+    resumeSpeaking,
+    notifyPlaybackStarted,
+    notifyPlaybackEnded,
   };
 };
 

@@ -4,6 +4,8 @@ export class AudioPlayback {
     this._context = null;
     this._nextStart = 0;
     this._activeSrcs = [];
+    this._paused = false;
+    this._bufferQueue = [];
   }
 
   async init() {
@@ -14,6 +16,11 @@ export class AudioPlayback {
 
   enqueue(base64) {
     if (!this._context) return;
+
+    if (this._paused) {
+      this._bufferQueue.push(base64);
+      return;
+    }
 
     const binary = atob(base64);
     const bytes = new Uint8Array(binary.length);
@@ -51,6 +58,21 @@ export class AudioPlayback {
     }
     this._activeSrcs = [];
     this._nextStart = this._context.currentTime;
+  }
+
+  pause() {
+    if (!this._context) return;
+    this._paused = true;
+    this.flush();
+  }
+
+  resume() {
+    if (!this._context) return;
+    this._paused = false;
+    while (this._bufferQueue.length > 0) {
+      const base64 = this._bufferQueue.shift();
+      try { this.enqueue(base64); } catch (_) {}
+    }
   }
 
   close() {
