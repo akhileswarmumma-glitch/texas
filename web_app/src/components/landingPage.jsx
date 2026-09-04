@@ -89,6 +89,7 @@ function ChatExperience({ firstName, userInfo, initials, sessionId, onNewChat, o
   const [draft, setDraft] = useState("");
   const [mode, setMode] = useState(null); // null = choose mode on landing, 'text' or 'voice'
   const [showModeWarning, setShowModeWarning] = useState(false);
+  const [pendingMode, setPendingMode] = useState(null);
   const textareaRef = useRef(null);
   const [loading, setLoading] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
@@ -214,190 +215,126 @@ function ChatExperience({ firstName, userInfo, initials, sessionId, onNewChat, o
     setTimeout(() => textareaRef.current?.focus(), 50);
   }, [isVoiceActive]);
 
+  const requestModeChange = useCallback((nextMode) => {
+    if (!nextMode || nextMode === mode) {
+      setShowModeWarning(false);
+      setPendingMode(null);
+      return;
+    }
+    setPendingMode(nextMode);
+    setShowModeWarning(true);
+  }, [mode]);
+
+  const confirmModeChange = useCallback(() => {
+    if (!pendingMode) {
+      setShowModeWarning(false);
+      return;
+    }
+    setMessages([]);
+    setDraft("");
+    onNewChat();
+    setMode(pendingMode);
+    setPendingMode(null);
+    setShowModeWarning(false);
+  }, [onNewChat, pendingMode]);
+
   const conversationStarted = messages.length > 0;
   const inputPlaceholder = isVoiceActive
     ? `Voice active (${voiceStatus})...`
-    : "Ask Roadie Ranger anything... (e.g., benefits, W-4, gift cards, POS, travel & expense)";
+    : "Text mode is active to switch to voice mode create a voice chat";
 
   return (
     <main className="min-h-screen bg-[#faf5ea] text-gray-200 font-sans flex flex-col">
-      <header className="h-20 flex items-center justify-between px-8 border-b border-emerald-900 bg-[var(--maroon-primary)] sticky top-0 z-20">
-        
-        <div className="flex items-center gap-3">
-          <div className="flex h-[50px] ml-3 ">
-            <img src={texasLogo} alt="" />
+      <header className="flex items-center justify-between gap-2 border-b border-emerald-900 bg-[var(--maroon-primary)] px-3 py-2.5 sticky top-0 z-20 sm:px-5 md:px-8">
+        <div className="flex items-center gap-2 min-w-0 sm:gap-3">
+          <div className="flex h-[36px] w-[36px] shrink-0 sm:h-[42px] sm:w-[42px]">
+            <img src={texasLogo} alt="" className="h-full w-auto object-contain" />
           </div>
-          <div className="w-9 h-9 ml-5 rounded-full  bg-[var(--maroon-primary)] border border-[var(--neutral-400)] text-black grid place-items-center text-lg font-extrabold">🤠</div>
-          <div>
-            <div className="font-extrabold text-sm">Roadie Ranger</div>
-            <div className="text-xs text-emerald-300 mt-0.5 flex items-center"><span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--success-default)] mr-2"/> Online now</div>
+          <div className="w-7 h-7 rounded-full bg-[var(--maroon-primary)] border border-[var(--neutral-400)] text-black grid place-items-center text-sm font-extrabold sm:w-8 sm:h-8 sm:text-base">🤠</div>
+          <div className="min-w-0">
+            <div className="font-extrabold text-[11px] leading-none sm:text-sm">Roadie Ranger</div>
+            <div className="text-[9px] text-emerald-300 mt-0.5 flex items-center sm:text-[10px]"><span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--success-default)] mr-1.5"/> Online now</div>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <button type="button" onClick={onNewChat} className="inline-flex items-center gap-2 border border-emerald-800 bg-[var(--success-default)] text-white rounded-full px-3 py-2 font-bold text-sm hover:border-yellow-400">
-            <FiPlus /> New Chat
-          </button>
+        <div className="flex items-center gap-2 sm:gap-3">
+          {mode === "text" ? (
+            <button type="button" onClick={() => requestModeChange("voice")} className="inline-flex items-center justify-center gap-1 border border-emerald-800 bg-[var(--danger-default)] text-white rounded-full px-2.5 py-1.5 text-[10px] font-bold sm:gap-1.5 sm:px-3 sm:text-xs hover:border-yellow-400">
+              <FiPlus className="text-[10px] sm:text-xs" /> Voice Chat
+            </button>
+          ) : mode === "voice" ? (
+            <button type="button" onClick={() => requestModeChange("text")} className="inline-flex items-center justify-center gap-1 border border-emerald-800 bg-[var(--primary-default)] text-white rounded-full px-2.5 py-1.5 text-[10px] font-bold sm:gap-1.5 sm:px-3 sm:text-xs hover:border-yellow-400">
+              <FiPlus className="text-[10px] sm:text-xs" /> Text Chat
+            </button>
+          ) : (
+            <button type="button" onClick={onNewChat} className="inline-flex items-center justify-center gap-1 border border-emerald-800 bg-[var(--success-default)] text-white rounded-full px-2.5 py-1.5 text-[10px] font-bold sm:gap-1.5 sm:px-3 sm:text-xs hover:border-yellow-400">
+              <FiPlus className="text-[10px] sm:text-xs" /> New Chat
+            </button>
+          )}
           <div className="relative" ref={profileRef}>
-            <button type="button" onClick={() => setShowProfile((value) => !value)} className="w-9 h-9 rounded-full border border-yellow-400 bg-yellow-400 text-black font-bold grid place-items-center">
+            <button type="button" onClick={() => setShowProfile((value) => !value)} className="w-8 h-8 rounded-full border border-yellow-400 bg-yellow-400 text-black font-bold grid place-items-center text-xs sm:w-9 sm:h-9">
               {userInfo ? initials : <FaUser />}
             </button>
             {showProfile && (
-              <div className="absolute right-0 top-12 w-44 bg-[#0c1a15] border border-[#1c362d] rounded-xl p-2 shadow-lg">
-                <div className="px-2 py-2 text-sm text-gray-200 font-bold">{firstName || "Roadie"}</div>
-                <button type="button" onClick={onLogout} className="w-full flex items-center gap-2 text-sm text-gray-200 p-2 rounded-md hover:bg-emerald-900"><FiLogOut /> Logout</button>
+              <div className="absolute right-0 top-10 w-36 bg-[#0c1a15] border border-[#1c362d] rounded-xl p-2 shadow-lg sm:w-40 sm:top-12">
+                <div className="px-2 py-2 text-xs text-gray-200 font-bold sm:text-sm">{firstName || "Roadie"}</div>
+                <button type="button" onClick={onLogout} className="w-full flex items-center gap-2 text-xs text-gray-200 p-2 rounded-md hover:bg-emerald-900 sm:text-sm"><FiLogOut /> Logout</button>
               </div>
             )}
           </div>
         </div>
       </header>
 
-      <section className={`mx-auto w-full max-w-[900px] px-4 py-14 flex-1 ${conversationStarted ? "" : ""}`}>
+      <section className={`mx-auto w-full max-w-[900px] px-3 py-6 flex-1 flex flex-col sm:px-4 sm:py-8 md:py-12 lg:py-14 ${conversationStarted ? "" : ""}`}>
         {!conversationStarted && (
           <div className="text-center transition-all">
-            <h1 className="m-0 mb-4 text-[var(--secondary-contrast)] text-3xl md:text-5xl leading-tight font-extrabold tracking-tight">Hey{firstName ? ` ${firstName}` : ""}, how can we help today?</h1>
-            <p className="text-[var(--secondary-contrast)] max-w-[750px] mx-auto mb-3"><strong>I'm Roadie Ranger</strong> — your quick-answer sidekick on the floor.</p>
-            <p className="text-[var(--secondary-contrast)] max-w-[750px] mx-auto mb-4">Ask me anything you need help with, from HR and payroll to restaurant operations and day-to-day tasks. I'll get you clear, trusted guidance in seconds.</p>
-            <div className="mt-6 text-[var(--primary-bg)] font-extrabold text-sm">Need help right now? I'm just a tap away.</div>
+            <h1 className="m-0 mb-3 text-[var(--secondary-contrast)] text-2xl leading-tight font-extrabold tracking-tight sm:mb-4 sm:text-3xl md:text-4xl lg:text-5xl">Hey{firstName ? ` ${firstName}` : ""}, how can we help today?</h1>
+            <p className="text-[var(--secondary-contrast)] max-w-[750px] mx-auto mb-2 text-sm sm:mb-3 sm:text-base"><strong>I'm Roadie Ranger</strong> — your quick-answer sidekick on the floor.</p>
+            <p className="text-[var(--secondary-contrast)] max-w-[750px] mx-auto mb-3 text-sm sm:text-base">Ask me anything you need help with, from HR and payroll to restaurant operations and day-to-day tasks. I'll get you clear, trusted guidance in seconds.</p>
+            <div className="mt-4 text-[var(--primary-bg)] font-extrabold text-xs sm:mt-6 sm:text-sm">Need help right now? I'm just a tap away.</div>
           </div>
         )}
 
-        <div className="flex flex-col gap-4 max-h-[calc(100vh-400px)] overflow-y-auto p-2" role="log" aria-live="polite">
+        <div className="flex flex-col gap-3 sm:gap-4 flex-1 min-h-0 overflow-y-auto p-1 sm:p-2" role="log" aria-live="polite">
           {messages.map((item) => <MessageBubble key={item.id} item={item} />)}
           {loading && <TypingIndicator />}
           <div ref={messagesEndRef} />
         </div>
-        <div style={{ width: "100%", display: "flex", justifyContent: "center", padding: "10px 16px" }}>
-            <div style={{ display: "flex", gap:"12px"}}>
-              <button
-                type="button"
-                onClick={() => {
-                  if (mode === null) return setMode("text");
-                  if (mode === "text") return; // no change
-                  // trying to switch from voice->text or text->voice
-                  setShowModeWarning(true);
-                }}
-                style={{
-                  backgroundColor: mode === "text" ? "var(--primary-default)" : "var(--white-100)",
-                  color: mode === "text" ? "var(--primary-contrast)" : "var(--text-muted)",
-                  padding: "10px 18px",
-                  borderRadius: 8,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  border: mode === "text" ? "none" : "1px solid var(--neutral-300)",
-                }}
-              >
-                Text Mode
-              </button>
+        {mode === null && (
+          <div className="w-full flex justify-center px-1 py-3 sm:px-4 sm:py-4">
+              <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
+                <button
+                  type="button"
+                  onClick={() => setMode("text")}
+                  className="rounded-lg border border-[var(--neutral-300)] bg-[var(--white-100)] px-4 py-2.5 text-sm font-bold text-[var(--text-muted)] transition hover:border-[var(--primary-default)] sm:px-5 sm:py-3"
+                >
+                  Text Mode
+                </button>
 
-              <button
-                type="button"
-                onClick={() => {
-                  if (mode === null) return setMode("voice");
-                  if (mode === "voice") return;
-                  setShowModeWarning(true);
-                }}
-                style={{
-                  backgroundColor: mode === "voice" ? "var(--danger-default)" : "var(--white-100)",
-                  color: mode === "voice" ? "var(--danger-contrast)" : "var(--text-muted)",
-                  padding: "10px 18px",
-                  borderRadius: 8,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  border: mode === "voice" ? "none" : "1px solid var(--neutral-300)",
-                }}
-              >
-                Voice Mode
-              </button>
-            </div>
-            {/* <div
-              style={{
-                display: "inline-flex",
-                position: "relative",
-                padding: 4,
-                borderRadius: 999,
-                backgroundColor: "var(--neutral-100)",
-                border: "1px solid var(--neutral-300)",
-                width: 260,
-              }}
-            >
-              <div
-                style={{
-                  position: "absolute",
-                  top: 4,
-                  bottom: 4,
-                  left: mode === "voice" ? "50%" : 4,
-                  width: "calc(50% - 4px)",
-                  borderRadius: 999,
-                  backgroundColor:
-                    mode === "voice" ? "var(--danger-default)" : "var(--primary-default)",
-                  transition: "left 0.2s ease, background-color 0.2s ease",
-                }}
-              />
-
-              <button
-                type="button"
-                onClick={() => {
-                  if (mode === null) return setMode("text");
-                  if (mode === "text") return; // no change
-                  setShowModeWarning(true);
-                }}
-                style={{
-                  position: "relative",
-                  zIndex: 1,
-                  flex: 1,
-                  background: "transparent",
-                  border: "none",
-                  padding: "8px 16px",
-                  borderRadius: 999,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  color: mode === "text" ? "var(--primary-contrast)" : "var(--text-muted)",
-                  transition: "color 0.2s ease",
-                }}
-              >
-                Text Mode
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  if (mode === null) return setMode("voice");
-                  if (mode === "voice") return;
-                  setShowModeWarning(true);
-                }}
-                style={{
-                  position: "relative",
-                  zIndex: 1,
-                  flex: 1,
-                  background: "transparent",
-                  border: "none",
-                  padding: "8px 16px",
-                  borderRadius: 999,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  color: mode === "voice" ? "var(--danger-contrast)" : "var(--text-muted)",
-                  transition: "color 0.2s ease",
-                }}
-              >
-                Voice Mode
-              </button>
-            </div> */}
+                <button
+                  type="button"
+                  onClick={() => setMode("voice")}
+                  className="rounded-lg border border-[var(--neutral-300)] bg-[var(--white-100)] px-4 py-2.5 text-sm font-bold text-[var(--text-muted)] transition hover:border-[var(--primary-default)] sm:px-5 sm:py-3"
+                >
+                  Voice Mode
+                </button>
+              </div>
           </div>
-        <section className="bg-[var(--primary-contrast)] border border-[#1c362d] rounded-xl p-4 shadow-xl w-full">
+        )}
+        <section className="bg-[var(--primary-contrast)] border border-[#1c362d] rounded-xl p-3 shadow-xl w-full mt-auto sm:p-4">
           {/* Mode selector always on top of input */}
           
 
-          <div className="flex items-start gap-3">
-            <div className="bg-[var(--maroon-primary)] border-white h-9 w-9 flex items-center justify-center rounded-full text-lg pt-1">🤠</div>
+          <div className="flex items-start gap-2 sm:gap-3">
+            <div className="bg-[var(--maroon-primary)] border-white h-8 w-8 flex items-center justify-center rounded-full text-base pt-1 sm:h-9 sm:w-9 sm:text-lg">🤠</div>
 
             {/* Text input only when text mode selected */}
             {mode === "text" && (
               <textarea
                 ref={textareaRef}
-                className="flex-1 min-h-11 max-h-[150px] overflow-y-auto resize-none rounded-md bg-transparent text-[var(--secondary-contrast)] px-4 py-2 placeholder:text-[var(--text-muted)] focus:outline-none"
+                className="flex-1 min-h-11 max-h-[150px] overflow-y-auto resize-none rounded-md bg-transparent text-sm text-[var(--secondary-contrast)] px-3 py-2 placeholder:text-[var(--text-muted)] focus:outline-none sm:px-4 sm:text-base"
                 value={draft}
-                maxLength={MAX_MESSAGE_LENGTH}
+                // maxLength={MAX_MESSAGE_LENGTH}
                 rows={1}
                 disabled={isVoiceActive}
                 placeholder={inputPlaceholder}
@@ -405,7 +342,7 @@ function ChatExperience({ firstName, userInfo, initials, sessionId, onNewChat, o
                   const textarea = event.target;
                   textarea.style.height = "auto";
                   textarea.style.height = `${Math.min(textarea.scrollHeight, 150)}px`;
-                  setDraft(textarea.value.slice(0, MAX_MESSAGE_LENGTH));
+                  setDraft(textarea.value);
                 }}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" && !event.shiftKey) {
@@ -419,9 +356,8 @@ function ChatExperience({ firstName, userInfo, initials, sessionId, onNewChat, o
             {/* If no mode selected, show placeholder input disabled to match layout */}
             {mode === null && (
               <textarea
-                className="flex-1 min-h-11 max-h-[150px] overflow-y-auto resize-none rounded-md bg-transparent text-[var(--secondary-contrast)] px-4 py-2 placeholder:text-[var(--text-muted)] focus:outline-none"
+                className="flex-1 min-h-11 max-h-[150px] overflow-y-auto resize-none rounded-md bg-transparent text-sm text-[var(--secondary-contrast)] px-3 py-2 placeholder:text-[var(--text-muted)] focus:outline-none sm:px-4 sm:text-base"
                 value={draft}
-                maxLength={MAX_MESSAGE_LENGTH}
                 rows={1}
                 disabled
                 placeholder={"Select Text or Voice mode above to continue"}
@@ -490,12 +426,13 @@ function ChatExperience({ firstName, userInfo, initials, sessionId, onNewChat, o
                 </div>
               )}
           </div>
-          <div className="flex items-center justify-between gap-4 border-t border-emerald-900 pt-3 mt-3">
-            <div className="text-xs text-[var(--text-muted)] flex items-center gap-2">
-              Press <span className="border border-emerald-800 rounded px-2 py-0.5 text-[var(--text-muted)]">Enter ↵</span> to submit or tap mic to speak
-              <small className="text-[var(--text-muted)] ml-2">{draft.length}/{MAX_MESSAGE_LENGTH}</small>
+          <div className="flex items-center justify-between gap-2 border-t border-emerald-900 pt-3 mt-3 sm:gap-3">
+            <div className="flex items-center gap-1.5 text-[9px] text-[var(--text-muted)] sm:text-[10px]">
+              <span>Press</span>
+              <span className="border border-emerald-800 rounded px-1.5 py-0.5 text-[var(--text-muted)]">Enter</span>
+              <span>to submit</span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center justify-end gap-2">
               {/* Controls: show mic only for voice mode, send only for text mode */}
               {mode === "voice" && (
                 <button
@@ -526,15 +463,38 @@ function ChatExperience({ firstName, userInfo, initials, sessionId, onNewChat, o
             </div>
           </div>
           {/* Mode switch warning popup */}
-          <WarningPopUp isOpen={showModeWarning} onClose={() => setShowModeWarning(false)} message={"To switch agents you must create a new chat session. Click 'New Chat' in the header to start a fresh session."} />
+          <WarningPopUp
+            isOpen={showModeWarning}
+            onClose={() => {
+              setPendingMode(null);
+              setShowModeWarning(false);
+            }}
+            onContinue={confirmModeChange}
+            message={
+              pendingMode === "voice"
+                ? "Switching to voice mode will end the current text session. Continue?"
+                : pendingMode === "text"
+                  ? "Switching to text mode will end the current voice session. Continue?"
+                  : "Are you sure you want to switch modes?"
+            }
+          />
         </section>
 
         {!conversationStarted && (
           <section className="mt-7">
-            <div className="text-xs font-extrabold text-[var(--success-default)] tracking-wider mb-3">POPULAR ROADIE INQUIRIES:</div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="text-[10px] font-extrabold text-[var(--success-default)] tracking-wider mb-3 sm:text-xs">POPULAR ROADIE INQUIRIES:</div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-3">
               {QUICK_INQUIRIES.map((inquiry) => (
-                <button key={inquiry.text} type="button" onClick={() => populateQuery(inquiry.text)} className="bg-[var(--primary-contrast)] border border-[var(--primary-default)] rounded-xl p-4 text-left text-white cursor-pointer transition">
+                <button
+                  key={inquiry.text}
+                  type="button"
+                  onClick={() => {
+                    if (mode === "voice") return;
+                    populateQuery(inquiry.text);
+                  }}
+                  disabled={mode === "voice"}
+                  className={`bg-[var(--primary-contrast)] border border-[var(--primary-default)] rounded-xl p-4 text-left text-white transition ${mode === "voice" ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                >
                   <div className="flex justify-between items-center mb-2">
                     <span className="bg-[var(--neutral-200)] text-[var(--primary-default)] rounded-full px-3 py-1 text-xs font-extrabold">{inquiry.category}</span>
                     <b className="text-emerald-600">❯</b>
@@ -555,7 +515,6 @@ const LandingPage = () => {
   const [userInfo, setUserInfo] = useState("");
   const [userEmail, setUserEmail] = useState("");
   const [sessionId, setSessionId] = useState("");
-  const [chatKey, setChatKey] = useState(0);
 
   useEffect(() => {
     const cachedName = sessionStorage.getItem("userInfo");
@@ -597,8 +556,6 @@ const LandingPage = () => {
       }
     } catch (error) {
       console.error("Failed to start new chat session:", error);
-    } finally {
-      setChatKey((value) => value + 1);
     }
   }, []);
 
@@ -628,7 +585,6 @@ const LandingPage = () => {
 
   return (
     <ChatExperience
-      key={`${chatKey}-${sessionId}`}
       firstName={firstName}
       userInfo={userInfo}
       initials={initials}
