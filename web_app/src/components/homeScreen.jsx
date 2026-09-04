@@ -40,7 +40,7 @@ const HomeScreen = ({ messages, onSendMessage, sessionId, loading, setLoading, h
                 <div ref={messagesEndRef} />
 
             </div>
-            <ChartInput messages={messages} sessionId={sessionId} onSendMessage={onSendMessage} setLoading={setLoading} handleNewChat={handleNewChat} setShowWarning={setShowWarning} handleLogout={handleLogout}/>
+            <ChartInput messages={messages} sessionId={sessionId} onSendMessage={onSendMessage} loading={loading} setLoading={setLoading} handleNewChat={handleNewChat} setShowWarning={setShowWarning} handleLogout={handleLogout}/>
         </div>
     );
 };

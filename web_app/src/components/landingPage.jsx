@@ -18,7 +18,7 @@ const QUICK_INQUIRIES = [
 const MAX_MESSAGE_LENGTH = 2000;
 
 function AgentAvatar() {
-  return <div className="w-8 h-8 flex-none rounded-full bg-[var(--tertiary-default)] text-black grid place-items-center text-lg font-extrabold">🤠</div>;
+  return <div className="w-8 h-8 flex-none rounded-full bg-[var(--maroon-primary)] text-black grid place-items-center text-lg font-extrabold">🤠</div>;
 }
 
 function MessageBubble({ item }) {
@@ -30,10 +30,10 @@ function MessageBubble({ item }) {
   return (
     <div className={`flex gap-3 items-start ${item.sender === "user" ? "justify-end" : ""}`}>
       {/* {item.sender !== "user" && <AgentAvatar />} */}
-      <div className={`max-w-[80%] p-3.5 rounded-xl text-sm break-words ${item.sender === "user" ? 'bg-[var(--success-default)] border border-emerald-700 text-white rounded-br-[4px]' : 'bg-[var(--secondary-contrast)] border border-[#1c362d] text-gray-200 rounded-bl-[4px]'}`}>
-        {item.sender !== "user" && <div className="text-yellow-400 text-xs font-extrabold mb-1">✦ Roadie Ranger</div>}
+      <div className={`max-w-[80%] p-3.5 rounded-xl text-sm break-words ${item.sender === "user" ? 'bg-[var(--success-contrast)] border border-[var(--primary-bg)] text-[var(--secondary-contrast)] rounded-br-[4px]' : 'bg-[#F2E8D2] border-l-2 border-[var(--maroon-primary)] text-[var(--secondary-contrast)] rounded-bl-[4px]'}`}>
+        {item.sender !== "user" && <div className="text-[var(--maroon-primary)] text-xs font-extrabold mb-1">✦ Roadie Ranger</div>}
         <div>
-          <ReactMarkdown 
+          <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             // components={{
             //   a: ({ node, ...props }) => (
@@ -76,9 +76,9 @@ function TypingIndicator() {
   return (
     <div className="flex gap-3 items-start">
       <AgentAvatar />
-      <div className="max-w-[80%] p-3.5 rounded-xl text-sm break-words bg-[var(--secondary-contrast)] border border-[#1c362d] text-gray-200">
-        <div className="text-yellow-400 text-xs font-extrabold mb-1">✦ Roadie Ranger</div>
-        <div className="flex gap-1"><span className="w-2 h-2 bg-[var(--success-default)] rounded-full animate-pulse"/><span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse delay-75"/><span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse delay-150"/></div>
+      <div className="max-w-[80%] p-3.5 rounded-xl text-sm break-words bg-[#F2E8D2] border-l-2 border-[var(--maroon-primary)] text-gray-200">
+        <div className="text-[var(--maroon-primary)] text-xs font-extrabold mb-1">✦ Roadie Ranger</div>
+        <div className="flex gap-1"><span className="w-2 h-2 bg-[var(--primary-lighter)] rounded-full animate-pulse"/><span className="w-2 h-2 bg-[var(--primary-light)] rounded-full animate-pulse delay-75"/><span className="w-2 h-2 bg-[var(--primary-default)] rounded-full animate-pulse delay-150"/></div>
       </div>
     </div>
   );
@@ -192,13 +192,13 @@ function ChatExperience({ firstName, sessionId, onNewChat, onLogout }) {
 
   return (
     <main className="min-h-screen bg-[#faf5ea] text-gray-200 font-sans flex flex-col">
-      <header className="h-20 flex items-center justify-between px-8 border-b border-emerald-900 bg-[var(--secondary-contrast)] sticky top-0 z-20">
+      <header className="h-20 flex items-center justify-between px-8 border-b border-emerald-900 bg-[var(--maroon-primary)] sticky top-0 z-20">
         
         <div className="flex items-center gap-3">
           <div className="flex h-[50px] ml-3 ">
             <img src={texasLogo} alt="" />
           </div>
-          <div className="w-9 h-9 ml-5 rounded-full bg-[var(--warning-default)] text-black grid place-items-center text-lg font-extrabold">🤠</div>
+          <div className="w-9 h-9 ml-5 rounded-full  bg-[var(--maroon-primary)] border border-[var(--neutral-400)] text-black grid place-items-center text-lg font-extrabold">🤠</div>
           <div>
             <div className="font-extrabold text-sm">Roadie Ranger</div>
             <div className="text-xs text-emerald-300 mt-0.5 flex items-center"><span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--success-default)] mr-2"/> Online now</div>
@@ -360,7 +360,7 @@ function ChatExperience({ firstName, sessionId, onNewChat, onLogout }) {
           
 
           <div className="flex items-start gap-3">
-            <div className="bg-[var(--warning-default)] h-9 w-9 flex items-center justify-center rounded-full text-lg pt-1">🤠</div>
+            <div className="bg-[var(--maroon-primary)] border-white h-9 w-9 flex items-center justify-center rounded-full text-lg pt-1">🤠</div>
 
             {/* Text input only when text mode selected */}
             {mode === "text" && (

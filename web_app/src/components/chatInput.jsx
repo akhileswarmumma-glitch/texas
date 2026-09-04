@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import useTextAgent from "./aiTextResponse";
 import useVoiceAgent from "./aiVoiceResponse";
 
-const ChartInput = ({ messages = [], sessionId, onSendMessage, setLoading,handleNewChat, setShowWarning, handleLogout}) => {
+const ChartInput = ({ messages = [], sessionId, onSendMessage, loading, setLoading, handleNewChat, setShowWarning, handleLogout}) => {
     const [message, setMessage] = useState("");
     const [isTextActive, setIsTextActive] = useState(false)
     const [mode, setMode] = useState(null); // null = not selected, 'text' or 'voice'
@@ -152,14 +152,15 @@ const ChartInput = ({ messages = [], sessionId, onSendMessage, setLoading,handle
                                 onKeyDown={(e) => {
                                     if (e.key === "Enter") {
                                         e.preventDefault();
+                                        if (loading || isVoiceActive) return; // prevent sending while agent is processing or voice active
                                         handlesend();
                                     }
                                 }}
                             />
 
                             <button
-                                title={isVoiceActive ? "stop voice call or create new chat to access text agent": "Start text chat"}
-                                disabled={isVoiceActive}
+                                title={isVoiceActive ? "stop voice call or create new chat to access text agent" : loading ? "Waiting for agent response..." : "Start text chat"}
+                                disabled={isVoiceActive || loading}
                                 className="flex h-10 w-10 rounded-full cursor-pointer items-center justify-center text-lg disabled:cursor-not-allowed"
                                 onClick={handlesend}
                                 style={{
