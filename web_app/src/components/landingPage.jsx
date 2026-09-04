@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FaUser } from "react-icons/fa";
-import { FiLogOut, FiPlus, FiSend, FiMic, FiSquare, FiChevronDown } from "react-icons/fi";
+import { FiLogOut, FiPlus, FiSend, FiMic, FiSquare, FiChevronDown, FiMessageSquare } from "react-icons/fi";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import useTextAgent from "./aiTextResponse.jsx";
@@ -239,13 +239,40 @@ function ChatExperience({ firstName, userInfo, initials, sessionId, onNewChat, o
   }, [onNewChat, pendingMode]);
 
   const conversationStarted = messages.length > 0;
+  const modeSelected = mode !== null;
   const inputPlaceholder = isVoiceActive
     ? `Voice active (${voiceStatus})...`
     : "Text mode is active to switch to voice mode create a voice chat";
 
+  const handleModeSelection = useCallback((nextMode) => {
+    if (!nextMode) return;
+
+    if (mode === null) {
+      setMessages([]);
+      setDraft("");
+      setPendingMode(null);
+      setShowModeWarning(false);
+      setMode(nextMode);
+      onNewChat();
+      return;
+    }
+
+    if (nextMode === mode) {
+      setMessages([]);
+      setDraft("");
+      setPendingMode(null);
+      setShowModeWarning(false);
+      setMode(nextMode);
+      onNewChat();
+      return;
+    }
+
+    requestModeChange(nextMode);
+  }, [mode, onNewChat, requestModeChange]);
+
   return (
     <main className="min-h-screen bg-[#faf5ea] text-gray-200 font-sans flex flex-col">
-      <header className="flex items-center justify-between gap-2 border-b border-emerald-900 bg-[var(--maroon-primary)] px-3 py-2.5 sticky top-0 z-20 sm:px-5 md:px-8">
+      <header className="flex items-center justify-between gap-2 border-b border-emerald-900 bg-[var(--maroon-primary)] px-3 py-2.5 sticky top-0 z-20 shrink-0 sm:px-5 md:px-8">
         <div className="flex items-center gap-2 min-w-0 sm:gap-3">
           <div className="flex h-[36px] w-[36px] shrink-0 sm:h-[42px] sm:w-[42px]">
             <img src={texasLogo} alt="" className="h-full w-auto object-contain" />
@@ -258,18 +285,19 @@ function ChatExperience({ firstName, userInfo, initials, sessionId, onNewChat, o
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          {mode === "text" ? (
-            <button type="button" onClick={() => requestModeChange("voice")} className="inline-flex items-center justify-center gap-1 border border-emerald-800 bg-[var(--danger-default)] text-white rounded-full px-2.5 py-1.5 text-[10px] font-bold sm:gap-1.5 sm:px-3 sm:text-xs hover:border-yellow-400">
-              <FiPlus className="text-[10px] sm:text-xs" /> Voice Chat
-            </button>
-          ) : mode === "voice" ? (
-            <button type="button" onClick={() => requestModeChange("text")} className="inline-flex items-center justify-center gap-1 border border-emerald-800 bg-[var(--primary-default)] text-white rounded-full px-2.5 py-1.5 text-[10px] font-bold sm:gap-1.5 sm:px-3 sm:text-xs hover:border-yellow-400">
-              <FiPlus className="text-[10px] sm:text-xs" /> Text Chat
-            </button>
-          ) : (
+          {!modeSelected ? (
             <button type="button" onClick={onNewChat} className="inline-flex items-center justify-center gap-1 border border-emerald-800 bg-[var(--success-default)] text-white rounded-full px-2.5 py-1.5 text-[10px] font-bold sm:gap-1.5 sm:px-3 sm:text-xs hover:border-yellow-400">
               <FiPlus className="text-[10px] sm:text-xs" /> New Chat
             </button>
+          ) : (
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={() => handleModeSelection("text")} className={`inline-flex items-center justify-center rounded-full border px-2.5 py-1.5 text-[10px] font-bold sm:px-3 sm:text-xs ${mode === "text" ? "border-[var(--primary-default)] bg-[var(--primary-default)] text-white" : "border-emerald-800 bg-[#102a20] text-gray-200"}`}>
+                Text Chat
+              </button>
+              <button type="button" onClick={() => handleModeSelection("voice")} className={`inline-flex items-center justify-center rounded-full border px-2.5 py-1.5 text-[10px] font-bold sm:px-3 sm:text-xs ${mode === "voice" ? "border-[var(--danger-default)] bg-[var(--danger-default)] text-white" : "border-emerald-800 bg-[#102a20] text-gray-200"}`}>
+                Voice Chat
+              </button>
+            </div>
           )}
           <div className="relative" ref={profileRef}>
             <button type="button" onClick={() => setShowProfile((value) => !value)} className="w-8 h-8 rounded-full border border-yellow-400 bg-yellow-400 text-black font-bold grid place-items-center text-xs sm:w-9 sm:h-9">
@@ -285,8 +313,8 @@ function ChatExperience({ firstName, userInfo, initials, sessionId, onNewChat, o
         </div>
       </header>
 
-      <section className={`mx-auto w-full max-w-[900px] px-3 py-6 flex-1 flex flex-col sm:px-4 sm:py-8 md:py-12 lg:py-14 ${conversationStarted ? "" : ""}`}>
-        {!conversationStarted && (
+      <section className={`mx-auto w-full max-w-[900px] px-3 py-6 flex-1 flex flex-col min-h-0 sm:px-4 sm:py-8 md:py-10 lg:py-5 ${conversationStarted ? "" : ""}`}>
+        {!conversationStarted && !modeSelected && (
           <div className="text-center transition-all">
             <h1 className="m-0 mb-3 text-[var(--secondary-contrast)] text-2xl leading-tight font-extrabold tracking-tight sm:mb-4 sm:text-3xl md:text-4xl lg:text-5xl">Hey{firstName ? ` ${firstName}` : ""}, how can we help today?</h1>
             <p className="text-[var(--secondary-contrast)] max-w-[750px] mx-auto mb-2 text-sm sm:mb-3 sm:text-base"><strong>I'm Roadie Ranger</strong> — your quick-answer sidekick on the floor.</p>
@@ -295,172 +323,140 @@ function ChatExperience({ firstName, userInfo, initials, sessionId, onNewChat, o
           </div>
         )}
 
-        <div className="flex flex-col gap-3 sm:gap-4 flex-1 min-h-0 overflow-y-auto p-1 sm:p-2" role="log" aria-live="polite">
+        <div className="flex flex-col gap-3 sm:gap-4 flex-1 min-h-0 overflow-visible p-1 sm:p-2" role="log" aria-live="polite">
           {messages.map((item) => <MessageBubble key={item.id} item={item} />)}
           {loading && <TypingIndicator />}
           <div ref={messagesEndRef} />
         </div>
         {mode === null && (
           <div className="w-full flex justify-center px-1 py-3 sm:px-4 sm:py-4">
-              <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
-                <button
-                  type="button"
-                  onClick={() => setMode("text")}
-                  className="rounded-lg border border-[var(--neutral-300)] bg-[var(--white-100)] px-4 py-2.5 text-sm font-bold text-[var(--text-muted)] transition hover:border-[var(--primary-default)] sm:px-5 sm:py-3"
-                >
-                  Text Mode
-                </button>
+            <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
+              <button
+                type="button"
+                onClick={() => handleModeSelection("text")}
+                className="flex items-center justify-center gap-2 rounded-lg border border-[var(--neutral-300)] bg-[var(--white-100)] px-4 py-2.5 text-sm font-bold text-[var(--text-muted)] transition hover:border-[var(--primary-default)] sm:px-5 sm:py-3"
+              >
+                <FiMessageSquare className="text-base" />
+                Text Mode
+              </button>
 
-                <button
-                  type="button"
-                  onClick={() => setMode("voice")}
-                  className="rounded-lg border border-[var(--neutral-300)] bg-[var(--white-100)] px-4 py-2.5 text-sm font-bold text-[var(--text-muted)] transition hover:border-[var(--primary-default)] sm:px-5 sm:py-3"
-                >
-                  Voice Mode
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => handleModeSelection("voice")}
+                className="flex items-center justify-center gap-2 rounded-lg border border-[var(--neutral-300)] bg-[var(--white-100)] px-4 py-2.5 text-sm font-bold text-[var(--text-muted)] transition hover:border-[var(--primary-default)] sm:px-5 sm:py-3"
+              >
+                <FiMic className="text-base" />
+                Voice Mode
+              </button>
+            </div>
           </div>
         )}
-        <section className="bg-[var(--primary-contrast)] border border-[#1c362d] rounded-xl p-3 shadow-xl w-full mt-auto sm:p-4">
-          {/* Mode selector always on top of input */}
-          
-
-          <div className="flex items-start gap-2 sm:gap-3">
-            <div className="bg-[var(--maroon-primary)] border-white h-8 w-8 flex items-center justify-center rounded-full text-base pt-1 sm:h-9 sm:w-9 sm:text-lg">🤠</div>
-
-            {/* Text input only when text mode selected */}
+        <section className="sticky bottom-0 z-10 mt-auto w-full shrink-0 bg-[#faf5ea] pt-2 pb-0">
+          <div className="flex items-end gap-2 sm:gap-3">
             {mode === "text" && (
-              <textarea
-                ref={textareaRef}
-                className="flex-1 min-h-11 max-h-[150px] overflow-y-auto resize-none rounded-md bg-transparent text-sm text-[var(--secondary-contrast)] px-3 py-2 placeholder:text-[var(--text-muted)] focus:outline-none sm:px-4 sm:text-base"
-                value={draft}
-                // maxLength={MAX_MESSAGE_LENGTH}
-                rows={1}
-                disabled={isVoiceActive}
-                placeholder={inputPlaceholder}
-                onChange={(event) => {
-                  const textarea = event.target;
-                  textarea.style.height = "auto";
-                  textarea.style.height = `${Math.min(textarea.scrollHeight, 150)}px`;
-                  setDraft(textarea.value);
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && !event.shiftKey) {
-                    event.preventDefault();
-                    submit();
-                  }
-                }}
-              />
-            )}
-
-            {/* If no mode selected, show placeholder input disabled to match layout */}
-            {mode === null && (
-              <textarea
-                className="flex-1 min-h-11 max-h-[150px] overflow-y-auto resize-none rounded-md bg-transparent text-sm text-[var(--secondary-contrast)] px-3 py-2 placeholder:text-[var(--text-muted)] focus:outline-none sm:px-4 sm:text-base"
-                value={draft}
-                rows={1}
-                disabled
-                placeholder={"Select Text or Voice mode above to continue"}
-              />
-            )}
-
-            {/* If voice mode selected, hide textarea entirely (no input) */}
-              {/* If voice mode selected, show disabled placeholder instructing user to create a new chat */}
-              {mode === "voice" && (
-                <div className="flex-1 flex flex-col gap-2">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-14 h-14 rounded-full grid place-items-center ${isVoiceActive ? 'bg-[var(--danger-default)]' : 'bg-[#102a20]'} text-white`} style={{ boxShadow: isVoiceActive && !speakingPaused ? `0 0 ${8 + micLevel * 18}px rgba(255,99,71,0.45)` : 'none' }}>
-                      <div className="text-2xl">{isVoiceActive ? '🎙️' : '🤖'}</div>
-                    </div>
-
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <div className="text-sm font-bold text-[var(--secondary-contrast)]">Live voice session {isVoiceActive ? `· ${voiceStatus}` : ''}</div>
-                        <div className="text-xs text-[var(--text-muted)]">{agentSpeaking ? (speakingPaused ? 'Playback paused' : 'Speaking') : 'Idle'}</div>
-                      </div>
-                      <div className="mt-2 flex items-center gap-3">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (audioRef.current) {
-                              if (audioRef.current.paused) {
-                                const p = audioRef.current.play();
-                                if (p && p.then) p.catch(() => {});
-                                notifyPlaybackStarted();
-                                setAgentSpeaking(true);
-                              } else {
-                                audioRef.current.pause();
-                                // notify will be handled by pause event
-                              }
-                            }
-                          }}
-                          className={`w-9 h-9 rounded-full grid place-items-center cursor-pointer ${audioRef.current && !audioRef.current?.paused ? 'bg-[var(--neutral-800)] text-white' : 'bg-[var(--primary-default)] text-black'}`}
-                        >
-                          {audioRef.current && !audioRef.current.paused ? '⏸' : '▶️'}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => (isVoiceActive ? stopVoiceSession() : startVoiceSession())}
-                          aria-label={isVoiceActive ? "Stop voice" : "Start voice"}
-                          className={`w-9 h-9 rounded-full grid place-items-center cursor-pointer border border-emerald-800 ${isVoiceActive ? 'bg-red-600 text-white' : 'bg-[#102a20] text-gray-200'}`}
-                        >
-                          {isVoiceActive ? <FiSquare /> : <FiMic />}
-                        </button>
-
-                        <div className="flex-1 h-3 bg-[#08281d] rounded-full overflow-hidden" aria-hidden>
-                          <div className="h-full bg-[var(--danger-default)]" style={{ width: `${Math.min(100, Math.round(micLevel * 100))}%`, transition: 'width 120ms linear' }} />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <audio ref={audioRef} id="player" controls onPlay={() => { notifyPlaybackStarted(); setAgentSpeaking(true); playbackEndedNotifiedRef.current = false; }} onPause={() => {
-                    if (suppressPauseNotifyRef.current) { suppressPauseNotifyRef.current = false; return; }
-                    if (!playbackEndedNotifiedRef.current) {
-                      playbackEndedNotifiedRef.current = true;
-                      notifyPlaybackEnded();
-                      setAgentSpeaking(false);
+              <div className="relative flex-1">
+                <textarea
+                  ref={textareaRef}
+                  className="flex items-center w-full max-h-[150px] overflow-hidden resize-none rounded-2xl border border-emerald-800 bg-[#f6f1e6] text-[10px] text-[var(--secondary-contrast)] px-3 py-3 pr-12 placeholder:text-[var(--text-muted)] focus:outline-none sm:text-base"
+                  value={draft}
+                  rows={1}
+                  disabled={isVoiceActive}
+                  placeholder={inputPlaceholder}
+                  onChange={(event) => {
+                    const textarea = event.target;
+                    textarea.style.height = "auto";
+                    textarea.style.height = `${Math.min(textarea.scrollHeight, 150)}px`;
+                    setDraft(textarea.value);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.shiftKey) {
+                      event.preventDefault();
+                      submit();
                     }
-                  }} onEnded={() => { if (!playbackEndedNotifiedRef.current) { playbackEndedNotifiedRef.current = true; notifyPlaybackEnded(); setAgentSpeaking(false); } }} />
-                </div>
-              )}
-          </div>
-          <div className="flex items-center justify-between gap-2 border-t border-emerald-900 pt-3 mt-3 sm:gap-3">
-            <div className="flex items-center gap-1.5 text-[9px] text-[var(--text-muted)] sm:text-[10px]">
-              <span>Press</span>
-              <span className="border border-emerald-800 rounded px-1.5 py-0.5 text-[var(--text-muted)]">Enter</span>
-              <span>to submit</span>
-            </div>
-            <div className="flex items-center justify-end gap-2">
-              {/* Controls: show mic only for voice mode, send only for text mode */}
-              {mode === "voice" && (
-                <button
-                  type="button"
-                  title="Coming soon"
-                  style={{ boxShadow: isVoiceActive ? `0 0 ${8 + micLevel * 18}px rgba(255,183,3,.55)` : "none" }}
-                  onClick={() => (isVoiceActive ? stopVoiceSession() : startVoiceSession())}
-                  aria-label={isVoiceActive ? "Stop voice" : "Start voice"}
-                  className={`w-9 h-9 rounded-full grid place-items-center cursor-pointer border border-emerald-800 ${isVoiceActive ? 'bg-red-600 text-white' : 'bg-[#102a20] text-gray-200'}`}
-                >
-                  {isVoiceActive ? <FiSquare /> : <FiMic />}
-                </button>
-              )}
-
-              {mode === "text" && (
+                  }}
+                />
                 <button
                   type="button"
                   disabled={!draft.trim() || loading || isVoiceActive}
                   onClick={submit}
-                  className={`w-9 h-9 rounded-full grid place-items-center ${!draft.trim() || loading || isVoiceActive ? 'bg-[var(--success-default)] text-[--success-contrast] border-emerald-900 cursor-not-allowed' : 'bg-[var(--primary-bg)] text-black border-yellow-400'}`}
+                  className={`absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full grid place-items-center ${!draft.trim() || loading || isVoiceActive ? 'bg-[var(--success-default)] text-[--success-contrast] border border-emerald-900 cursor-not-allowed' : 'bg-[var(--primary-bg)] text-black cursor-pointer border border-yellow-400'}`}
                 >
-                  <FiSend />
+                  <FiSend className="text-sm" />
                 </button>
-              )}
+              </div>
+            )}
 
-              {/* Allow changing mode on landing after a selection */}
-              {/* removed Change Mode button per layout request */}
-            </div>
+            {mode === null && (
+              <div className="flex-1 min-h-[46px] rounded-2xl border border-dashed border-emerald-800/60 bg-[#f6f1e6]/60 px-4 py-3.5 flex items-center justify-center gap-2.5 sm:py-4">
+                <span className="flex items-center gap-3 text-[var(--text-muted)]">
+                  <FiMessageSquare className="text-base opacity-60" />
+                  <FiMic className="text-base opacity-60 -ml-1" />
+                </span>
+                <p className="m-0 text-sm text-[var(--text-muted)] font-medium sm:text-base">
+                  Pick <span className="text-[var(--secondary-contrast)] font-bold">Text</span> or{" "}
+                  <span className="text-[var(--secondary-contrast)] font-bold">Voice</span> mode above to start chatting
+                </p>
+              </div>
+            )}
+
+            {mode === "voice" && (
+              <div className="flex-1 flex flex-col gap-2 rounded-2xl border border-emerald-800 bg-[#f6f1e6] p-3">
+                <div className="flex items-center gap-4">
+                  <div className={`w-14 h-14 rounded-full grid place-items-center ${isVoiceActive ? 'bg-[var(--danger-default)]' : 'bg-[#102a20]'} text-white`} style={{ boxShadow: isVoiceActive && !speakingPaused ? `0 0 ${8 + micLevel * 18}px rgba(255,99,71,0.45)` : 'none' }}>
+                    <div className="text-2xl">{isVoiceActive ? '🎙️' : '🤖'}</div>
+                  </div>
+
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-sm font-bold text-[var(--secondary-contrast)]">Live voice session {isVoiceActive ? `· ${voiceStatus}` : ''}</div>
+                      <div className="text-xs text-[var(--text-muted)]">{agentSpeaking ? (speakingPaused ? 'Playback paused' : 'Speaking') : 'Idle'}</div>
+                    </div>
+                    <div className="mt-2 flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (audioRef.current) {
+                            if (audioRef.current.paused) {
+                              const p = audioRef.current.play();
+                              if (p && p.then) p.catch(() => {});
+                              notifyPlaybackStarted();
+                              setAgentSpeaking(true);
+                            } else {
+                              audioRef.current.pause();
+                            }
+                          }
+                        }}
+                        className={`w-9 h-9 rounded-full grid place-items-center cursor-pointer ${audioRef.current && !audioRef.current?.paused ? 'bg-[var(--neutral-800)] text-white' : 'bg-[var(--primary-default)] text-black'}`}
+                      >
+                        {audioRef.current && !audioRef.current.paused ? '⏸' : '▶️'}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => (isVoiceActive ? stopVoiceSession() : startVoiceSession())}
+                        aria-label={isVoiceActive ? "Stop voice" : "Start voice"}
+                        className={`w-9 h-9 rounded-full grid place-items-center cursor-pointer border border-emerald-800 ${isVoiceActive ? 'bg-red-600 text-white' : 'bg-[#102a20] text-gray-200'}`}
+                      >
+                        {isVoiceActive ? <FiSquare /> : <FiMic />}
+                      </button>
+
+                      <div className="flex-1 h-3 bg-[#08281d] rounded-full overflow-hidden" aria-hidden>
+                        <div className="h-full bg-[var(--danger-default)]" style={{ width: `${Math.min(100, Math.round(micLevel * 100))}%`, transition: 'width 120ms linear' }} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <audio ref={audioRef} id="player" controls onPlay={() => { notifyPlaybackStarted(); setAgentSpeaking(true); playbackEndedNotifiedRef.current = false; }} onPause={() => {
+                  if (suppressPauseNotifyRef.current) { suppressPauseNotifyRef.current = false; return; }
+                  if (!playbackEndedNotifiedRef.current) {
+                    playbackEndedNotifiedRef.current = true;
+                    notifyPlaybackEnded();
+                    setAgentSpeaking(false);
+                  }
+                }} onEnded={() => { if (!playbackEndedNotifiedRef.current) { playbackEndedNotifiedRef.current = true; notifyPlaybackEnded(); setAgentSpeaking(false); } }} />
+              </div>
+            )}
           </div>
           {/* Mode switch warning popup */}
           <WarningPopUp
@@ -480,7 +476,7 @@ function ChatExperience({ firstName, userInfo, initials, sessionId, onNewChat, o
           />
         </section>
 
-        {!conversationStarted && (
+        {!conversationStarted && !modeSelected && (
           <section className="mt-7">
             <div className="text-[10px] font-extrabold text-[var(--success-default)] tracking-wider mb-3 sm:text-xs">POPULAR ROADIE INQUIRIES:</div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-3">
@@ -506,7 +502,6 @@ function ChatExperience({ firstName, userInfo, initials, sessionId, onNewChat, o
           </section>
         )}
       </section>
-      <footer className="text-center py-4 text-[var(--text-body)] text-xs border-t border-emerald-900">Texas Roadhouse • Roadie Ranger employee support</footer>
     </main>
   );
 }
