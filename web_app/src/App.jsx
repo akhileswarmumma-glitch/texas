@@ -7,40 +7,40 @@ import { resumeToPipeableStream } from "react-dom/server";
 
 function App() {
   const [loading, setLoading] = useState(true);
-  const [isAuthenticated, setAuthenticated] = useState(true);
+  const [isAuthenticated, setAuthenticated] = useState(false);
 
-  // useEffect(() => {
-  //   checkAuth();
-  // }, []);
+  useEffect(() => {
+    checkAuth();
+  }, []);
 
-  // const checkAuth = async () => {
-  //   try {
-  //     const response = await fetch(
-  //       "https://txrh-app-roadierangerdev-6279-stosup-phmo.azurewebsites.net/auth/me",
-  //       {
-  //         method: "POST",
-  //         credentials: "include",
-  //       }
-  //     );
+  const checkAuth = async () => {
+    try {
+      const response = await fetch(
+        "https://txrh-app-roadierangerdev-6279-stosup-phmo.azurewebsites.net/auth/me",
+        {
+          method: "POST",
+          credentials: "include",
+        }
+      );
 
-  //     if (response.ok) {
-  //       const data = await response.json();
+      if (response.ok) {
+        const data = await response.json();
 
-  //       setAuthenticated(true);
-  //     } else {
-  //       setAuthenticated(false);
-  //     }
-  //   } catch (error) {
-  //     console.error(error);
-  //     setAuthenticated(false);
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
+        setAuthenticated(true);
+      } else {
+        setAuthenticated(false);
+      }
+    } catch (error) {
+      console.error(error);
+      setAuthenticated(false);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // if (loading) {
-  //   return <div>Loading...</div>;
-  // }
+  if (loading) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <Routes>

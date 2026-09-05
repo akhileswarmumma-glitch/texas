@@ -34,6 +34,7 @@ function MessageBubble({ item }) {
         {item.sender !== "user" && <div className="text-[var(--maroon-primary)] text-xs font-extrabold mb-1">✦ Roadie Ranger</div>}
         <div>
           <ReactMarkdown
+          className="chat-markdown"
             remarkPlugins={[remarkGfm]}
             // components={{
             //   a: ({ node, ...props }) => (
@@ -401,7 +402,8 @@ function ChatExperience({ firstName, userInfo, initials, sessionId, onNewChat, o
 
             {mode === "voice" && (
               <div className="flex-1 flex flex-col gap-2 rounded-2xl border border-emerald-800 bg-[#f6f1e6] p-3">
-                <div className="flex items-center gap-4">
+                <p className="text-black">Coming soon... please switch to text mode to continue</p>
+                {/* <div className="flex items-center gap-4">
                   <div className={`w-14 h-14 rounded-full grid place-items-center ${isVoiceActive ? 'bg-[var(--danger-default)]' : 'bg-[#102a20]'} text-white`} style={{ boxShadow: isVoiceActive && !speakingPaused ? `0 0 ${8 + micLevel * 18}px rgba(255,99,71,0.45)` : 'none' }}>
                     <div className="text-2xl">{isVoiceActive ? '🎙️' : '🤖'}</div>
                   </div>
@@ -454,7 +456,7 @@ function ChatExperience({ firstName, userInfo, initials, sessionId, onNewChat, o
                     notifyPlaybackEnded();
                     setAgentSpeaking(false);
                   }
-                }} onEnded={() => { if (!playbackEndedNotifiedRef.current) { playbackEndedNotifiedRef.current = true; notifyPlaybackEnded(); setAgentSpeaking(false); } }} />
+                }} onEnded={() => { if (!playbackEndedNotifiedRef.current) { playbackEndedNotifiedRef.current = true; notifyPlaybackEnded(); setAgentSpeaking(false); } }} /> */}
               </div>
             )}
           </div>

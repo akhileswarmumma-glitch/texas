@@ -254,33 +254,60 @@
    remarkGfm support
    ========================= */
 
+.chat-markdown {
+    overflow-x: auto;
+}
+
 .chat-markdown table {
     width: 100%;
-    border-collapse: collapse;
+    min-width: 700px;
     margin: 12px 0;
-
+    border-collapse: separate;
+    border-spacing: 0;
+    background: var(--white-100);
+    border: 1px solid var(--neutral-300);
+    border-radius: 8px;
+    overflow: hidden;
     font-size: 13px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
 
 .chat-markdown th,
 .chat-markdown td {
-    border: 1px solid var(--neutral-300);
-    padding: 8px 10px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--neutral-300);
     text-align: left;
     vertical-align: top;
 }
 
 .chat-markdown th {
-    background-color: var(--neutral-200);
-    color: var(--black-900);
-    font-weight: 700;
+    background: var(--primary-default);
+    color: var(--white-100);
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+}
+
+.chat-markdown tbody tr:nth-child(odd) {
+    background: var(--white-100);
 }
 
 .chat-markdown tbody tr:nth-child(even) {
-    background-color: var(--secondary-default);
+    background: #F6FAF6;
 }
 
+.chat-markdown tbody tr:hover {
+    background: #EAF5EA;
+}
 
+.chat-markdown td:first-child {
+    font-weight: 600;
+    color: var(--primary-default);
+}
+
+.chat-markdown tbody tr:last-child td {
+    border-bottom: none;
+}
 /* =========================
    IMAGES
    ========================= */
