@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FaUser } from "react-icons/fa";
 import { FiLogOut, FiPlus, FiSend, FiMic, FiSquare, FiChevronDown, FiMessageSquare } from "react-icons/fi";
 import ReactMarkdown from "react-markdown";
+import "./markdown.css";
 import remarkGfm from "remark-gfm";
 import useTextAgent from "./aiTextResponse.jsx";
 import useVoiceAgent from "./aiVoiceResponse.jsx";
@@ -64,7 +65,7 @@ function MessageBubble({ item }) {
 
         {needsConsent && showConsent && (
           <div className="flex gap-2 mt-3">
-            <button type="button" onClick={() => item.link && window.open(item.link, "_blank", "noopener,noreferrer")} className="rounded-md bg-yellow-400 text-black px-3 py-1 text-sm font-bold">Grant Consent</button>
+            <button type="button" onClick={() => { if (item.link) window.open(item.link, "_blank", "noopener,noreferrer"); setShowConsent(false); }} className="rounded-md bg-yellow-400 text-black px-3 py-1 text-sm font-bold">Grant Consent</button>
             <button type="button" onClick={() => setShowConsent(false)} className="rounded-md border px-3 py-1 text-sm">Cancel</button>
           </div>
         )}
@@ -287,16 +288,17 @@ function ChatExperience({ firstName, userInfo, initials, sessionId, onNewChat, o
 
         <div className="flex items-center gap-2 sm:gap-3">
           {!modeSelected ? (
-            <button type="button" onClick={onNewChat} className="inline-flex items-center justify-center gap-1 border border-emerald-800 bg-[var(--success-default)] text-white rounded-full px-2.5 py-1.5 text-[10px] font-bold sm:gap-1.5 sm:px-3 sm:text-xs hover:border-yellow-400">
-              <FiPlus className="text-[10px] sm:text-xs" /> New Chat
-            </button>
+            // <button type="button" onClick={onNewChat} className="inline-flex items-center justify-center gap-1 border border-emerald-800 bg-[var(--success-default)] text-white rounded-full px-2.5 py-1.5 text-[10px] font-bold sm:gap-1.5 sm:px-3 sm:text-xs hover:border-yellow-400">
+            //   <FiPlus className="text-[10px] sm:text-xs" /> New Chat
+            // </button>
+            null
           ) : (
             <div className="flex items-center gap-2">
               <button type="button" onClick={() => handleModeSelection("text")} className={`inline-flex items-center justify-center rounded-full border px-2.5 py-1.5 text-[10px] font-bold sm:px-3 sm:text-xs ${mode === "text" ? "border-[var(--primary-default)] bg-[var(--primary-default)] text-white" : "border-emerald-800 bg-[#102a20] text-gray-200"}`}>
-                Text Chat
+                <FiPlus className="text-[10px] sm:text-xs" /> Text Chat
               </button>
               <button type="button" onClick={() => handleModeSelection("voice")} className={`inline-flex items-center justify-center rounded-full border px-2.5 py-1.5 text-[10px] font-bold sm:px-3 sm:text-xs ${mode === "voice" ? "border-[var(--danger-default)] bg-[var(--danger-default)] text-white" : "border-emerald-800 bg-[#102a20] text-gray-200"}`}>
-                Voice Chat
+                <FiPlus className="text-[10px] sm:text-xs" /> Voice Chat
               </button>
             </div>
           )}
@@ -389,13 +391,16 @@ function ChatExperience({ firstName, userInfo, initials, sessionId, onNewChat, o
 
             {mode === null && (
               <div className="flex-1 min-h-[46px] rounded-2xl border border-dashed border-emerald-800/60 bg-[#f6f1e6]/60 px-4 py-3.5 flex items-center justify-center gap-2.5 sm:py-4">
-                <span className="flex items-center gap-3 text-[var(--text-muted)]">
-                  <FiMessageSquare className="text-base opacity-60" />
-                  <FiMic className="text-base opacity-60 -ml-1" />
-                </span>
-                <p className="m-0 text-sm text-[var(--text-muted)] font-medium sm:text-base">
-                  Pick <span className="text-[var(--secondary-contrast)] font-bold">Text</span> or{" "}
-                  <span className="text-[var(--secondary-contrast)] font-bold">Voice</span> mode above to start chatting
+                <p className="m-0 text-sm text-[var(--text-muted)] font-medium sm:text-base flex items-center flex-wrap gap-x-1.5 justify-center">
+                  <span>Pick</span>
+                  <span className="inline-flex items-center gap-1 text-[var(--secondary-contrast)] font-bold">
+                    Text <FiMessageSquare className="text-base opacity-60" />
+                  </span>
+                  <span>or</span>
+                  <span className="inline-flex items-center gap-1 text-[var(--secondary-contrast)] font-bold">
+                    Voice <FiMic className="text-base opacity-60" />
+                  </span>
+                  <span>mode above to start chatting</span>
                 </p>
               </div>
             )}
