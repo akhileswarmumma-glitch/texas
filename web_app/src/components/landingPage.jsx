@@ -293,10 +293,10 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
             null
           ) : (
             <div className="flex items-center gap-2">
-              <button type="button" onClick={() => handleModeSelection("text")} className={`inline-flex items-center justify-center rounded-full border px-2.5 py-1.5 text-[10px] font-bold sm:px-3 sm:text-xs ${mode === "text" ? "border-[var(--primary-default)] bg-[var(--primary-default)] text-white" : "border-emerald-800 bg-[#102a20] text-gray-200"}`}>
+              <button type="button" onClick={() => handleModeSelection("text")} className={`inline-flex gap-2 items-center justify-center rounded-full border px-2.5 py-1.5 text-[10px] font-bold sm:px-3 sm:text-xs ${mode === "text" ? "border-[var(--primary-default)] bg-[var(--primary-default)] text-white" : "border-emerald-800 bg-[#102a20] text-gray-200"}`}>
                 <FiPlus className="text-[10px] sm:text-xs" /> Text Chat
               </button>
-              <button type="button" onClick={() => handleModeSelection("voice")} className={`inline-flex items-center justify-center rounded-full border px-2.5 py-1.5 text-[10px] font-bold sm:px-3 sm:text-xs ${mode === "voice" ? "border-[var(--danger-default)] bg-[var(--danger-default)] text-white" : "border-emerald-800 bg-[#102a20] text-gray-200"}`}>
+              <button type="button" onClick={() => handleModeSelection("voice")} className={`inline-flex gap-2 items-center justify-center rounded-full border px-2.5 py-1.5 text-[10px] font-bold sm:px-3 sm:text-xs ${mode === "voice" ? "border-[var(--danger-default)] bg-[var(--danger-default)] text-white" : "border-emerald-800 bg-[#102a20] text-gray-200"}`}>
                 <FiPlus className="text-[10px] sm:text-xs" /> Voice Chat
               </button>
             </div>
