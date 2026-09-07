@@ -264,8 +264,8 @@
     margin: 12px 0;
     border-collapse: separate;
     border-spacing: 0;
-    background: var(--white-100);
-    border: 1px solid var(--neutral-300);
+    background: #F2E8D2;               /* matches bubble background */
+    border: 1px solid var(--maroon-primary);
     border-radius: 8px;
     overflow: hidden;
     font-size: 13px;
@@ -275,34 +275,35 @@
 .chat-markdown th,
 .chat-markdown td {
     padding: 10px 12px;
-    border-bottom: 1px solid var(--neutral-300);
+    border-bottom: 1px solid rgba(122, 30, 30, 0.18); /* soft maroon divider */
     text-align: left;
     vertical-align: top;
+    color: var(--secondary-contrast);
 }
 
 .chat-markdown th {
-    background: var(--primary-default);
-    color: var(--white-100);
-    font-weight: 600;
+    background: var(--maroon-primary);
+    color: #FBF3E0;                    /* warm off-white, not stark white */
+    font-weight: 700;
     position: sticky;
     top: 0;
 }
 
 .chat-markdown tbody tr:nth-child(odd) {
-    background: var(--white-100);
+    background: #F2E8D2;
 }
 
 .chat-markdown tbody tr:nth-child(even) {
-    background: #F6FAF6;
+    background: #EADFC4;               /* slightly darker cream for stripe */
 }
 
 .chat-markdown tbody tr:hover {
-    background: #EAF5EA;
+    background: #E4D4B0;               /* deeper cream on hover, still warm */
 }
 
 .chat-markdown td:first-child {
-    font-weight: 600;
-    color: var(--primary-default);
+    font-weight: 700;
+    color: var(--maroon-primary);      /* first column pops with brand color */
 }
 
 .chat-markdown tbody tr:last-child td {
