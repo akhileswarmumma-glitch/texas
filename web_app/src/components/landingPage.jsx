@@ -31,7 +31,7 @@ function MessageBubble({ item }) {
   return (
     <div className={`flex gap-3 items-start ${item.sender === "user" ? "justify-end" : ""}`}>
       {/* {item.sender !== "user" && <AgentAvatar />} */}
-      <div className={`max-w-[80%] p-3.5 rounded-xl text-sm break-words ${item.sender === "user" ? 'bg-[var(--success-contrast)] border border-[var(--primary-bg)] text-[var(--secondary-contrast)] rounded-br-[4px]' : 'bg-[#F2E8D2] border-l-2 border-[var(--maroon-primary)] text-[var(--secondary-contrast)] rounded-bl-[4px]'}`}>
+      <div className={`max-w-[90%] p-3.5 rounded-xl text-sm break-words ${item.sender === "user" ? 'bg-[var(--success-contrast)] border border-[var(--primary-bg)] text-[var(--secondary-contrast)] rounded-br-[4px]' : 'bg-[#F2E8D2] border-l-2 border-[var(--maroon-primary)] text-[var(--secondary-contrast)] rounded-bl-[4px]'}`}>
         {item.sender !== "user" && <div className="text-[var(--maroon-primary)] text-xs font-extrabold mb-1">✦ Roadie Ranger</div>}
         <div className="chat-markdown">
           <ReactMarkdown
@@ -276,7 +276,19 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
       <header className="flex items-center justify-between gap-2 border-b border-emerald-900 bg-[var(--maroon-primary)] px-3 py-2.5 sticky top-0 z-20 shrink-0 sm:px-5 md:px-8">
         <div className="flex items-center gap-2 min-w-0 sm:gap-3">
           <div className="flex h-[36px] w-[36px] shrink-0 sm:h-[42px] sm:w-[42px]">
-            <img src={texasLogo} alt="" className="h-full w-auto object-contain" />
+            <img
+              src={texasLogo}
+              alt="Texas Roadhouse Home"
+              className="h-full w-auto object-contain cursor-pointer"
+              role="button"
+              aria-label="Go to home"
+              onClick={() => {
+                // Reset UI to home state and start a fresh chat
+                setMessages([]);
+                setMode(null);
+                void onNewChat();
+              }}
+            />
           </div>
           <div className="w-7 h-7 rounded-full bg-[var(--maroon-primary)] border border-[var(--neutral-400)] text-black grid place-items-center text-sm font-extrabold sm:w-8 sm:h-8 sm:text-base">🤠</div>
           <div className="min-w-0">
@@ -293,10 +305,10 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
             null
           ) : (
             <div className="flex items-center gap-2">
-              <button type="button" onClick={() => handleModeSelection("text")} className={`inline-flex gap-2 items-center justify-center rounded-full border px-2.5 py-1.5 text-[10px] font-bold sm:px-3 sm:text-xs ${mode === "text" ? "border-[var(--primary-default)] bg-[var(--primary-default)] text-white" : "border-emerald-800 bg-[#102a20] text-gray-200"}`}>
+              <button type="button" title="Start a new text chat" onClick={() => handleModeSelection("text")} className={`inline-flex gap-2 items-center justify-center rounded-full border px-2.5 py-1.5 text-[10px] font-bold sm:px-3 sm:text-xs ${mode === "text" ? "border-[var(--primary-default)] bg-[var(--primary-default)] text-white" : "border-emerald-800 bg-[#102a20] text-gray-200"}`}>
                 <FiPlus className="text-[10px] sm:text-xs" /> Text Chat
               </button>
-              <button type="button" onClick={() => handleModeSelection("voice")} className={`inline-flex gap-2 items-center justify-center rounded-full border px-2.5 py-1.5 text-[10px] font-bold sm:px-3 sm:text-xs ${mode === "voice" ? "border-[var(--danger-default)] bg-[var(--danger-default)] text-white" : "border-emerald-800 bg-[#102a20] text-gray-200"}`}>
+              <button type="button" title="Start a new voice chat" onClick={() => handleModeSelection("voice")} className={`inline-flex gap-2 items-center justify-center rounded-full border px-2.5 py-1.5 text-[10px] font-bold sm:px-3 sm:text-xs ${mode === "voice" ? "border-[var(--danger-default)] bg-[var(--danger-default)] text-white" : "border-emerald-800 bg-[#102a20] text-gray-200"}`}>
                 <FiPlus className="text-[10px] sm:text-xs" /> Voice Chat
               </button>
             </div>
@@ -408,55 +420,56 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
             )}
 
             {mode === "voice" && (
-              <div className="flex-1 flex flex-col gap-2 rounded-2xl border border-emerald-800 bg-[#f6f1e6] p-3">
-                <p className="text-black">Coming soon... please switch to text mode to continue</p>
+              <div className="flex-1 flex flex-col gap-3 rounded-2xl border border-emerald-800 bg-[#f6f1e6] p-4">
+                <p className="text-black">Coming soon... please switch to text mode to continue.</p>
                 {/* <div className="flex items-center gap-4">
-                  <div className={`w-14 h-14 rounded-full grid place-items-center ${isVoiceActive ? 'bg-[var(--danger-default)]' : 'bg-[#102a20]'} text-white`} style={{ boxShadow: isVoiceActive && !speakingPaused ? `0 0 ${8 + micLevel * 18}px rgba(255,99,71,0.45)` : 'none' }}>
-                    <div className="text-2xl">{isVoiceActive ? '🎙️' : '🤖'}</div>
-                  </div>
-
                   <div className="flex-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="text-sm font-bold text-[var(--secondary-contrast)]">Live voice session {isVoiceActive ? `· ${voiceStatus}` : ''}</div>
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm font-bold text-[var(--secondary-contrast)]">Voice session {isVoiceActive ? `· ${voiceStatus}` : ''}</div>
                       <div className="text-xs text-[var(--text-muted)]">{agentSpeaking ? (speakingPaused ? 'Playback paused' : 'Speaking') : 'Idle'}</div>
                     </div>
-                    <div className="mt-2 flex items-center gap-3">
+
+                    <div className="mt-3 flex items-center gap-3">
                       <button
                         type="button"
                         onClick={() => {
-                          if (audioRef.current) {
-                            if (audioRef.current.paused) {
-                              const p = audioRef.current.play();
-                              if (p && p.then) p.catch(() => {});
-                              notifyPlaybackStarted();
-                              setAgentSpeaking(true);
-                            } else {
-                              audioRef.current.pause();
-                            }
+                          if (!audioRef.current) return;
+                          if (audioRef.current.paused) {
+                            const p = audioRef.current.play();
+                            if (p && p.then) p.catch(() => {});
+                            notifyPlaybackStarted();
+                            setAgentSpeaking(true);
+                          } else {
+                            audioRef.current.pause();
                           }
                         }}
-                        className={`w-9 h-9 rounded-full grid place-items-center cursor-pointer ${audioRef.current && !audioRef.current?.paused ? 'bg-[var(--neutral-800)] text-white' : 'bg-[var(--primary-default)] text-black'}`}
+                        className={`px-4 py-2 rounded-md text-sm font-semibold transition-colors ${audioRef.current && !audioRef.current?.paused ? 'bg-[var(--primary-light)] text-white' : 'bg-[var(--primary-bg)] text-white'}`}
                       >
-                        {audioRef.current && !audioRef.current.paused ? '⏸' : '▶️'}
+                        {audioRef.current && !audioRef.current.paused ? 'Pause' : 'Play'}
                       </button>
 
-                      <button
-                        type="button"
-                        onClick={() => (isVoiceActive ? stopVoiceSession() : startVoiceSession())}
-                        aria-label={isVoiceActive ? "Stop voice" : "Start voice"}
-                        className={`w-9 h-9 rounded-full grid place-items-center cursor-pointer border border-emerald-800 ${isVoiceActive ? 'bg-red-600 text-white' : 'bg-[#102a20] text-gray-200'}`}
-                      >
-                        {isVoiceActive ? <FiSquare /> : <FiMic />}
-                      </button>
-
-                      <div className="flex-1 h-3 bg-[#08281d] rounded-full overflow-hidden" aria-hidden>
-                        <div className="h-full bg-[var(--danger-default)]" style={{ width: `${Math.min(100, Math.round(micLevel * 100))}%`, transition: 'width 120ms linear' }} />
+                      <div className="flex-1">
+                        <div className="text-xs text-[var(--text-muted)] mb-1">Mic level</div>
+                        <div className="h-3 bg-[var(--primary-light)]/20 rounded-full overflow-hidden" aria-hidden>
+                          <div className="h-full bg-[var(--primary-bg)]" style={{ width: `${Math.min(100, Math.round(micLevel * 100))}%`, transition: 'width 120ms linear' }} />
+                        </div>
                       </div>
                     </div>
                   </div>
+
+                  <div className="flex-shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => (isVoiceActive ? stopVoiceSession() : startVoiceSession())}
+                      aria-label={isVoiceActive ? "Stop voice" : "Start voice"}
+                      className={`w-14 h-14 rounded-full grid place-items-center text-2xl shadow-md transition-colors ${isVoiceActive ? 'bg-[var(--danger-default)] text-white' : 'bg-[var(--primary-bg)] text-white'}`}
+                    >
+                      {isVoiceActive ? '⏹️' : '🎙️'}
+                    </button>
+                  </div>
                 </div>
 
-                <audio ref={audioRef} id="player" controls onPlay={() => { notifyPlaybackStarted(); setAgentSpeaking(true); playbackEndedNotifiedRef.current = false; }} onPause={() => {
+                <audio ref={audioRef} id="player" className="hidden" onPlay={() => { notifyPlaybackStarted(); setAgentSpeaking(true); playbackEndedNotifiedRef.current = false; }} onPause={() => {
                   if (suppressPauseNotifyRef.current) { suppressPauseNotifyRef.current = false; return; }
                   if (!playbackEndedNotifiedRef.current) {
                     playbackEndedNotifiedRef.current = true;
