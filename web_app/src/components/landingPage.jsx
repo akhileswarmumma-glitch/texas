@@ -244,7 +244,7 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
   const modeSelected = mode !== null;
   const inputPlaceholder = isVoiceActive
     ? `Voice active (${voiceStatus})...`
-    : "Text mode is active to switch to voice mode create a voice chat";
+    : "You are currently in text mode. To continue with voice mode, create a new voice chat.";
 
   const handleModeSelection = useCallback((nextMode) => {
     if (!nextMode) return;
@@ -491,9 +491,9 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
             onContinue={confirmModeChange}
             message={
               pendingMode === "voice"
-                ? "Switching to voice mode will end the current text session. Continue?"
+                ? "Switching to voice mode will close this text conversation. Would you like to continue?"
                 : pendingMode === "text"
-                  ? "Switching to text mode will end the current voice session. Continue?"
+                  ? "Switching to text mode will close this voice conversation. Would you like to continue?"
                   : "Are you sure you want to switch modes?"
             }
           />
