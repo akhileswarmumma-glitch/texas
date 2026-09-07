@@ -181,7 +181,8 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
   }, [isVoiceActive, onNewChat]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messages.length === 0) return; // nothing to scroll to yet — don't touch the page scroll
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, loading]);
 
   useEffect(() => {
@@ -305,10 +306,10 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
             null
           ) : (
             <div className="flex items-center gap-2">
-              <button type="button" title="Start a new text chat" onClick={() => handleModeSelection("text")} className={`inline-flex gap-2 items-center justify-center rounded-full border px-2.5 py-1.5 text-[10px] font-bold sm:px-3 sm:text-xs ${mode === "text" ? "border-[var(--primary-default)] bg-[var(--primary-default)] text-white" : "border-emerald-800 bg-[#102a20] text-gray-200"}`}>
+              <button type="button" title="Start a new text chat" onClick={() => handleModeSelection("text")} className={`inline-flex gap-2 cursor-pointer items-center justify-center rounded-full border px-2.5 py-1.5 text-[10px] font-bold sm:px-3 sm:text-xs ${mode === "text" ? "border-[var(--primary-default)] bg-[var(--primary-default)] text-white" : "border-emerald-800 bg-[#102a20] text-gray-200"}`}>
                 <FiPlus className="text-[10px] sm:text-xs" /> Text Chat
               </button>
-              <button type="button" title="Start a new voice chat" onClick={() => handleModeSelection("voice")} className={`inline-flex gap-2 items-center justify-center rounded-full border px-2.5 py-1.5 text-[10px] font-bold sm:px-3 sm:text-xs ${mode === "voice" ? "border-[var(--danger-default)] bg-[var(--danger-default)] text-white" : "border-emerald-800 bg-[#102a20] text-gray-200"}`}>
+              <button type="button" title="Start a new voice chat" onClick={() => handleModeSelection("voice")} className={`inline-flex gap-2 cursor-pointer items-center justify-center rounded-full border px-2.5 py-1.5 text-[10px] font-bold sm:px-3 sm:text-xs ${mode === "voice" ? "border-[var(--danger-default)] bg-[var(--danger-default)] text-white" : "border-emerald-800 bg-[#102a20] text-gray-200"}`}>
                 <FiPlus className="text-[10px] sm:text-xs" /> Voice Chat
               </button>
             </div>
@@ -408,11 +409,11 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
                 <p className="m-0 text-sm text-[var(--text-muted)] font-medium sm:text-base flex items-center flex-wrap gap-x-1.5 justify-center">
                   <span>Pick</span>
                   <span className="inline-flex items-center gap-1 text-[var(--secondary-contrast)] font-bold">
-                    Text <FiMessageSquare className="text-base opacity-60" />
+                    <FiMessageSquare className="text-base opacity-60" /> Text 
                   </span>
                   <span>or</span>
                   <span className="inline-flex items-center gap-1 text-[var(--secondary-contrast)] font-bold">
-                    Voice <FiMic className="text-base opacity-60" />
+                    <FiMic className="text-base opacity-60" /> Voice 
                   </span>
                   <span>mode above to start chatting</span>
                 </p>
