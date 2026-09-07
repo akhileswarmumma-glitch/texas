@@ -88,13 +88,11 @@ const Chat = ({handleLogout}) => {
   const handleNewChat = async () => {
     try {
       console.log("====================handle chat triggred====================")
-      const response = await fetch(
-        "https://txrh-app-roadierangerdev-6279-stosup-phmo.azurewebsites.net/api/get_conversation_id",
-        {
-          method: "GET",
-          credentials: "include",
-        }
-      );
+      const apiBase = (import.meta.env.VITE_API_BASE || '').replace(/\/+$/, '');
+      const response = await fetch(`${apiBase || ''}/api/get_conversation_id`, {
+        method: "GET",
+        credentials: "include",
+      });
       console.log("status is -=>",response.status)
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);

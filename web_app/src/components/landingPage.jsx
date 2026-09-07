@@ -528,7 +528,8 @@ const LandingPage = () => {
 
     const fetchUserDetails = async () => {
       try {
-        const response = await fetch("https://txrh-app-roadierangerdev-6279-stosup-phmo.azurewebsites.net/get_user_details", {
+        const apiBase = (import.meta.env.VITE_API_BASE || '').replace(/\/+$/, '');
+        const response = await fetch(`${apiBase || ''}/get_user_details`, {
           method: "GET",
           credentials: "include",
         });
@@ -550,7 +551,8 @@ const LandingPage = () => {
 
   const handleNewChat = useCallback(async () => {
     try {
-      const response = await fetch("https://txrh-app-roadierangerdev-6279-stosup-phmo.azurewebsites.net/api/get_conversation_id", {
+      const apiBase = (import.meta.env.VITE_API_BASE || '').replace(/\/+$/, '');
+      const response = await fetch(`${apiBase || ''}/api/get_conversation_id`, {
         method: "GET",
         credentials: "include",
       });

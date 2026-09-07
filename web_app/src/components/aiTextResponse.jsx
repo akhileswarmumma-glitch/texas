@@ -9,7 +9,8 @@ import { useState, useRef, useEffect, useCallback } from 'react';
  *   data: {"type": "done", "response_id": "...", "link": "", "agent_response": "...", "ticket_number": ...}
  *   data: {"type": "error", "error": "..."}
  */
-const CHAT_ENDPOINT = 'https://txrh-app-roadierangerdev-6279-stosup-phmo.azurewebsites.net/api/chatV1'; // same-origin BFF route; adjust if BFF is on a different host
+const API_BASE = (import.meta.env.VITE_API_BASE || '').replace(/\/+$/, '');
+const CHAT_ENDPOINT = API_BASE ? `${API_BASE}/api/chatV1` : '/api/chatV1'; // same-origin BFF route; adjust if BFF is on a different host
 
 const useTextAgent = (onAgentMessage, setLoading, handleLogout, initialSessionId = "") => {
   const [messages, setMessages] = useState([]);

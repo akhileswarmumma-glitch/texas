@@ -5,8 +5,8 @@ const LoginPage = () => {
 
     const handleLogin = () => {
         console.log("Login clicked");
-        window.location.href =
-        "https://txrh-app-roadierangerdev-6279-stosup-phmo.azurewebsites.net/login";
+        const apiBase = (import.meta.env.VITE_API_BASE || '').replace(/\/+$/, '');
+        window.location.href = `${apiBase || ''}/login`;
     };
 
 
@@ -16,7 +16,7 @@ const LoginPage = () => {
             <div
             className="hidden flex p-[5%] lg:flex flex-[1] flex-col text-white"
             style={{
-                background:`linear-gradient(var(--success-tint), rgba(0,0,0,0.75)),url('https://images.unsplash.com/photo-1544025162-d76694265947?q=80&w=1200')`,
+                background:`linear-gradient(var(--success-tint), rgba(0,0,0,0.75)),url('${import.meta.env.VITE_DEFAULT_BG_IMAGE || "https://images.unsplash.com/photo-1544025162-d76694265947?q=80&w=1200"}')`,
                 backgroundSize: "cover",
                 backgroundPosition: "center"
             }}

@@ -15,13 +15,11 @@ function App() {
 
   const checkAuth = async () => {
     try {
-      const response = await fetch(
-        "https://txrh-app-roadierangerdev-6279-stosup-phmo.azurewebsites.net/auth/me",
-        {
-          method: "POST",
-          credentials: "include",
-        }
-      );
+      const apiBase = (import.meta.env.VITE_API_BASE || '').replace(/\/+$/, '');
+      const response = await fetch(`${apiBase || ''}/auth/me`, {
+        method: "POST",
+        credentials: "include",
+      });
 
       if (response.ok) {
         const data = await response.json();

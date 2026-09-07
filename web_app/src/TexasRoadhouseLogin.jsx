@@ -63,7 +63,7 @@ export default function TexasRoadhouseLogin() {
           <div 
             className="hidden lg:flex flex-[1.2] flex-col justify-between p-16 text-white relative bg-cover bg-center"
             style={{
-              backgroundImage: `linear-gradient(rgba(0, 75, 43, 0.85), rgba(26, 18, 11, 0.9)), url('https://images.unsplash.com/photo-1544025162-d76694265947?q=80&w=1200')`
+              backgroundImage: `linear-gradient(rgba(0, 75, 43, 0.85), rgba(26, 18, 11, 0.9)), url('${import.meta.env.VITE_DEFAULT_BG_IMAGE || "https://images.unsplash.com/photo-1544025162-d76694265947?q=80&w=1200"}')`
             }}
           >
             <div className="font-extrabold tracking-widest text-[#FFC72C] flex items-center gap-2.5">
