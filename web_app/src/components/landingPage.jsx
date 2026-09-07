@@ -181,8 +181,13 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
   }, [isVoiceActive, onNewChat]);
 
   useEffect(() => {
-    if (messages.length === 0) return; // nothing to scroll to yet — don't touch the page scroll
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    if (messages.length === 0) return;
+    requestAnimationFrame(() => {
+      window.scrollTo({
+        top: document.documentElement.scrollHeight,
+        behavior: "auto", // instant — avoids "smooth" being interrupted mid-stream by rapid token updates
+      });
+    });
   }, [messages, loading]);
 
   useEffect(() => {
