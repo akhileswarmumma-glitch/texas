@@ -33,9 +33,8 @@ function MessageBubble({ item }) {
       {/* {item.sender !== "user" && <AgentAvatar />} */}
       <div className={`max-w-[80%] p-3.5 rounded-xl text-sm break-words ${item.sender === "user" ? 'bg-[var(--success-contrast)] border border-[var(--primary-bg)] text-[var(--secondary-contrast)] rounded-br-[4px]' : 'bg-[#F2E8D2] border-l-2 border-[var(--maroon-primary)] text-[var(--secondary-contrast)] rounded-bl-[4px]'}`}>
         {item.sender !== "user" && <div className="text-[var(--maroon-primary)] text-xs font-extrabold mb-1">✦ Roadie Ranger</div>}
-        <div>
+        <div className="chat-markdown">
           <ReactMarkdown
-          className="chat-markdown"
             remarkPlugins={[remarkGfm]}
             // components={{
             //   a: ({ node, ...props }) => (
@@ -86,7 +85,7 @@ function TypingIndicator() {
   );
 }
 
-function ChatExperience({ firstName, userInfo, initials, sessionId, onNewChat, onLogout }) {
+function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, onNewChat, onLogout }) {
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState("");
   const [mode, setMode] = useState(null); // null = choose mode on landing, 'text' or 'voice'
@@ -307,9 +306,12 @@ function ChatExperience({ firstName, userInfo, initials, sessionId, onNewChat, o
               {userInfo ? initials : <FaUser />}
             </button>
             {showProfile && (
-              <div className="absolute right-0 top-10 w-36 bg-[#0c1a15] border border-[#1c362d] rounded-xl p-2 shadow-lg sm:w-40 sm:top-12">
-                <div className="px-2 py-2 text-xs text-gray-200 font-bold sm:text-sm">{firstName || "Roadie"}</div>
-                <button type="button" onClick={onLogout} className="w-full flex items-center gap-2 text-xs text-gray-200 p-2 rounded-md hover:bg-emerald-900 sm:text-sm"><FiLogOut /> Logout</button>
+              <div className="absolute right-0 top-10 min-w-[140px] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg z-50 sm:top-12">
+                <div className="border-b border-gray-100 px-4 py-3">
+                  <p className="truncate text-sm font-semibold text-gray-900">{userInfo || "Roadie"}</p>
+                  <p className="truncate text-xs text-gray-500">{userEmail || ""}</p>
+                </div>
+                <button type="button" onClick={onLogout} className="w-full flex items-center justify-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"><FiLogOut size={16} /> Logout</button>
               </div>
             )}
           </div>
@@ -321,7 +323,7 @@ function ChatExperience({ firstName, userInfo, initials, sessionId, onNewChat, o
           <div className="text-center transition-all">
             <h1 className="m-0 mb-3 text-[var(--secondary-contrast)] text-2xl leading-tight font-extrabold tracking-tight sm:mb-4 sm:text-3xl md:text-4xl lg:text-5xl">Hey{firstName ? ` ${firstName}` : ""}, how can we help today?</h1>
             <p className="text-[var(--secondary-contrast)] max-w-[750px] mx-auto mb-2 text-sm sm:mb-3 sm:text-base"><strong>I'm Roadie Ranger</strong> — your quick-answer sidekick on the floor.</p>
-            <p className="text-[var(--secondary-contrast)] max-w-[750px] mx-auto mb-3 text-sm sm:text-base">Ask me anything you need help with, from HR and payroll to restaurant operations and day-to-day tasks. I'll get you clear, trusted guidance in seconds.</p>
+            <p className="text-[var(--secondary-contrast)] max-w-[750px] mx-auto mb-3 text-sm sm:text-base">Roadie Ranger is your helpdesk assistant for HR, payroll, IT, store ops, travel, and compliance questions. Can't find an answer? It opens a ticket and tracks it for you.</p>
             <div className="mt-4 text-[var(--primary-bg)] font-extrabold text-xs sm:mt-6 sm:text-sm">Need help right now? I'm just a tap away.</div>
           </div>
         )}
@@ -589,6 +591,7 @@ const LandingPage = () => {
     <ChatExperience
       firstName={firstName}
       userInfo={userInfo}
+      userEmail={userEmail}
       initials={initials}
       sessionId={sessionId}
       onNewChat={handleNewChat}
