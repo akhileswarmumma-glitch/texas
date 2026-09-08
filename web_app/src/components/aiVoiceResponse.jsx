@@ -97,9 +97,19 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
       await playback.init();
       audioPlaybackRef.current = playback;
 
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      // let wsUrl = `${protocol}//${window.location.host}/ws/voice`;
-      let wsUrl = "wss://txrh-app-roadierangerdev-6279-stosup-phmo.azurewebsites.net/voice/chat"
+      // Prefer environment-configured API base so deployments are flexible.
+      const apiBase = (import.meta.env.VITE_API_BASE || '').replace(/\/+$/, '');
+      let wsUrl = '';
+      if (apiBase) {
+        // convert http(s) to ws(s)
+        wsUrl = apiBase.replace(/^https?:/, (m) => (m === 'https:' ? 'wss:' : 'ws:')) + '/voice/chat';
+      } else {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        wsUrl = `${protocol}//${window.location.host}/voice/chat`;
+      }
+      // Fallback hard-coded host (legacy)
+      if (!wsUrl) wsUrl = "wss://txrh-app-roadierangerdev-6279-stosup-phmo.azurewebsites.net/voice/chat";
+      console.debug('VoiceAgent: connecting wsUrl=', wsUrl);
 
       // Optional nonce retrieval (matches your backend check)
       try {
@@ -116,6 +126,7 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
       wsRef.current = ws;
 
       ws.onopen = async () => {
+        console.debug('VoiceAgent: websocket open', wsUrl, ws.readyState);
         const voiceSessionId = crypto.randomUUID();
         setSessionId(voiceSessionId);
         setStatus('connected');
@@ -127,9 +138,15 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
       };
 
       ws.onmessage = (event) => {
+        // try to parse JSON frames, but some frames may be binary or text — log raw for debugging
         try {
-          const data = JSON.parse(event.data);
-
+          let data = null;
+          try { data = JSON.parse(event.data); } catch (e) { /* not JSON */ }
+          if (!data) {
+            console.debug('VoiceAgent: ws message (raw):', event.data);
+            return;
+          }
+          console.debug('VoiceAgent: ws message type=', data.type);
           switch (data.type) {
             case 'session_id':
               setSessionId(data.id);
@@ -217,13 +234,14 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
         }
       };
 
-      ws.onclose = () => {
+      ws.onclose = (ev) => {
+        console.debug('VoiceAgent: websocket closed', ev.code, ev.reason);
         stopVoiceSession();
       };
 
       ws.onerror = (err) => {
         console.error('Voice WebSocket Error:', err);
-        stopVoiceSession();
+        // do not immediately stop; allow onclose to handle cleanup
       };
     } catch (err) {
       console.error('Failed to start voice session:', err);
