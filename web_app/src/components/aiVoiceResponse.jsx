@@ -47,15 +47,23 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
     // tell server we're starting to send audio
     try { wsRef.current.send(JSON.stringify({ type: 'start_listening' })); } catch (e) { console.warn('start_listening failed', e); }
 
+    console.log('VoiceAgent: starting capture');
+    let sentChunks = 0;
     const capture = new AudioCapture(
       (base64Chunk) => {
-        if (wsRef.current?.readyState === WebSocket.OPEN) {
-          wsRef.current.send(
-            JSON.stringify({
-              type: 'audio_chunk',
-              data: base64Chunk,
-            })
-          );
+        try {
+          if (wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.send(
+              JSON.stringify({
+                type: 'audio_chunk',
+                data: base64Chunk,
+              })
+            );
+            sentChunks += 1;
+            if (sentChunks === 1) console.debug('VoiceAgent: sent first audio chunk');
+          }
+        } catch (err) {
+          console.error('VoiceAgent: failed to send audio chunk', err);
         }
       },
       (level) => setMicLevel(level)
@@ -63,6 +71,7 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
 
     await capture.start();
     audioCaptureRef.current = capture;
+    console.log('VoiceAgent: capture started');
     setStatus('listening');
   }, []);
 
@@ -82,7 +91,6 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
 
     try {
       setStatus('connecting');
-      setLoading?.(true);
 
       // Initialize Audio Playback
       const playback = new AudioPlayback();
@@ -155,6 +163,21 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
                 } else {
                   // fallback: enqueue via WebAudio if available (not ideal for encoded formats)
                   audioPlaybackRef.current?.enqueue(data.audio_base64);
+                }
+
+                // If the server provided a link or consent-like metadata, surface it as an AI message
+                // so the existing MessageBubble consent UI can render (uses `link` and `consentRequired`).
+                try {
+                  const hasLink = Boolean(data.link);
+                  const consentFlag = Boolean(data.consent || data.consentRequired || hasLink);
+                  if (hasLink || consentFlag) {
+                    const caption = data.caption || data.text || 'Voice message contains a link — grant consent to open.';
+                    if (typeof callbackRef.current === 'function') {
+                      callbackRef.current(caption, 'ai', { streaming: false, link: data.link || '', consentRequired: consentFlag });
+                    }
+                  }
+                } catch (err) {
+                  console.warn('Failed to emit consent message for agent_audio:', err);
                 }
               } catch (err) {
                 console.error('Failed to handle agent_audio:', err);
