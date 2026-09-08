@@ -11,10 +11,10 @@ export class AudioCapture {
 
   async start() {
     this._stream = await navigator.mediaDevices.getUserMedia({
-      audio: { sampleRate: 24000, channelCount: 1, echoCancellation: true, noiseSuppression: true }
+      audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true, noiseSuppression: true }
     });
 
-    this._context = new AudioContext({ sampleRate: 24000 });
+    this._context = new AudioContext({ sampleRate: 16000 });
     this._source = this._context.createMediaStreamSource(this._stream);
 
     const workletCode = `

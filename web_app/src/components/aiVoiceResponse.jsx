@@ -56,7 +56,8 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
       audioPlaybackRef.current = playback;
 
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      let wsUrl = `${protocol}//${window.location.host}/ws/voice`;
+      // let wsUrl = `${protocol}//${window.location.host}/ws/voice`;
+      let wsUrl = "wss://txrh-app-roadierangerdev-6279-stosup-phmo.azurewebsites.net/voice/chat"
 
       // Optional nonce retrieval (matches your backend check)
       try {
@@ -73,19 +74,25 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
       wsRef.current = ws;
 
       ws.onopen = async () => {
+        const voiceSessionId = crypto.randomUUID();
+        setSessionId(voiceSessionId);
         setStatus('connected');
         setIsVoiceActive(true);
+
+        // The BFF requires init to be the first frame on every voice connection.
+        ws.send(JSON.stringify({ type: 'init', session_id: voiceSessionId }));
+        ws.send(JSON.stringify({ type: 'start_listening' }));
 
         // Start Mic Capture once socket is open
         const capture = new AudioCapture(
           (base64Chunk) => {
             if (wsRef.current?.readyState === WebSocket.OPEN) {
-              wsRef.current.send(
-                JSON.stringify({
-                  type: 'audio_chunk',
-                  data: base64Chunk,
-                })
-              );
+              const binary = atob(base64Chunk);
+              const audioBytes = new Uint8Array(binary.length);
+              for (let i = 0; i < binary.length; i += 1) {
+                audioBytes[i] = binary.charCodeAt(i);
+              }
+              wsRef.current.send(audioBytes.buffer);
             }
           },
           (level) => setMicLevel(level)

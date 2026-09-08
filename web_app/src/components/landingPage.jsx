@@ -167,11 +167,20 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
     }
   }, []);
 
-  const { isVoiceActive, startVoiceSession, stopVoiceSession, micLevel, status: voiceStatus, speakingPaused, pauseSpeaking, resumeSpeaking, notifyPlaybackStarted, notifyPlaybackEnded } = useVoiceAgent(
-    addMessage,
-    setLoading,
-    { onAudio: handleAudio }
-  );
+  const handleInterrupt = useCallback(() => {
+  if (!audioRef.current) return;
+  if (!audioRef.current.paused) {
+    suppressPauseNotifyRef.current = true; // programmatic stop, not user-initiated
+    audioRef.current.pause();
+  }
+  audioRef.current.currentTime = 0;
+  setAgentSpeaking(false);
+}, []);
+
+
+  const { isVoiceActive, startVoiceSession, stopVoiceSession, micLevel, status: voiceStatus,
+        speakingPaused, pauseSpeaking, resumeSpeaking, notifyPlaybackStarted, notifyPlaybackEnded } =
+  useVoiceAgent(addMessage, setLoading, { onAudio: handleAudio, onInterrupt: handleInterrupt });
 
   useEffect(() => {
     if (wasVoiceActive.current && !isVoiceActive) {
@@ -427,8 +436,8 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
 
             {mode === "voice" && (
               <div className="flex-1 flex flex-col gap-3 rounded-2xl border border-emerald-800 bg-[#f6f1e6] p-4">
-                <p className="text-black">Coming soon... please switch to text mode to continue.</p>
-                {/* <div className="flex items-center gap-4">
+                {/* <p className="text-black">Coming soon... please switch to text mode to continue.</p> */}
+                <div className="flex items-center gap-4">
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
                       <div className="text-sm font-bold text-[var(--secondary-contrast)]">Voice session {isVoiceActive ? `· ${voiceStatus}` : ''}</div>
@@ -482,7 +491,7 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
                     notifyPlaybackEnded();
                     setAgentSpeaking(false);
                   }
-                }} onEnded={() => { if (!playbackEndedNotifiedRef.current) { playbackEndedNotifiedRef.current = true; notifyPlaybackEnded(); setAgentSpeaking(false); } }} /> */}
+                }} onEnded={() => { if (!playbackEndedNotifiedRef.current) { playbackEndedNotifiedRef.current = true; notifyPlaybackEnded(); setAgentSpeaking(false); } }} />
               </div>
             )}
           </div>
