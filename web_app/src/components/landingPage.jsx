@@ -8,6 +8,139 @@ import useTextAgent from "./aiTextResponse.jsx";
 import useVoiceAgent from "./aiVoiceResponse.jsx";
 import WarningPopUp from "./warningPopUp.jsx";
 import texasLogo from "../assets/texas-logo.png";
+// Add this helper near the top of the file
+function themeColor(name, fallback) {
+  if (typeof window === "undefined") return fallback;
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name);
+  return value?.trim() || fallback;
+}
+
+function WaveformPlayer({ audioRef, audioBlob, audioDuration, isPlaying, onSeek, onPlayToggle }) {
+  const canvasRef = useRef(null);
+  const bars = 60;
+
+  useEffect(() => {
+    let cancelled = false;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+
+    const roundRect = (x, y, w, h, r) => {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r);
+      ctx.arcTo(x, y, x + w, y, r);
+      ctx.closePath();
+      ctx.fill();
+    };
+
+    const drawBars = (values) => {
+      const dpr = window.devicePixelRatio || 1;
+      const cssW = canvas.clientWidth || 320;
+      const cssH = canvas.clientHeight || 40;
+      canvas.width = Math.floor(cssW * dpr);
+      canvas.height = Math.floor(cssH * dpr);
+      const w = canvas.width / dpr;
+      const h = canvas.height / dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, w, h);
+
+      const gap = 3;
+      const barW = Math.max(2, (w - (bars - 1) * gap) / bars);
+      const vals = Array.isArray(values)
+        ? values
+        : new Array(bars).fill(0).map(() => Math.random() * 0.5 + 0.15);
+
+      const barColor = themeColor("--maroon-primary", "#7a2331");
+      const playedColor = themeColor("--primary-bg", "#f2b807");
+      const progress = audioDuration ? (audioRef.current?.currentTime || 0) / audioDuration : 0;
+
+      for (let i = 0; i < bars; i++) {
+        const val = vals[i] ?? 0.2;
+        const bh = Math.max(3, val * h);
+        const x = i * (barW + gap);
+        const y = (h - bh) / 2;
+        const played = i / bars <= progress;
+        ctx.fillStyle = played ? playedColor : barColor;
+        ctx.globalAlpha = played ? 1 : 0.55;
+        roundRect(x, y, barW, bh, Math.min(3, barW / 2));
+      }
+      ctx.globalAlpha = 1;
+    };
+
+    const decodeAndDraw = async (blob) => {
+      try {
+        const arrayBuffer = await blob.arrayBuffer();
+        const ac = new (window.AudioContext || window.webkitAudioContext)();
+        const audioBuffer = await ac.decodeAudioData(arrayBuffer.slice(0));
+        const channel = audioBuffer.getChannelData(0);
+        const values = new Array(bars).fill(0).map((_, i) => {
+          const start = Math.floor((i / bars) * channel.length);
+          const end = Math.floor(((i + 1) / bars) * channel.length);
+          let sum = 0;
+          for (let j = start; j < end; j++) sum += Math.abs(channel[j]);
+          return sum / (end - start) || 0;
+        });
+        if (!cancelled) drawBars(values.map((v) => Math.min(1, v * 4)));
+        ac.close();
+      } catch (err) {
+        if (!cancelled) drawBars();
+      }
+    };
+
+    if (audioBlob) decodeAndDraw(audioBlob);
+    else drawBars();
+
+    return () => { cancelled = true; };
+  }, [audioBlob, audioDuration, isPlaying]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const handleClick = (ev) => {
+      const rect = canvas.getBoundingClientRect();
+      const rel = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width));
+      if (typeof onSeek === "function") onSeek(rel * (audioDuration || 0));
+    };
+    canvas.addEventListener("click", handleClick);
+    return () => canvas.removeEventListener("click", handleClick);
+  }, [audioDuration, onSeek]);
+
+  return (
+    <div
+      className="rounded-xl w-[70%] h-[40px] flex items-center gap-3 p-2.5 border border-[var(--neutral-300)]"
+      style={{ background: "var(--white-100, #fff)" }}
+    >
+      <button
+        type="button"
+        onClick={onPlayToggle}
+        aria-label={isPlaying ? "Pause response" : "Play response"}
+        aria-pressed={isPlaying}
+        className="flex-shrink-0 w-[30px] h-[30px] rounded-full grid place-items-center text-white transition hover:opacity-90"
+        style={{ background: "var(--maroon-primary)" }}
+      >
+        {isPlaying ? (
+          <span className="flex gap-[3px]">
+            <span className="w-[3px] h-3.5 bg-white rounded-sm" />
+            <span className="w-[3px] h-3.5 bg-white rounded-sm" />
+          </span>
+        ) : (
+          <span className="ml-0.5" style={{ fontSize: 14 }}>▶</span>
+        )}
+      </button>
+      <canvas
+        ref={canvasRef}
+        aria-label="Seek within response audio"
+        role="slider"
+        aria-valuemin={0}
+        aria-valuemax={audioDuration || 0}
+        style={{ flex: 1, width: "70%", height: 40, cursor: "pointer" }}
+      />
+    </div>
+  );
+}
 
 const QUICK_INQUIRIES = [
   { category: "HR & Benefits", text: "How do I enroll in or update my benefits?" },
@@ -143,6 +276,18 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
   const suppressPauseNotifyRef = useRef(false);
   const playbackEndedNotifiedRef = useRef(false);
   const [agentSpeaking, setAgentSpeaking] = useState(false);
+  const [audioCurrentTime, setAudioCurrentTime] = useState(0);
+  const [audioDuration, setAudioDuration] = useState(0);
+  const [audioBlob, setAudioBlob] = useState(null);
+  const [audioUrl, setAudioUrl] = useState(null);
+
+  const formatTime = (t) => {
+    if (!t && t !== 0) return "0:00";
+    const sec = Math.floor(t || 0);
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
 
   const handleAudio = useCallback(({ url, blob, format }) => {
     try {
@@ -153,6 +298,8 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
         audioRef.current.pause();
       }
       audioRef.current.src = url;
+      setAudioUrl(url);
+      setAudioBlob(blob || null);
       playbackEndedNotifiedRef.current = false;
       setAgentSpeaking(true);
       // attempt to play and notify server via hook when started (hook returns notifier)
@@ -178,9 +325,11 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
 }, []);
 
 
-  const { isVoiceActive, startVoiceSession, stopVoiceSession, micLevel, status: voiceStatus,
-        speakingPaused, pauseSpeaking, resumeSpeaking, notifyPlaybackStarted, notifyPlaybackEnded } =
-  useVoiceAgent(addMessage, setLoading, { onAudio: handleAudio, onInterrupt: handleInterrupt });
+    const { isVoiceActive, startVoiceSession, stopVoiceSession, startCapture, stopCapture, micLevel, status: voiceStatus,
+      speakingPaused, pauseSpeaking, resumeSpeaking, notifyPlaybackStarted, notifyPlaybackEnded } =
+    useVoiceAgent(addMessage, setLoading, { onAudio: handleAudio, onInterrupt: handleInterrupt });
+
+    const [isRecording, setIsRecording] = useState(false);
 
   useEffect(() => {
     if (wasVoiceActive.current && !isVoiceActive) {
@@ -418,6 +567,8 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
               </div>
             )}
 
+            
+
             {mode === null && (
               <div className="flex-1 min-h-[46px] rounded-2xl border border-dashed border-emerald-800/60 bg-[#f6f1e6]/60 px-4 py-3.5 flex items-center justify-center gap-2.5 sm:py-4">
                 <p className="m-0 text-sm text-[var(--text-muted)] font-medium sm:text-base flex items-center flex-wrap gap-x-1.5 justify-center">
@@ -439,52 +590,113 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
                 {/* <p className="text-black">Coming soon... please switch to text mode to continue.</p> */}
                 <div className="flex items-center gap-4">
                   <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm font-bold text-[var(--secondary-contrast)]">Voice session {isVoiceActive ? `· ${voiceStatus}` : ''}</div>
-                      <div className="text-xs text-[var(--text-muted)]">{agentSpeaking ? (speakingPaused ? 'Playback paused' : 'Speaking') : 'Idle'}</div>
+                    <div className="flex items-center justify-center">
+                      {/* <div className="text-sm font-bold text-[var(--secondary-contrast)]">Voice session {isVoiceActive ? `· ${voiceStatus}` : ''}</div> */}
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => startVoiceSession()}
+                          disabled={isVoiceActive}
+                          className={`px-2 py-1 text-xs rounded-md font-semibold transition ${isVoiceActive ? 'opacity-50 cursor-not-allowed bg-[var(--primary-bg)] text-white' : 'bg-white text-[var(--primary-bg)] border border-[var(--primary-bg)]'}`}
+                        >
+                          Connect
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => stopVoiceSession()}
+                          disabled={!isVoiceActive}
+                          className={`px-2 py-1 text-xs rounded-md font-semibold transition ${!isVoiceActive ? 'opacity-50 cursor-not-allowed bg-white text-[var(--text-muted)]' : 'bg-[var(--danger-default)] text-white'}`}
+                        >
+                          Disconnect
+                        </button>
+
+                        {isVoiceActive && (
+                          <span className="ml-2 inline-block px-2 py-0.5 rounded-full bg-[var(--primary-bg)] text-black text-xs font-bold">Connected</span>
+                        )}
+                      </div>
+                      {/* <div className="text-xs text-[var(--text-muted)]">{agentSpeaking ? (speakingPaused ? 'Playback paused' : 'Speaking') : 'Idle'}</div> */}
                     </div>
 
                     <div className="mt-3 flex items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!audioRef.current) return;
-                          if (audioRef.current.paused) {
-                            const p = audioRef.current.play();
-                            if (p && p.then) p.catch(() => {});
-                            notifyPlaybackStarted();
-                            setAgentSpeaking(true);
-                          } else {
-                            audioRef.current.pause();
-                          }
-                        }}
-                        className={`px-4 py-2 rounded-md text-sm font-semibold transition-colors ${audioRef.current && !audioRef.current?.paused ? 'bg-[var(--primary-light)] text-white' : 'bg-[var(--primary-bg)] text-white'}`}
-                      >
-                        {audioRef.current && !audioRef.current.paused ? 'Pause' : 'Play'}
-                      </button>
-
-                      <div className="flex-1">
-                        <div className="text-xs text-[var(--text-muted)] mb-1">Mic level</div>
-                        <div className="h-3 bg-[var(--primary-light)]/20 rounded-full overflow-hidden" aria-hidden>
-                          <div className="h-full bg-[var(--primary-bg)]" style={{ width: `${Math.min(100, Math.round(micLevel * 100))}%`, transition: 'width 120ms linear' }} />
+                        <div className="w-full">
+                          <WaveformPlayer
+                            audioRef={audioRef}
+                            audioBlob={audioBlob}
+                            audioUrl={audioUrl}
+                            audioCurrentTime={audioCurrentTime}
+                            audioDuration={audioDuration}
+                            onSeek={(t) => {
+                              if (!audioRef.current) return;
+                              audioRef.current.currentTime = t;
+                              setAudioCurrentTime(t);
+                            }}
+                            onPlayToggle={() => {
+                              if (!audioRef.current) return;
+                              if (audioRef.current.paused) {
+                                const p = audioRef.current.play();
+                                if (p && p.then) p.catch(() => {});
+                                notifyPlaybackStarted();
+                                setAgentSpeaking(true);
+                              } else {
+                                audioRef.current.pause();
+                              }
+                            }}
+                          />
                         </div>
-                      </div>
+
+                      
+
+                        {/* mic level removed — using push-to-talk animation on mic button instead */}
                     </div>
                   </div>
 
                   <div className="flex-shrink-0">
                     <button
                       type="button"
-                      onClick={() => (isVoiceActive ? stopVoiceSession() : startVoiceSession())}
-                      aria-label={isVoiceActive ? "Stop voice" : "Start voice"}
-                      className={`w-14 h-14 rounded-full grid place-items-center text-2xl shadow-md transition-colors ${isVoiceActive ? 'bg-[var(--danger-default)] text-white' : 'bg-[var(--primary-bg)] text-white'}`}
+                      onMouseDown={async (e) => {
+                        e.preventDefault();
+                        if (!isVoiceActive) return;
+                        setIsRecording(true);
+                        try { await startCapture(); } catch (err) { console.error(err); }
+                      }}
+                      onMouseUp={async (e) => {
+                        e.preventDefault();
+                        if (!isVoiceActive) return;
+                        try { stopCapture(); } catch (err) { console.error(err); }
+                        setIsRecording(false);
+                      }}
+                      onMouseLeave={async (e) => {
+                        if (!isVoiceActive) return;
+                        try { stopCapture(); } catch (err) { console.error(err); }
+                        setIsRecording(false);
+                      }}
+                      onTouchStart={async (e) => {
+                        e.preventDefault();
+                        if (!isVoiceActive) return;
+                        setIsRecording(true);
+                        try { await startCapture(); } catch (err) { console.error(err); }
+                      }}
+                      onTouchEnd={async (e) => {
+                        e.preventDefault();
+                        if (!isVoiceActive) return;
+                        try { stopCapture(); } catch (err) { console.error(err); }
+                        setIsRecording(false);
+                      }}
+                      title="Hold to record (push-to-talk)"
+                      aria-label={isVoiceActive ? "Hold to speak" : "Connect first to speak"}
+                      className={`w-14 h-14 rounded-full grid place-items-center text-2xl shadow-md transition-colors ${isVoiceActive ? (isRecording ? 'bg-[var(--danger-default)] text-white mic-recording' : 'bg-[var(--primary-bg)] text-white') : 'bg-[var(--primary-bg)] text-white'}`}
                     >
-                      {isVoiceActive ? '⏹️' : '🎙️'}
+                      {isRecording ? '🎤' : (isVoiceActive ? '🎙️' : '🎙️')}
                     </button>
                   </div>
                 </div>
 
-                <audio ref={audioRef} id="player" className="hidden" onPlay={() => { notifyPlaybackStarted(); setAgentSpeaking(true); playbackEndedNotifiedRef.current = false; }} onPause={() => {
+                <audio ref={audioRef} id="player" className="hidden" onLoadedMetadata={() => {
+                  try { setAudioDuration(audioRef.current?.duration || 0); } catch (_) { setAudioDuration(0); }
+                }} onTimeUpdate={() => {
+                  try { setAudioCurrentTime(audioRef.current?.currentTime || 0); } catch (_) { setAudioCurrentTime(0); }
+                }} onPlay={() => { notifyPlaybackStarted(); setAgentSpeaking(true); playbackEndedNotifiedRef.current = false; }} onPause={() => {
                   if (suppressPauseNotifyRef.current) { suppressPauseNotifyRef.current = false; return; }
                   if (!playbackEndedNotifiedRef.current) {
                     playbackEndedNotifiedRef.current = true;

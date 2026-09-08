@@ -40,6 +40,40 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
     setSpeakingPaused(false);
   }, [setLoading]);
 
+  const startCapture = useCallback(async () => {
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+    if (audioCaptureRef.current) return;
+
+    // tell server we're starting to send audio
+    try { wsRef.current.send(JSON.stringify({ type: 'start_listening' })); } catch (e) { console.warn('start_listening failed', e); }
+
+    const capture = new AudioCapture(
+      (base64Chunk) => {
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+          wsRef.current.send(
+            JSON.stringify({
+              type: 'audio_chunk',
+              data: base64Chunk,
+            })
+          );
+        }
+      },
+      (level) => setMicLevel(level)
+    );
+
+    await capture.start();
+    audioCaptureRef.current = capture;
+    setStatus('listening');
+  }, []);
+
+  const stopCapture = useCallback(() => {
+    audioCaptureRef.current?.stop();
+    audioCaptureRef.current = null;
+    // notify server we finished sending audio
+    try { wsRef.current?.send(JSON.stringify({ type: 'stop_listening' })); } catch (e) { console.warn('stop_listening failed', e); }
+    setStatus((prev) => (prev === 'listening' ? 'connected' : prev));
+  }, []);
+
   const startVoiceSession = useCallback(async () => {
     if (isVoiceActive) {
       stopVoiceSession();
@@ -81,25 +115,7 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
 
         // The BFF requires init to be the first frame on every voice connection.
         ws.send(JSON.stringify({ type: 'init', session_id: voiceSessionId }));
-        ws.send(JSON.stringify({ type: 'start_listening' }));
-
-        // Start Mic Capture once socket is open
-        const capture = new AudioCapture(
-          (base64Chunk) => {
-            if (wsRef.current?.readyState === WebSocket.OPEN) {
-              const binary = atob(base64Chunk);
-              const audioBytes = new Uint8Array(binary.length);
-              for (let i = 0; i < binary.length; i += 1) {
-                audioBytes[i] = binary.charCodeAt(i);
-              }
-              wsRef.current.send(audioBytes.buffer);
-            }
-          },
-          (level) => setMicLevel(level)
-        );
-
-        await capture.start();
-        audioCaptureRef.current = capture;
+        // Do not start mic capture here; push-to-talk will initiate listening when user presses the mic.
       };
 
       ws.onmessage = (event) => {
@@ -226,6 +242,8 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
     isVoiceActive,
     startVoiceSession,
     stopVoiceSession,
+    startCapture,
+    stopCapture,
     status,
     sessionId,
     micLevel,
