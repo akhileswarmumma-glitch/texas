@@ -422,7 +422,6 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
     setAudioCurrentTime(0);
     const p = audioRef.current.play();
     if (p && p.then) p.catch(() => { });
-    notifyPlaybackStarted();
   }, []);
 
   const { isVoiceActive, startVoiceSession, stopVoiceSession, startCapture, stopCapture, micLevel, status: voiceStatus,
@@ -554,6 +553,10 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
       setDraft("");
       setPendingMode(null);
       setShowModeWarning(false);
+      // ensure any previous voice session is stopped and player reset
+      try { stopVoiceSession(); } catch (err) { /* ignore */ }
+      try { if (audioRef.current) { audioRef.current.pause(); audioRef.current.removeAttribute('src'); audioRef.current.load?.(); } } catch (e) {}
+      setAudioUrl(null); setAudioBlob(null); setAudioCurrentTime(0); setAudioDuration(0); setIsPlaying(false);
       await onNewChat();
       setMode(nextMode);
       return;
@@ -564,6 +567,10 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
       setDraft("");
       setPendingMode(null);
       setShowModeWarning(false);
+      // Reset voice session and player when starting a fresh chat in the same mode
+      try { stopVoiceSession(); } catch (err) { /* ignore */ }
+      try { if (audioRef.current) { audioRef.current.pause(); audioRef.current.removeAttribute('src'); audioRef.current.load?.(); } } catch (e) {}
+      setAudioUrl(null); setAudioBlob(null); setAudioCurrentTime(0); setAudioDuration(0); setIsPlaying(false);
       await onNewChat();
       setMode(nextMode);
       return;
@@ -760,7 +767,7 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
                             if (audioRef.current.paused) {
                               const p = audioRef.current.play();
                               if (p && p.then) p.catch(() => { });
-                              notifyPlaybackStarted();
+                              // rely on audio element onPlay to set playing state and notify server
                             } else {
                               audioRef.current.pause();
                             }
