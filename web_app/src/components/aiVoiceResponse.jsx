@@ -13,10 +13,17 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
   const audioCaptureRef = useRef(null);
   const audioPlaybackRef = useRef(null);
   const callbackRef = useRef(onAgentMessage);
+  const statusRef = useRef('disconnected'); // mirrors `status` state, but always reads the LATEST value inside closures (e.g. the audio_chunk sender in onopen)
+  const agentSpeakingRef = useRef(false);
 
-  useEffect(() => {
-    callbackRef.current = onAgentMessage;
-  }, [onAgentMessage]);
+    useEffect(() => {
+      callbackRef.current = onAgentMessage;
+    }, [onAgentMessage]);
+
+    useEffect(() => {
+      statusRef.current = status;
+    }, [status]);
+
 
   const stopVoiceSession = useCallback(() => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
@@ -40,46 +47,21 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
     setSpeakingPaused(false);
   }, [setLoading]);
 
-  const startCapture = useCallback(async () => {
+   const startCapture = useCallback(async () => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
-    if (audioCaptureRef.current) return;
-
-    // tell server we're starting to send audio
+    if (!audioCaptureRef.current) return;   // mic wasn't ready yet (created in onopen)
     try { wsRef.current.send(JSON.stringify({ type: 'start_listening' })); } catch (e) { console.warn('start_listening failed', e); }
-
     console.log('VoiceAgent: starting capture');
-    let sentChunks = 0;
-    const capture = new AudioCapture(
-      (base64Chunk) => {
-        try {
-          if (wsRef.current?.readyState === WebSocket.OPEN) {
-            wsRef.current.send(
-              JSON.stringify({
-                type: 'audio_chunk',
-                data: base64Chunk,
-              })
-            );
-            sentChunks += 1;
-            if (sentChunks === 1) console.debug('VoiceAgent: sent first audio chunk');
-          }
-        } catch (err) {
-          console.error('VoiceAgent: failed to send audio chunk', err);
-        }
-      },
-      (level) => setMicLevel(level)
-    );
-
-    await capture.start();
-    audioCaptureRef.current = capture;
-    console.log('VoiceAgent: capture started');
+    audioCaptureRef.current.setEnabled(true);
     setStatus('listening');
   }, []);
 
-  const stopCapture = useCallback(() => {
-    audioCaptureRef.current?.stop();
-    audioCaptureRef.current = null;
-    // notify server we finished sending audio
-    try { wsRef.current?.send(JSON.stringify({ type: 'stop_listening' })); } catch (e) { console.warn('stop_listening failed', e); }
+
+    const stopCapture = useCallback(() => {
+    audioCaptureRef.current?.setEnabled(false);
+    setTimeout(() => {
+      try { wsRef.current?.send(JSON.stringify({ type: 'stop_listening' })); } catch (e) { console.warn('stop_listening failed', e); }
+    }, 600);
     setStatus((prev) => (prev === 'listening' ? 'connected' : prev));
   }, []);
 
@@ -113,10 +95,12 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
 
       // Optional nonce retrieval (matches your backend check)
       try {
-        const nonceRes = await fetch('/api/ws-nonce');
+        const nonceRes = await fetch(`${apiBase || ''}/api/ws-nonce`, { credentials: 'include' });
         if (nonceRes.ok) {
           const { nonce } = await nonceRes.json();
           wsUrl += `?nonce=${encodeURIComponent(nonce)}`;
+        } else {
+          console.warn('WS nonce endpoint returned status', nonceRes.status);
         }
       } catch (err) {
         console.warn('Failed to fetch WS nonce, proceeding with direct connection:', err);
@@ -125,18 +109,53 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
-      ws.onopen = async () => {
+            ws.onopen = async () => {
         console.debug('VoiceAgent: websocket open', wsUrl, ws.readyState);
         const voiceSessionId = crypto.randomUUID();
         setSessionId(voiceSessionId);
         setStatus('connected');
         setIsVoiceActive(true);
-
         // The BFF requires init to be the first frame on every voice connection.
         ws.send(JSON.stringify({ type: 'init', session_id: voiceSessionId }));
         // Do not start mic capture here; push-to-talk will initiate listening when user presses the mic.
-      };
 
+        // 🆕 ADD THIS ENTIRE BLOCK — create the mic ONCE per connection
+        try {
+          let sentChunks = 0;
+                    const capture = new AudioCapture(
+            (base64Chunk) => {
+              try {
+                // Mic gating: never write frames to the socket while the agent is
+                // thinking, synthesizing, OR actually playing audio back (ground
+                // truth from the <audio> element, since the backend's status frame
+                // never says "speaking" and flips to "ready" before playback ends).
+                const gatedStatuses = ['thinking', 'synthesizing'];
+                if (gatedStatuses.includes(statusRef.current) || agentSpeakingRef.current) return;
+
+
+                if (wsRef.current?.readyState === WebSocket.OPEN) {
+                  const binary = atob(base64Chunk);
+                  const audioBytes = new Uint8Array(binary.length);
+                  for (let i = 0; i < binary.length; i += 1) {
+                    audioBytes[i] = binary.charCodeAt(i);
+                  }
+                  wsRef.current.send(audioBytes.buffer);
+                  sentChunks += 1;
+                  if (sentChunks === 1) console.debug('VoiceAgent: sent first audio chunk');
+                }
+              } catch (err) {
+                console.error('VoiceAgent: failed to send audio chunk', err);
+              }
+            },
+            (level) => setMicLevel(level)
+          );
+          await capture.start();
+          audioCaptureRef.current = capture;
+          console.log('VoiceAgent: mic initialized on connect');
+        } catch (err) {
+          console.error('VoiceAgent: failed to initialize mic on connect', err);
+        }
+      };
       ws.onmessage = (event) => {
         // try to parse JSON frames, but some frames may be binary or text — log raw for debugging
         try {
@@ -209,8 +228,12 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
               break;
 
             case 'user_text':
-              if (typeof callbackRef.current === 'function') {
-                callbackRef.current(data.text, 'user');
+              {
+                const transcript = [data.text, data.user_text, data.transcript, data.content]
+                  .find((value) => typeof value === 'string' && value.trim());
+                if (transcript && typeof callbackRef.current === 'function') {
+                  callbackRef.current(transcript.trim(), 'user');
+                }
               }
               break;
 
@@ -221,10 +244,13 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
               }
               break;
 
-            case 'error':
-              console.error('Voice Agent Error:', data.text);
-              setLoading?.(false);
-              break;
+              case 'error':
+                console.error('Voice Agent Error:', data.text);
+                setLoading?.(false);
+                if (typeof callbackRef.current === 'function') {
+                  callbackRef.current(`⚠️ ${data.text || 'Something went wrong.'}`, 'ai', { streaming: false });
+                }
+                break;
 
             default:
               break;
@@ -279,6 +305,10 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
     }
   }, []);
 
+    const setAgentSpeakingGate = useCallback((value) => {
+    agentSpeakingRef.current = value;
+  }, []);
+
   return {
     isVoiceActive,
     startVoiceSession,
@@ -293,6 +323,7 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
     resumeSpeaking,
     notifyPlaybackStarted,
     notifyPlaybackEnded,
+    setAgentSpeakingGate,
   };
 };
 

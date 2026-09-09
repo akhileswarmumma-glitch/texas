@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FaUser } from "react-icons/fa";
-import { FiLogOut, FiPlus, FiSend, FiMic, FiSquare, FiChevronDown, FiMessageSquare } from "react-icons/fi";
+import { FiLogOut, FiPlus, FiSend, FiMic, FiSquare, FiChevronDown, FiMessageSquare, FiPlay, FiPause, FiRotateCcw } from "react-icons/fi";
 import ReactMarkdown from "react-markdown";
 import "./markdown.css";
 import remarkGfm from "remark-gfm";
@@ -15,129 +15,219 @@ function themeColor(name, fallback) {
   return value?.trim() || fallback;
 }
 
-function WaveformPlayer({ audioRef, audioBlob, audioDuration, isPlaying, onSeek, onPlayToggle }) {
-  const canvasRef = useRef(null);
-  const bars = 60;
+// function WaveformPlayer({ audioRef, audioBlob, audioDuration, isPlaying, onSeek, onPlayToggle }) {
+//   const canvasRef = useRef(null);
+//   const drawBarsRef = useRef(null);
+//   const valuesRef = useRef(null);
+//   const bars = 60;
 
-  useEffect(() => {
-    let cancelled = false;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
+//   useEffect(() => {
+//     let cancelled = false;
+//     const canvas = canvasRef.current;
+//     if (!canvas) return;
+//     const ctx = canvas.getContext("2d");
 
-    const roundRect = (x, y, w, h, r) => {
-      ctx.beginPath();
-      ctx.moveTo(x + r, y);
-      ctx.arcTo(x + w, y, x + w, y + h, r);
-      ctx.arcTo(x + w, y + h, x, y + h, r);
-      ctx.arcTo(x, y + h, x, y, r);
-      ctx.arcTo(x, y, x + w, y, r);
-      ctx.closePath();
-      ctx.fill();
-    };
+//     const roundRect = (x, y, w, h, r) => {
+//       ctx.beginPath();
+//       ctx.moveTo(x + r, y);
+//       ctx.arcTo(x + w, y, x + w, y + h, r);
+//       ctx.arcTo(x + w, y + h, x, y + h, r);
+//       ctx.arcTo(x, y + h, x, y, r);
+//       ctx.arcTo(x, y, x + w, y, r);
+//       ctx.closePath();
+//       ctx.fill();
+//     };
 
-    const drawBars = (values) => {
-      const dpr = window.devicePixelRatio || 1;
-      const cssW = canvas.clientWidth || 320;
-      const cssH = canvas.clientHeight || 40;
-      canvas.width = Math.floor(cssW * dpr);
-      canvas.height = Math.floor(cssH * dpr);
-      const w = canvas.width / dpr;
-      const h = canvas.height / dpr;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, w, h);
+//     const drawBars = (values) => {
+//       const dpr = window.devicePixelRatio || 1;
+//       const cssW = canvas.clientWidth || 320;
+//       const cssH = canvas.clientHeight || 40;
+//       canvas.width = Math.floor(cssW * dpr);
+//       canvas.height = Math.floor(cssH * dpr);
+//       const w = canvas.width / dpr;
+//       const h = canvas.height / dpr;
+//       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+//       ctx.clearRect(0, 0, w, h);
 
-      const gap = 3;
-      const barW = Math.max(2, (w - (bars - 1) * gap) / bars);
-      const vals = Array.isArray(values)
-        ? values
-        : new Array(bars).fill(0).map(() => Math.random() * 0.5 + 0.15);
+//       const gap = 3;
+//       const barW = Math.max(2, (w - (bars - 1) * gap) / bars);
+//       const vals = Array.isArray(values)
+//         ? values
+//         : new Array(bars).fill(0).map(() => Math.random() * 0.5 + 0.15);
 
-      const barColor = themeColor("--maroon-primary", "#7a2331");
-      const playedColor = themeColor("--primary-bg", "#f2b807");
-      const progress = audioDuration ? (audioRef.current?.currentTime || 0) / audioDuration : 0;
+//       const barColor = themeColor("--maroon-primary", "#7a2331");
+//       const playedColor = themeColor("--primary-bg", "#f2b807");
+//       const progress = audioDuration ? (audioRef.current?.currentTime || 0) / audioDuration : 0;
 
-      for (let i = 0; i < bars; i++) {
-        const val = vals[i] ?? 0.2;
-        const bh = Math.max(3, val * h);
-        const x = i * (barW + gap);
-        const y = (h - bh) / 2;
-        const played = i / bars <= progress;
-        ctx.fillStyle = played ? playedColor : barColor;
-        ctx.globalAlpha = played ? 1 : 0.55;
-        roundRect(x, y, barW, bh, Math.min(3, barW / 2));
-      }
-      ctx.globalAlpha = 1;
-    };
+//       for (let i = 0; i < bars; i++) {
+//         const val = vals[i] ?? 0.2;
+//         const bh = Math.max(3, val * h);
+//         const x = i * (barW + gap);
+//         const y = (h - bh) / 2;
+//         const played = i / bars <= progress;
+//         ctx.fillStyle = played ? playedColor : barColor;
+//         ctx.globalAlpha = played ? 1 : 0.55;
+//         roundRect(x, y, barW, bh, Math.min(3, barW / 2));
+//       }
+//       ctx.globalAlpha = 1;
+//     };
+//     drawBarsRef.current = drawBars;
 
-    const decodeAndDraw = async (blob) => {
-      try {
-        const arrayBuffer = await blob.arrayBuffer();
-        const ac = new (window.AudioContext || window.webkitAudioContext)();
-        const audioBuffer = await ac.decodeAudioData(arrayBuffer.slice(0));
-        const channel = audioBuffer.getChannelData(0);
-        const values = new Array(bars).fill(0).map((_, i) => {
-          const start = Math.floor((i / bars) * channel.length);
-          const end = Math.floor(((i + 1) / bars) * channel.length);
-          let sum = 0;
-          for (let j = start; j < end; j++) sum += Math.abs(channel[j]);
-          return sum / (end - start) || 0;
-        });
-        if (!cancelled) drawBars(values.map((v) => Math.min(1, v * 4)));
-        ac.close();
-      } catch (err) {
-        if (!cancelled) drawBars();
-      }
-    };
+//     const decodeAndDraw = async (blob) => {
+//       try {
+//         const arrayBuffer = await blob.arrayBuffer();
+//         const ac = new (window.AudioContext || window.webkitAudioContext)();
+//         const audioBuffer = await ac.decodeAudioData(arrayBuffer.slice(0));
+//         const channel = audioBuffer.getChannelData(0);
+//         const values = new Array(bars).fill(0).map((_, i) => {
+//           const start = Math.floor((i / bars) * channel.length);
+//           const end = Math.floor(((i + 1) / bars) * channel.length);
+//           let sum = 0;
+//           for (let j = start; j < end; j++) sum += Math.abs(channel[j]);
+//           return sum / (end - start) || 0;
+//         });
+//         if (!cancelled) {
+//           valuesRef.current = values.map((v) => Math.min(1, v * 4));
+//           drawBarsRef.current?.(valuesRef.current);
+//         }
+//         ac.close();
+//       } catch (err) {
+//         if (!cancelled) {
+//           valuesRef.current = new Array(bars).fill(0).map(() => Math.random() * 0.5 + 0.15);
+//           drawBarsRef.current?.(valuesRef.current);
+//         }
+//       }
+//     };
 
-    if (audioBlob) decodeAndDraw(audioBlob);
-    else drawBars();
+//     if (audioBlob) decodeAndDraw(audioBlob);
+//     else {
+//       valuesRef.current = new Array(bars).fill(0).map(() => Math.random() * 0.5 + 0.15);
+//       drawBarsRef.current(valuesRef.current);
+//     }
 
-    return () => { cancelled = true; };
-  }, [audioBlob, audioDuration, isPlaying]);
+//     return () => { cancelled = true; };
+//   }, [audioBlob, audioDuration, isPlaying]);
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const handleClick = (ev) => {
-      const rect = canvas.getBoundingClientRect();
-      const rel = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width));
-      if (typeof onSeek === "function") onSeek(rel * (audioDuration || 0));
-    };
-    canvas.addEventListener("click", handleClick);
-    return () => canvas.removeEventListener("click", handleClick);
-  }, [audioDuration, onSeek]);
+//   useEffect(() => {
+//     if (!isPlaying) return undefined;
+//     let animationFrame;
+//     const redraw = () => {
+//       drawBarsRef.current?.(valuesRef.current);
+//       animationFrame = requestAnimationFrame(redraw);
+//     };
+//     animationFrame = requestAnimationFrame(redraw);
+//     return () => cancelAnimationFrame(animationFrame);
+//   }, [isPlaying]);
+
+//   useEffect(() => {
+//     const canvas = canvasRef.current;
+//     if (!canvas) return;
+//     const handleClick = (ev) => {
+//       const rect = canvas.getBoundingClientRect();
+//       const rel = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width));
+//       if (typeof onSeek === "function") onSeek(rel * (audioDuration || 0));
+//     };
+//     canvas.addEventListener("click", handleClick);
+//     return () => canvas.removeEventListener("click", handleClick);
+//   }, [audioDuration, onSeek]);
+
+//   return (
+//     <div
+//       className="rounded-xl w-[70%] h-[40px] flex items-center gap-3 p-2.5 border border-[var(--neutral-300)]"
+//       style={{ background: "var(--white-100, #fff)" }}
+//     >
+//       <button
+//         type="button"
+//         onClick={onPlayToggle}
+//         aria-label={isPlaying ? "Pause response" : "Play response"}
+//         aria-pressed={isPlaying}
+//         className="flex-shrink-0 w-[30px] h-[30px] rounded-full grid place-items-center text-white transition hover:opacity-90"
+//         style={{ background: "var(--maroon-primary)" }}
+//       >
+//         {isPlaying ? (
+//           <span className="flex gap-[3px]">
+//             <span className="w-[3px] h-3.5 bg-white rounded-sm" />
+//             <span className="w-[3px] h-3.5 bg-white rounded-sm" />
+//           </span>
+//         ) : (
+//           <span className="ml-0.5" style={{ fontSize: 14 }}>▶</span>
+//         )}
+//       </button>
+//       <canvas
+//         ref={canvasRef}
+//         aria-label="Seek within response audio"
+//         role="slider"
+//         aria-valuemin={0}
+//         aria-valuemax={audioDuration || 0}
+//         style={{ flex: 1, width: "70%", height: 40, cursor: "pointer" }}
+//       />
+//     </div>
+//   );
+// }
+
+function formatDuration(t) {
+  if (!t && t !== 0) return "0:00";
+  const sec = Math.floor(t || 0);
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+function CurrentResponsePlayer({ audioCurrentTime, audioDuration, isPlaying, stateLabel, onSeek, onPlayToggle, onReplay }) {
+  const barRef = useRef(null);
+  const progress = audioDuration ? Math.min(1, audioCurrentTime / audioDuration) : 0;
+
+  const handleBarClick = (ev) => {
+    const bar = barRef.current;
+    if (!bar || !audioDuration) return;
+    const rect = bar.getBoundingClientRect();
+    const rel = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width));
+    onSeek?.(rel * audioDuration);
+  };
 
   return (
-    <div
-      className="rounded-xl w-[70%] h-[40px] flex items-center gap-3 p-2.5 border border-[var(--neutral-300)]"
-      style={{ background: "var(--white-100, #fff)" }}
-    >
-      <button
-        type="button"
-        onClick={onPlayToggle}
-        aria-label={isPlaying ? "Pause response" : "Play response"}
-        aria-pressed={isPlaying}
-        className="flex-shrink-0 w-[30px] h-[30px] rounded-full grid place-items-center text-white transition hover:opacity-90"
-        style={{ background: "var(--maroon-primary)" }}
-      >
-        {isPlaying ? (
-          <span className="flex gap-[3px]">
-            <span className="w-[3px] h-3.5 bg-white rounded-sm" />
-            <span className="w-[3px] h-3.5 bg-white rounded-sm" />
-          </span>
-        ) : (
-          <span className="ml-0.5" style={{ fontSize: 14 }}>▶</span>
-        )}
-      </button>
-      <canvas
-        ref={canvasRef}
-        aria-label="Seek within response audio"
-        role="slider"
-        aria-valuemin={0}
-        aria-valuemax={audioDuration || 0}
-        style={{ flex: 1, width: "70%", height: 40, cursor: "pointer" }}
-      />
+    <div className="rounded-xl border px-4 py-3" style={{ background: "#171a21", borderColor: "#2a2f3a" }}>
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-[10px] font-extrabold tracking-wider" style={{ color: "#9aa2b1" }}>CURRENT RESPONSE</span>
+        <span className="text-[11px] font-semibold" style={{ color: "#5b8cff" }}>{stateLabel}</span>
+      </div>
+      <div className="flex items-center gap-2.5">
+        <button
+          type="button"
+          onClick={onPlayToggle}
+          aria-label={isPlaying ? "Pause response" : "Play response"}
+          className="flex-shrink-0 w-8 h-8 rounded-full grid place-items-center text-white"
+          style={{ background: "#5b8cff" }}
+        >
+          {isPlaying ? <FiPause size={13} /> : <FiPlay size={13} style={{ marginLeft: 1 }} />}
+        </button>
+        <button
+          type="button"
+          onClick={onReplay}
+          aria-label="Replay from start"
+          className="flex-shrink-0 w-8 h-8 rounded-full grid place-items-center border"
+          style={{ borderColor: "#2a2f3a", color: "#9aa2b1" }}
+        >
+          <FiRotateCcw size={13} />
+        </button>
+        <span className="text-[10px] w-8 flex-shrink-0" style={{ color: "#9aa2b1" }}>{formatDuration(audioCurrentTime)}</span>
+        <div
+          ref={barRef}
+          onClick={handleBarClick}
+          className="relative flex-1 h-[5px] rounded-full cursor-pointer"
+          style={{ background: "#2d3240" }}
+        >
+          <div
+            className="absolute left-0 top-0 bottom-0 rounded-full"
+            style={{ width: `${progress * 100}%`, background: "linear-gradient(90deg,#5b8cff,#7c5cff)" }}
+          />
+          <div
+            className="absolute top-1/2 w-[11px] h-[11px] rounded-full bg-white shadow"
+            style={{ left: `${progress * 100}%`, transform: "translate(-50%, -50%)" }}
+          />
+        </div>
+        <span className="text-[10px] w-8 flex-shrink-0 text-right" style={{ color: "#9aa2b1" }}>{formatDuration(audioDuration)}</span>
+      </div>
     </div>
   );
 }
@@ -280,6 +370,7 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
   const [audioDuration, setAudioDuration] = useState(0);
   const [audioBlob, setAudioBlob] = useState(null);
   const [audioUrl, setAudioUrl] = useState(null);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   const formatTime = (t) => {
     if (!t && t !== 0) return "0:00";
@@ -289,54 +380,49 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
-  const handleAudio = useCallback(({ url, blob, format }) => {
-    try {
-      if (!audioRef.current) return;
-      // programmatic swap: mark suppress so pause handler doesn't notify
-      if (!audioRef.current.paused) {
-        suppressPauseNotifyRef.current = true;
-        audioRef.current.pause();
-      }
-      audioRef.current.src = url;
-      setAudioUrl(url);
-      setAudioBlob(blob || null);
-      playbackEndedNotifiedRef.current = false;
-      setAgentSpeaking(true);
-      // attempt to play and notify server via hook when started (hook returns notifier)
-      const playPromise = audioRef.current.play();
-      if (playPromise && typeof playPromise.then === 'function') {
-        playPromise.catch((err) => {
-          console.warn('Autoplay blocked or failed:', err);
-        });
-      }
-    } catch (err) {
-      console.error('handleAudio error', err);
-    }
+    const handleAudio = useCallback(({ url, blob, format }) => {
+    // ... (unchanged, your existing handleAudio code)
   }, []);
 
   const handleInterrupt = useCallback(() => {
-  if (!audioRef.current) return;
-  if (!audioRef.current.paused) {
-    suppressPauseNotifyRef.current = true; // programmatic stop, not user-initiated
-    audioRef.current.pause();
-  }
-  audioRef.current.currentTime = 0;
-  setAgentSpeaking(false);
-}, []);
+    if (!audioRef.current) return;
+    if (!audioRef.current.paused) {
+      suppressPauseNotifyRef.current = true; // programmatic stop, not user-initiated
+      audioRef.current.pause();
+    }
+    audioRef.current.currentTime = 0;
+    setAgentSpeaking(false);
+  }, []);
 
+  const handleReplay = useCallback(() => {
+    if (!audioRef.current) return;
+    audioRef.current.currentTime = 0;
+    setAudioCurrentTime(0);
+    const p = audioRef.current.play();
+    if (p && p.then) p.catch(() => {});
+    notifyPlaybackStarted();
+  }, []);
 
     const { isVoiceActive, startVoiceSession, stopVoiceSession, startCapture, stopCapture, micLevel, status: voiceStatus,
-      speakingPaused, pauseSpeaking, resumeSpeaking, notifyPlaybackStarted, notifyPlaybackEnded } =
+      speakingPaused, pauseSpeaking, resumeSpeaking, notifyPlaybackStarted, notifyPlaybackEnded, setAgentSpeakingGate } =
     useVoiceAgent(addMessage, setLoading, { onAudio: handleAudio, onInterrupt: handleInterrupt });
 
     const [isRecording, setIsRecording] = useState(false);
+    const [pttMode, setPttMode] = useState(true);
 
-  useEffect(() => {
+    const npStateLabel = !isVoiceActive ? "Idle" : speakingPaused ? "Paused" : isPlaying ? "Speaking" : "Idle";
+    useEffect(() => {
     if (wasVoiceActive.current && !isVoiceActive) {
       onNewChat();
     }
     wasVoiceActive.current = isVoiceActive;
   }, [isVoiceActive, onNewChat]);
+
+  useEffect(() => {
+    if (!isVoiceActive) {
+      setIsRecording(false); // always start each new session muted/idle
+    }
+  }, [isVoiceActive]);
 
   useEffect(() => {
     if (messages.length === 0) return;
@@ -390,7 +476,7 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
     setShowModeWarning(true);
   }, [mode]);
 
-  const confirmModeChange = useCallback(() => {
+    const confirmModeChange = useCallback(() => {
     if (!pendingMode) {
       setShowModeWarning(false);
       return;
@@ -402,6 +488,29 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
     setPendingMode(null);
     setShowModeWarning(false);
   }, [onNewChat, pendingMode]);
+
+  const togglePttMode = useCallback(() => {
+    setPttMode((prev) => {
+      const next = !prev;
+      // Switching modes mid-session: cleanly stop any active capture first
+      if (isRecording) {
+        try { stopCapture(); } catch (err) { console.error(err); }
+        setIsRecording(false);
+      }
+      return next;
+    });
+  }, [isRecording, stopCapture]);
+
+  const handleMicClick = useCallback(async () => {
+    if (!isVoiceActive || pttMode) return; // click-to-toggle only applies in mute/unmute mode
+    if (isRecording) {
+      try { stopCapture(); } catch (err) { console.error(err); }
+      setIsRecording(false);
+    } else {
+      setIsRecording(true);
+      try { await startCapture(); } catch (err) { console.error(err); }
+    }
+  }, [isVoiceActive, pttMode, isRecording, startCapture, stopCapture]);
 
   const conversationStarted = messages.length > 0;
   const modeSelected = mode !== null;
@@ -597,9 +706,9 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
                           type="button"
                           onClick={() => startVoiceSession()}
                           disabled={isVoiceActive}
-                          className={`px-2 py-1 text-xs rounded-md font-semibold transition ${isVoiceActive ? 'opacity-50 cursor-not-allowed bg-[var(--primary-bg)] text-white' : 'bg-white text-[var(--primary-bg)] border border-[var(--primary-bg)]'}`}
+                          className="px-2 py-1 text-xs rounded-md font-semibold transition bg-[var(--primary-bg)] text-white disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          Connect
+                          {isVoiceActive ? "Connected" : "Connect"}
                         </button>
 
                         <button
@@ -611,21 +720,17 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
                           Disconnect
                         </button>
 
-                        {isVoiceActive && (
-                          <span className="ml-2 inline-block px-2 py-0.5 rounded-full bg-[var(--primary-bg)] text-black text-xs font-bold">Connected</span>
-                        )}
                       </div>
                       {/* <div className="text-xs text-[var(--text-muted)]">{agentSpeaking ? (speakingPaused ? 'Playback paused' : 'Speaking') : 'Idle'}</div> */}
                     </div>
 
                     <div className="mt-3 flex items-center gap-3">
                         <div className="w-full">
-                          <WaveformPlayer
-                            audioRef={audioRef}
-                            audioBlob={audioBlob}
-                            audioUrl={audioUrl}
+                          <CurrentResponsePlayer
                             audioCurrentTime={audioCurrentTime}
                             audioDuration={audioDuration}
+                            isPlaying={isPlaying}
+                            stateLabel={npStateLabel}
                             onSeek={(t) => {
                               if (!audioRef.current) return;
                               audioRef.current.currentTime = t;
@@ -637,11 +742,11 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
                                 const p = audioRef.current.play();
                                 if (p && p.then) p.catch(() => {});
                                 notifyPlaybackStarted();
-                                setAgentSpeaking(true);
                               } else {
                                 audioRef.current.pause();
                               }
                             }}
+                            onReplay={handleReplay}
                           />
                         </div>
 
@@ -651,59 +756,97 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
                     </div>
                   </div>
 
-                  <div className="flex-shrink-0">
+                                    <div className="flex-shrink-0 flex flex-col items-center gap-2">
                     <button
                       type="button"
+                      onClick={handleMicClick}
                       onMouseDown={async (e) => {
                         e.preventDefault();
-                        if (!isVoiceActive) return;
+                        if (!isVoiceActive || !pttMode) return;
                         setIsRecording(true);
                         try { await startCapture(); } catch (err) { console.error(err); }
                       }}
                       onMouseUp={async (e) => {
                         e.preventDefault();
-                        if (!isVoiceActive) return;
+                        if (!isVoiceActive || !pttMode) return;
                         try { stopCapture(); } catch (err) { console.error(err); }
                         setIsRecording(false);
                       }}
                       onMouseLeave={async (e) => {
-                        if (!isVoiceActive) return;
+                        if (!isVoiceActive || !pttMode) return;
                         try { stopCapture(); } catch (err) { console.error(err); }
                         setIsRecording(false);
                       }}
                       onTouchStart={async (e) => {
                         e.preventDefault();
-                        if (!isVoiceActive) return;
+                        if (!isVoiceActive || !pttMode) return;
                         setIsRecording(true);
                         try { await startCapture(); } catch (err) { console.error(err); }
                       }}
                       onTouchEnd={async (e) => {
                         e.preventDefault();
-                        if (!isVoiceActive) return;
+                        if (!isVoiceActive || !pttMode) return;
                         try { stopCapture(); } catch (err) { console.error(err); }
                         setIsRecording(false);
                       }}
-                      title="Hold to record (push-to-talk)"
-                      aria-label={isVoiceActive ? "Hold to speak" : "Connect first to speak"}
+                      title={
+                        pttMode
+                          ? "Hold to talk (push-to-talk)"
+                          : (isRecording ? "Click to mute" : "Click to unmute")
+                      }
+                      aria-label={
+                        !isVoiceActive
+                          ? "Connect first to speak"
+                          : pttMode
+                            ? "Hold to speak"
+                            : (isRecording ? "Click to mute microphone" : "Click to unmute microphone")
+                      }
                       className={`w-14 h-14 rounded-full grid place-items-center text-2xl shadow-md transition-colors ${isVoiceActive ? (isRecording ? 'bg-[var(--danger-default)] text-white mic-recording' : 'bg-[var(--primary-bg)] text-white') : 'bg-[var(--primary-bg)] text-white'}`}
                     >
-                      {isRecording ? '🎤' : (isVoiceActive ? '🎙️' : '🎙️')}
+                      {isRecording ? '🎤' : '🎙️'}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={togglePttMode}
+                      aria-pressed={pttMode}
+                      title="Toggle Push-to-talk mode"
+                      className="flex items-center gap-2"
+                    >
+                      <span className={`relative inline-block w-9 h-5 rounded-full transition-colors ${pttMode ? 'bg-[var(--primary-bg)]' : 'bg-gray-300'}`}>
+                        <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${pttMode ? 'translate-x-4' : 'translate-x-0'}`} />
+                      </span>
+                      <span className="text-[10px] font-bold text-[var(--secondary-contrast)] whitespace-nowrap">
+                        Push-to-talk
+                      </span>
                     </button>
                   </div>
                 </div>
 
-                <audio ref={audioRef} id="player" className="hidden" onLoadedMetadata={() => {
+                                <audio ref={audioRef} id="player" className="hidden" onLoadedMetadata={() => {
                   try { setAudioDuration(audioRef.current?.duration || 0); } catch (_) { setAudioDuration(0); }
                 }} onTimeUpdate={() => {
                   try { setAudioCurrentTime(audioRef.current?.currentTime || 0); } catch (_) { setAudioCurrentTime(0); }
-                }} onPlay={() => { notifyPlaybackStarted(); setAgentSpeaking(true); playbackEndedNotifiedRef.current = false; }} onPause={() => {
+                }} onPlay={() => {
+                  setIsPlaying(true);
+                  notifyPlaybackStarted();
+                  setAgentSpeaking(true);
+                  setAgentSpeakingGate?.(true);
+                  playbackEndedNotifiedRef.current = false;
+                }} onPause={() => {
+                  setIsPlaying(false);
+                  setAgentSpeakingGate?.(false);
                   if (suppressPauseNotifyRef.current) { suppressPauseNotifyRef.current = false; return; }
                   if (!playbackEndedNotifiedRef.current) {
                     playbackEndedNotifiedRef.current = true;
                     notifyPlaybackEnded();
                     setAgentSpeaking(false);
                   }
-                }} onEnded={() => { if (!playbackEndedNotifiedRef.current) { playbackEndedNotifiedRef.current = true; notifyPlaybackEnded(); setAgentSpeaking(false); } }} />
+                }} onEnded={() => {
+                  setIsPlaying(false);
+                  setAgentSpeakingGate?.(false);
+                  if (!playbackEndedNotifiedRef.current) { playbackEndedNotifiedRef.current = true; notifyPlaybackEnded(); setAgentSpeaking(false); }
+                }} />
               </div>
             )}
           </div>

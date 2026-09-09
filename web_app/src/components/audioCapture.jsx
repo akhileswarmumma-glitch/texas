@@ -7,6 +7,7 @@ export class AudioCapture {
     this._source = null;
     this._worklet = null;
     this._stream = null;
+    this._enabled = false;
   }
 
   async start() {
@@ -55,7 +56,7 @@ export class AudioCapture {
     this._worklet.port.onmessage = (ev) => {
       const { pcm, rms } = ev.data;
       this._onLevel?.(Math.min(1, rms * 6));
-      
+      if (!this._enabled) return;
       const bytes = new Uint8Array(pcm);
       let binary = '';
       for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
@@ -63,6 +64,10 @@ export class AudioCapture {
     };
 
     this._source.connect(this._worklet);
+  }
+
+  setEnabled(value) {
+    this._enabled = value;
   }
 
   stop() {
