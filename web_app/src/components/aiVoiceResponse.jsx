@@ -16,13 +16,13 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
   const statusRef = useRef('disconnected'); // mirrors `status` state, but always reads the LATEST value inside closures (e.g. the audio_chunk sender in onopen)
   const agentSpeakingRef = useRef(false);
 
-    useEffect(() => {
-      callbackRef.current = onAgentMessage;
-    }, [onAgentMessage]);
+  useEffect(() => {
+    callbackRef.current = onAgentMessage;
+  }, [onAgentMessage]);
 
-    useEffect(() => {
-      statusRef.current = status;
-    }, [status]);
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
 
 
   const stopVoiceSession = useCallback(() => {
@@ -47,7 +47,7 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
     setSpeakingPaused(false);
   }, [setLoading]);
 
-   const startCapture = useCallback(async () => {
+  const startCapture = useCallback(async () => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
     if (!audioCaptureRef.current) return;   // mic wasn't ready yet (created in onopen)
     try { wsRef.current.send(JSON.stringify({ type: 'start_listening' })); } catch (e) { console.warn('start_listening failed', e); }
@@ -57,7 +57,7 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
   }, []);
 
 
-    const stopCapture = useCallback(() => {
+  const stopCapture = useCallback(() => {
     audioCaptureRef.current?.setEnabled(false);
     setTimeout(() => {
       try { wsRef.current?.send(JSON.stringify({ type: 'stop_listening' })); } catch (e) { console.warn('stop_listening failed', e); }
@@ -109,7 +109,7 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
-            ws.onopen = async () => {
+      ws.onopen = async () => {
         console.debug('VoiceAgent: websocket open', wsUrl, ws.readyState);
         const voiceSessionId = crypto.randomUUID();
         setSessionId(voiceSessionId);
@@ -122,7 +122,7 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
         // 🆕 ADD THIS ENTIRE BLOCK — create the mic ONCE per connection
         try {
           let sentChunks = 0;
-                    const capture = new AudioCapture(
+          const capture = new AudioCapture(
             (base64Chunk) => {
               try {
                 // Mic gating: never write frames to the socket while the agent is
@@ -244,13 +244,13 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
               }
               break;
 
-              case 'error':
-                console.error('Voice Agent Error:', data.text);
-                setLoading?.(false);
-                if (typeof callbackRef.current === 'function') {
-                  callbackRef.current(`⚠️ ${data.text || 'Something went wrong.'}`, 'ai', { streaming: false });
-                }
-                break;
+            case 'error':
+              console.error('Voice Agent Error:', data.text);
+              setLoading?.(false);
+              if (typeof callbackRef.current === 'function') {
+                callbackRef.current(`⚠️ ${data.text || 'Something went wrong.'}`, 'ai', { streaming: false });
+              }
+              break;
 
             default:
               break;
@@ -305,7 +305,7 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
     }
   }, []);
 
-    const setAgentSpeakingGate = useCallback((value) => {
+  const setAgentSpeakingGate = useCallback((value) => {
     agentSpeakingRef.current = value;
   }, []);
 

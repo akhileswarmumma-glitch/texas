@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FaUser } from "react-icons/fa";
-import { FiLogOut, FiPlus, FiSend, FiMic, FiSquare, FiChevronDown, FiMessageSquare, FiPlay, FiPause, FiRotateCcw } from "react-icons/fi";
+import { FiLogOut, FiPlus, FiSend, FiMic, FiSquare, FiChevronDown, FiMessageSquare, FiPlay, FiPause, FiRotateCcw, FiLink, FiCheckCircle, FiPower } from "react-icons/fi";
 import ReactMarkdown from "react-markdown";
 import "./markdown.css";
 import remarkGfm from "remark-gfm";
@@ -187,10 +187,10 @@ function CurrentResponsePlayer({ audioCurrentTime, audioDuration, isPlaying, sta
 
   return (
     <div className="rounded-xl border px-4 py-3" style={{ background: "#171a21", borderColor: "#2a2f3a" }}>
-      <div className="flex items-center justify-between mb-2">
+      {/* <div className="flex items-center justify-between mb-2">
         <span className="text-[10px] font-extrabold tracking-wider" style={{ color: "#9aa2b1" }}>CURRENT RESPONSE</span>
         <span className="text-[11px] font-semibold" style={{ color: "#5b8cff" }}>{stateLabel}</span>
-      </div>
+      </div> */}
       <div className="flex items-center gap-2.5">
         <button
           type="button"
@@ -259,11 +259,11 @@ function MessageBubble({ item }) {
         <div className="chat-markdown">
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
-            // components={{
-            //   a: ({ node, ...props }) => (
-            //     <a {...props} target="_blank" rel="noopener noreferrer" />
-            //   ),
-            // }}
+          // components={{
+          //   a: ({ node, ...props }) => (
+          //     <a {...props} target="_blank" rel="noopener noreferrer" />
+          //   ),
+          // }}
           >{item.message}</ReactMarkdown>
         </div>
 
@@ -302,7 +302,7 @@ function TypingIndicator() {
       <AgentAvatar />
       <div className="max-w-[80%] p-3.5 rounded-xl text-sm break-words bg-[#F2E8D2] border-l-2 border-[var(--maroon-primary)] text-gray-200">
         <div className="text-[var(--maroon-primary)] text-xs font-extrabold mb-1">✦ Roadie Ranger</div>
-        <div className="flex gap-1"><span className="w-2 h-2 bg-[var(--primary-lighter)] rounded-full animate-pulse"/><span className="w-2 h-2 bg-[var(--primary-light)] rounded-full animate-pulse delay-75"/><span className="w-2 h-2 bg-[var(--primary-default)] rounded-full animate-pulse delay-150"/></div>
+        <div className="flex gap-1"><span className="w-2 h-2 bg-[var(--primary-lighter)] rounded-full animate-pulse" /><span className="w-2 h-2 bg-[var(--primary-light)] rounded-full animate-pulse delay-75" /><span className="w-2 h-2 bg-[var(--primary-default)] rounded-full animate-pulse delay-150" /></div>
       </div>
     </div>
   );
@@ -380,8 +380,30 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
-    const handleAudio = useCallback(({ url, blob, format }) => {
-    // ... (unchanged, your existing handleAudio code)
+  const handleAudio = useCallback(({ url, blob, format }) => {
+    try {
+      if (!audioRef.current) return;
+      // programmatic swap: mark suppress so pause handler doesn't notify
+      if (!audioRef.current.paused) {
+        suppressPauseNotifyRef.current = true;
+        audioRef.current.pause();
+      }
+      audioRef.current.src = url;
+      setAudioUrl(url);
+      setAudioBlob(blob || null);
+      setIsPlaying(false);
+      playbackEndedNotifiedRef.current = false;
+      setAgentSpeaking(true);
+      // attempt to play and notify server via hook when started (hook returns notifier)
+      const playPromise = audioRef.current.play();
+      if (playPromise && typeof playPromise.then === 'function') {
+        playPromise.catch((err) => {
+          console.warn('Autoplay blocked or failed:', err);
+        });
+      }
+    } catch (err) {
+      console.error('handleAudio error', err);
+    }
   }, []);
 
   const handleInterrupt = useCallback(() => {
@@ -399,24 +421,30 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
     audioRef.current.currentTime = 0;
     setAudioCurrentTime(0);
     const p = audioRef.current.play();
-    if (p && p.then) p.catch(() => {});
+    if (p && p.then) p.catch(() => { });
     notifyPlaybackStarted();
   }, []);
 
-    const { isVoiceActive, startVoiceSession, stopVoiceSession, startCapture, stopCapture, micLevel, status: voiceStatus,
-      speakingPaused, pauseSpeaking, resumeSpeaking, notifyPlaybackStarted, notifyPlaybackEnded, setAgentSpeakingGate } =
+  const { isVoiceActive, startVoiceSession, stopVoiceSession, startCapture, stopCapture, micLevel, status: voiceStatus,
+    speakingPaused, pauseSpeaking, resumeSpeaking, notifyPlaybackStarted, notifyPlaybackEnded, setAgentSpeakingGate } =
     useVoiceAgent(addMessage, setLoading, { onAudio: handleAudio, onInterrupt: handleInterrupt });
 
-    const [isRecording, setIsRecording] = useState(false);
-    const [pttMode, setPttMode] = useState(true);
+  const [isRecording, setIsRecording] = useState(false);
+  const [pttMode, setPttMode] = useState(true);
 
-    const npStateLabel = !isVoiceActive ? "Idle" : speakingPaused ? "Paused" : isPlaying ? "Speaking" : "Idle";
-    useEffect(() => {
+  const npStateLabel = !isVoiceActive ? "Idle" : speakingPaused ? "Paused" : isPlaying ? "Speaking" : "Idle";
+  useEffect(() => {
     if (wasVoiceActive.current && !isVoiceActive) {
-      onNewChat();
+      void onNewChat();
     }
     wasVoiceActive.current = isVoiceActive;
   }, [isVoiceActive, onNewChat]);
+
+  useEffect(() => {
+    if (!isVoiceActive) {
+      setIsRecording(false); // always start each new session muted/idle
+    }
+  }, [isVoiceActive]);
 
   useEffect(() => {
     if (!isVoiceActive) {
@@ -476,14 +504,14 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
     setShowModeWarning(true);
   }, [mode]);
 
-    const confirmModeChange = useCallback(() => {
+  const confirmModeChange = useCallback(async () => {
     if (!pendingMode) {
       setShowModeWarning(false);
       return;
     }
     setMessages([]);
     setDraft("");
-    onNewChat();
+    await onNewChat();
     setMode(pendingMode);
     setPendingMode(null);
     setShowModeWarning(false);
@@ -518,7 +546,7 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
     ? `Voice active (${voiceStatus})...`
     : "You are currently in text mode. To continue with voice mode, create a new voice chat.";
 
-  const handleModeSelection = useCallback((nextMode) => {
+  const handleModeSelection = useCallback(async (nextMode) => {
     if (!nextMode) return;
 
     if (mode === null) {
@@ -526,8 +554,8 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
       setDraft("");
       setPendingMode(null);
       setShowModeWarning(false);
+      await onNewChat();
       setMode(nextMode);
-      onNewChat();
       return;
     }
 
@@ -536,8 +564,8 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
       setDraft("");
       setPendingMode(null);
       setShowModeWarning(false);
+      await onNewChat();
       setMode(nextMode);
-      onNewChat();
       return;
     }
 
@@ -566,7 +594,7 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
           <div className="w-7 h-7 rounded-full bg-[var(--maroon-primary)] border border-[var(--neutral-400)] text-black grid place-items-center text-sm font-extrabold sm:w-8 sm:h-8 sm:text-base">🤠</div>
           <div className="min-w-0">
             <div className="font-extrabold text-[11px] leading-none sm:text-sm">Roadie Ranger</div>
-            <div className="text-[9px] text-emerald-300 mt-0.5 flex items-center sm:text-[10px]"><span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--success-default)] mr-1.5"/> Online now</div>
+            <div className="text-[9px] text-emerald-300 mt-0.5 flex items-center sm:text-[10px]"><span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--success-default)] mr-1.5" /> Online now</div>
           </div>
         </div>
 
@@ -676,18 +704,18 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
               </div>
             )}
 
-            
+
 
             {mode === null && (
               <div className="flex-1 min-h-[46px] rounded-2xl border border-dashed border-emerald-800/60 bg-[#f6f1e6]/60 px-4 py-3.5 flex items-center justify-center gap-2.5 sm:py-4">
                 <p className="m-0 text-sm text-[var(--text-muted)] font-medium sm:text-base flex items-center flex-wrap gap-x-1.5 justify-center">
                   <span>Pick</span>
                   <span className="inline-flex items-center gap-1 text-[var(--secondary-contrast)] font-bold">
-                    <FiMessageSquare className="text-base opacity-60" /> Text 
+                    <FiMessageSquare className="text-base opacity-60" /> Text
                   </span>
                   <span>or</span>
                   <span className="inline-flex items-center gap-1 text-[var(--secondary-contrast)] font-bold">
-                    <FiMic className="text-base opacity-60" /> Voice 
+                    <FiMic className="text-base opacity-60" /> Voice
                   </span>
                   <span>mode above to start chatting</span>
                 </p>
@@ -699,8 +727,7 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
                 {/* <p className="text-black">Coming soon... please switch to text mode to continue.</p> */}
                 <div className="flex items-center gap-4">
                   <div className="flex-1">
-                    <div className="flex items-center justify-center">
-                      {/* <div className="text-sm font-bold text-[var(--secondary-contrast)]">Voice session {isVoiceActive ? `· ${voiceStatus}` : ''}</div> */}
+                    {/* <div className="flex items-center justify-center">
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
@@ -711,119 +738,130 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
                           {isVoiceActive ? "Connected" : "Connect"}
                         </button>
 
-                        <button
-                          type="button"
-                          onClick={() => stopVoiceSession()}
-                          disabled={!isVoiceActive}
-                          className={`px-2 py-1 text-xs rounded-md font-semibold transition ${!isVoiceActive ? 'opacity-50 cursor-not-allowed bg-white text-[var(--text-muted)]' : 'bg-[var(--danger-default)] text-white'}`}
-                        >
-                          Disconnect
-                        </button>
+                        
 
                       </div>
-                      {/* <div className="text-xs text-[var(--text-muted)]">{agentSpeaking ? (speakingPaused ? 'Playback paused' : 'Speaking') : 'Idle'}</div> */}
-                    </div>
+                    </div> */}
 
                     <div className="mt-3 flex items-center gap-3">
-                        <div className="w-full">
-                          <CurrentResponsePlayer
-                            audioCurrentTime={audioCurrentTime}
-                            audioDuration={audioDuration}
-                            isPlaying={isPlaying}
-                            stateLabel={npStateLabel}
-                            onSeek={(t) => {
-                              if (!audioRef.current) return;
-                              audioRef.current.currentTime = t;
-                              setAudioCurrentTime(t);
-                            }}
-                            onPlayToggle={() => {
-                              if (!audioRef.current) return;
-                              if (audioRef.current.paused) {
-                                const p = audioRef.current.play();
-                                if (p && p.then) p.catch(() => {});
-                                notifyPlaybackStarted();
-                              } else {
-                                audioRef.current.pause();
-                              }
-                            }}
-                            onReplay={handleReplay}
-                          />
-                        </div>
+                      <div className="w-full">
+                        <CurrentResponsePlayer
+                          audioCurrentTime={audioCurrentTime}
+                          audioDuration={audioDuration}
+                          isPlaying={isPlaying}
+                          stateLabel={npStateLabel}
+                          onSeek={(t) => {
+                            if (!audioRef.current) return;
+                            audioRef.current.currentTime = t;
+                            setAudioCurrentTime(t);
+                          }}
+                          onPlayToggle={() => {
+                            if (!audioRef.current) return;
+                            if (audioRef.current.paused) {
+                              const p = audioRef.current.play();
+                              if (p && p.then) p.catch(() => { });
+                              notifyPlaybackStarted();
+                            } else {
+                              audioRef.current.pause();
+                            }
+                          }}
+                          onReplay={handleReplay}
+                        />
+                      </div>
+                    </div>
+                    <div className="relative mt-5 flex min-h-14 w-full items-center justify-center">
+                      <button
+                        type="button"
+                        onClick={togglePttMode}
+                        aria-pressed={pttMode}
+                        title="Toggle Push-to-talk mode"
+                        className="absolute left-0 flex items-center gap-2"
+                      >
+                        <span className={`relative inline-block w-9 h-5 rounded-full transition-colors ${pttMode ? 'bg-[var(--primary-bg)]' : 'bg-gray-300'}`}>
+                          <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${pttMode ? 'translate-x-4' : 'translate-x-0'}`} />
+                        </span>
+                        <span className="text-[10px] font-bold text-[var(--secondary-contrast)] whitespace-nowrap">
+                          Push-to-talk
+                        </span>
+                      </button>
+                      <div className="flex flex-row items-center justify-center gap-2">
+                      
+                      <button
+                        type="button"
+                        onClick={() => startVoiceSession()}
+                        disabled={isVoiceActive}
+                        className="inline-flex items-center gap-1.5 px-2 py-1 text-xs rounded-md font-semibold transition bg-[var(--primary-bg)] text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isVoiceActive ? <FiCheckCircle aria-hidden="true" /> : <FiLink aria-hidden="true" />}
+                        {isVoiceActive ? "Connected" : "Connect"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleMicClick}
+                        onMouseDown={async (e) => {
+                          e.preventDefault();
+                          if (!isVoiceActive || !pttMode) return;
+                          setIsRecording(true);
+                          try { await startCapture(); } catch (err) { console.error(err); }
+                        }}
+                        onMouseUp={async (e) => {
+                          e.preventDefault();
+                          if (!isVoiceActive || !pttMode) return;
+                          try { stopCapture(); } catch (err) { console.error(err); }
+                          setIsRecording(false);
+                        }}
+                        onMouseLeave={async (e) => {
+                          if (!isVoiceActive || !pttMode) return;
+                          try { stopCapture(); } catch (err) { console.error(err); }
+                          setIsRecording(false);
+                        }}
+                        onTouchStart={async (e) => {
+                          e.preventDefault();
+                          if (!isVoiceActive || !pttMode) return;
+                          setIsRecording(true);
+                          try { await startCapture(); } catch (err) { console.error(err); }
+                        }}
+                        onTouchEnd={async (e) => {
+                          e.preventDefault();
+                          if (!isVoiceActive || !pttMode) return;
+                          try { stopCapture(); } catch (err) { console.error(err); }
+                          setIsRecording(false);
+                        }}
+                        title={
+                          pttMode
+                            ? "Hold to talk (push-to-talk)"
+                            : (isRecording ? "Click to mute" : "Click to unmute")
+                        }
+                        aria-label={
+                          !isVoiceActive
+                            ? "Connect first to speak"
+                            : pttMode
+                              ? "Hold to speak"
+                              : (isRecording ? "Click to mute microphone" : "Click to unmute microphone")
+                        }
+                        className={`w-14 h-14 rounded-full grid place-items-center text-2xl shadow-md transition-colors ${isVoiceActive ? (isRecording ? 'bg-[var(--danger-default)] text-white mic-recording' : 'bg-[var(--primary-bg)] text-white') : 'bg-[var(--primary-bg)] text-white'}`}
+                      >
+                        {isRecording ? '🎤' : '🎙️'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => stopVoiceSession()}
+                        disabled={!isVoiceActive}
+                        className={`inline-flex items-center gap-1.5 px-2 py-1 text-xs rounded-md font-semibold transition ${!isVoiceActive ? 'opacity-50 cursor-not-allowed bg-white text-[var(--text-muted)]' : 'bg-[var(--danger-default)] text-white'}`}
+                      >
+                        <FiPower aria-hidden="true" />
+                        Disconnect
+                      </button>
 
                       
 
-                        {/* mic level removed — using push-to-talk animation on mic button instead */}
+                      </div>
                     </div>
                   </div>
-
-                                    <div className="flex-shrink-0 flex flex-col items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={handleMicClick}
-                      onMouseDown={async (e) => {
-                        e.preventDefault();
-                        if (!isVoiceActive || !pttMode) return;
-                        setIsRecording(true);
-                        try { await startCapture(); } catch (err) { console.error(err); }
-                      }}
-                      onMouseUp={async (e) => {
-                        e.preventDefault();
-                        if (!isVoiceActive || !pttMode) return;
-                        try { stopCapture(); } catch (err) { console.error(err); }
-                        setIsRecording(false);
-                      }}
-                      onMouseLeave={async (e) => {
-                        if (!isVoiceActive || !pttMode) return;
-                        try { stopCapture(); } catch (err) { console.error(err); }
-                        setIsRecording(false);
-                      }}
-                      onTouchStart={async (e) => {
-                        e.preventDefault();
-                        if (!isVoiceActive || !pttMode) return;
-                        setIsRecording(true);
-                        try { await startCapture(); } catch (err) { console.error(err); }
-                      }}
-                      onTouchEnd={async (e) => {
-                        e.preventDefault();
-                        if (!isVoiceActive || !pttMode) return;
-                        try { stopCapture(); } catch (err) { console.error(err); }
-                        setIsRecording(false);
-                      }}
-                      title={
-                        pttMode
-                          ? "Hold to talk (push-to-talk)"
-                          : (isRecording ? "Click to mute" : "Click to unmute")
-                      }
-                      aria-label={
-                        !isVoiceActive
-                          ? "Connect first to speak"
-                          : pttMode
-                            ? "Hold to speak"
-                            : (isRecording ? "Click to mute microphone" : "Click to unmute microphone")
-                      }
-                      className={`w-14 h-14 rounded-full grid place-items-center text-2xl shadow-md transition-colors ${isVoiceActive ? (isRecording ? 'bg-[var(--danger-default)] text-white mic-recording' : 'bg-[var(--primary-bg)] text-white') : 'bg-[var(--primary-bg)] text-white'}`}
-                    >
-                      {isRecording ? '🎤' : '🎙️'}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={togglePttMode}
-                      aria-pressed={pttMode}
-                      title="Toggle Push-to-talk mode"
-                      className="flex items-center gap-2"
-                    >
-                      <span className={`relative inline-block w-9 h-5 rounded-full transition-colors ${pttMode ? 'bg-[var(--primary-bg)]' : 'bg-gray-300'}`}>
-                        <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${pttMode ? 'translate-x-4' : 'translate-x-0'}`} />
-                      </span>
-                      <span className="text-[10px] font-bold text-[var(--secondary-contrast)] whitespace-nowrap">
-                        Push-to-talk
-                      </span>
-                    </button>
-                  </div>
                 </div>
+                
 
-                                <audio ref={audioRef} id="player" className="hidden" onLoadedMetadata={() => {
+                <audio ref={audioRef} id="player" className="hidden" onLoadedMetadata={() => {
                   try { setAudioDuration(audioRef.current?.duration || 0); } catch (_) { setAudioDuration(0); }
                 }} onTimeUpdate={() => {
                   try { setAudioCurrentTime(audioRef.current?.currentTime || 0); } catch (_) { setAudioCurrentTime(0); }
@@ -941,11 +979,14 @@ const LandingPage = () => {
       });
       if (response.ok) {
         const data = await response.json();
-        setSessionId(data.conversation_id || "");
+        const conversationId = data.conversation_id || "";
+        setSessionId(conversationId);
+        return conversationId;
       }
     } catch (error) {
       console.error("Failed to start new chat session:", error);
     }
+    return "";
   }, []);
 
   useEffect(() => {

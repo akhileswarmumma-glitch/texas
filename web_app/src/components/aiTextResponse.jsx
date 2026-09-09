@@ -29,6 +29,21 @@ const useTextAgent = (onAgentMessage, setLoading, handleLogout, initialSessionId
     callbackRef.current = onAgentMessage;
   }, [onAgentMessage]);
 
+  useEffect(() => {
+    if (!initialSessionId || conversationIdRef.current === initialSessionId) return;
+
+    // A new conversation must not inherit the previous response chain.
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+    conversationIdRef.current = initialSessionId;
+    previousResponseIdRef.current = '';
+    currentDeltaRef.current = '';
+    setCurrentDelta('');
+    setSessionId(initialSessionId);
+    setStatus('connected');
+    setTextActive(true);
+  }, [initialSessionId]);
+
   // Establishes a "session" in the HTTP sense: just mints a conversation_id
   // and flips status, since there's no persistent connection to open.
   const connect = useCallback(async () => {
@@ -218,8 +233,8 @@ const useTextAgent = (onAgentMessage, setLoading, handleLogout, initialSessionId
         }),
       });
       if (response.status === 401) {
-          await handleLogout();
-          return;
+        await handleLogout();
+        return;
       }
 
       if (!response.ok || !response.body) {
