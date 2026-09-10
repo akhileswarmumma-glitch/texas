@@ -186,7 +186,7 @@ function CurrentResponsePlayer({ audioCurrentTime, audioDuration, isPlaying, sta
   };
 
   return (
-    <div className="rounded-xl border px-4 py-3" style={{ background: "#171a21", borderColor: "#2a2f3a" }}>
+    <div className="rounded-xl border px-4 py-3" style={{ borderColor: "#2a2f3a" }}>
       {/* <div className="flex items-center justify-between mb-2">
         <span className="text-[10px] font-extrabold tracking-wider" style={{ color: "#9aa2b1" }}>CURRENT RESPONSE</span>
         <span className="text-[11px] font-semibold" style={{ color: "#5b8cff" }}>{stateLabel}</span>
@@ -197,7 +197,7 @@ function CurrentResponsePlayer({ audioCurrentTime, audioDuration, isPlaying, sta
           onClick={onPlayToggle}
           aria-label={isPlaying ? "Pause response" : "Play response"}
           className="flex-shrink-0 w-8 h-8 rounded-full grid place-items-center text-white"
-          style={{ background: "#5b8cff" }}
+          style={{ background: "var(--success-default)" }}
         >
           {isPlaying ? <FiPause size={13} /> : <FiPlay size={13} style={{ marginLeft: 1 }} />}
         </button>
@@ -206,11 +206,11 @@ function CurrentResponsePlayer({ audioCurrentTime, audioDuration, isPlaying, sta
           onClick={onReplay}
           aria-label="Replay from start"
           className="flex-shrink-0 w-8 h-8 rounded-full grid place-items-center border"
-          style={{ borderColor: "#2a2f3a", color: "#9aa2b1" }}
+          style={{ background: "var(--primary-bg)", color: "var(--secondary-contrast)" }}
         >
           <FiRotateCcw size={13} />
         </button>
-        <span className="text-[10px] w-8 flex-shrink-0" style={{ color: "#9aa2b1" }}>{formatDuration(audioCurrentTime)}</span>
+        <span className="text-[10px] w-8 flex-shrink-0" style={{ color: "var(--secondary-contrast)" }}>{formatDuration(audioCurrentTime)}</span>
         <div
           ref={barRef}
           onClick={handleBarClick}
@@ -226,7 +226,7 @@ function CurrentResponsePlayer({ audioCurrentTime, audioDuration, isPlaying, sta
             style={{ left: `${progress * 100}%`, transform: "translate(-50%, -50%)" }}
           />
         </div>
-        <span className="text-[10px] w-8 flex-shrink-0 text-right" style={{ color: "#9aa2b1" }}>{formatDuration(audioDuration)}</span>
+        <span className="text-[10px] w-8 flex-shrink-0 text-right" style={{ color: "var(--secondary-contrast)" }}>{formatDuration(audioDuration)}</span>
       </div>
     </div>
   );
@@ -320,6 +320,7 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
   const messagesEndRef = useRef(null);
   const profileRef = useRef(null);
   const wasVoiceActive = useRef(false);
+  const skipVoiceCloseRefresh = useRef(false);
 
   const addMessage = useCallback((message, sender = "ai", meta = {}) => {
     const streaming = Boolean(meta.streaming);
@@ -414,6 +415,7 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
     }
     audioRef.current.currentTime = 0;
     setAgentSpeaking(false);
+    setIsPlaying(false);
   }, []);
 
   const handleReplay = useCallback(() => {
@@ -424,30 +426,37 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
     if (p && p.then) p.catch(() => { });
   }, []);
 
-  const { isVoiceActive, startVoiceSession, stopVoiceSession, startCapture, stopCapture, micLevel, status: voiceStatus,
-    speakingPaused, pauseSpeaking, resumeSpeaking, notifyPlaybackStarted, notifyPlaybackEnded, setAgentSpeakingGate } =
-    useVoiceAgent(addMessage, setLoading, { onAudio: handleAudio, onInterrupt: handleInterrupt });
-
   const [isRecording, setIsRecording] = useState(false);
-  const [pttMode, setPttMode] = useState(true);
+const [pttMode, setPttMode] = useState(false);
+
+const handleBargeIn = useCallback(() => {
+  setIsRecording(true);
+}, []);
+
+  const { isVoiceActive, startVoiceSession, stopVoiceSession, startCapture, stopCapture, micLevel, status: voiceStatus,
+    speakingPaused, pauseSpeaking, resumeSpeaking, notifyPlaybackStarted, notifyPlaybackEnded, setAgentSpeakingGate, interruptPlayback, setCaptureEnabled } =
+    useVoiceAgent(addMessage, setLoading, { onAudio: handleAudio, onInterrupt: handleInterrupt, onBargeIn: handleBargeIn });
+
 
   const npStateLabel = !isVoiceActive ? "Idle" : speakingPaused ? "Paused" : isPlaying ? "Speaking" : "Idle";
   useEffect(() => {
     if (wasVoiceActive.current && !isVoiceActive) {
-      void onNewChat();
+      if (skipVoiceCloseRefresh.current) {
+        skipVoiceCloseRefresh.current = false;
+      } else {
+        void onNewChat();
+      }
     }
     wasVoiceActive.current = isVoiceActive;
   }, [isVoiceActive, onNewChat]);
 
   useEffect(() => {
+    // Mic (and its UI indicator) always starts muted/idle on a fresh
+    // session — this now matches the actual capture state coming from
+    // aiVoiceResponse.jsx, which no longer auto-enables the microphone on
+    // connect. (Removed a duplicate copy of this effect that ran twice.)
     if (!isVoiceActive) {
-      setIsRecording(false); // always start each new session muted/idle
-    }
-  }, [isVoiceActive]);
-
-  useEffect(() => {
-    if (!isVoiceActive) {
-      setIsRecording(false); // always start each new session muted/idle
+      setIsRecording(false);
     }
   }, [isVoiceActive]);
 
@@ -510,23 +519,40 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
     }
     setMessages([]);
     setDraft("");
+    if (pendingMode === "text" && isVoiceActive) {
+      skipVoiceCloseRefresh.current = true;
+      setIsRecording(false);
+      setIsPlaying(false);
+      setAudioUrl(null);
+      setAudioBlob(null);
+      setAudioCurrentTime(0);
+      setAudioDuration(0);
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.removeAttribute("src");
+        audioRef.current.load?.();
+      }
+      stopVoiceSession();
+    }
     await onNewChat();
     setMode(pendingMode);
     setPendingMode(null);
     setShowModeWarning(false);
-  }, [onNewChat, pendingMode]);
+  }, [isVoiceActive, onNewChat, pendingMode, stopVoiceSession]);
 
   const togglePttMode = useCallback(() => {
     setPttMode((prev) => {
       const next = !prev;
-      // Switching modes mid-session: cleanly stop any active capture first
-      if (isRecording) {
+      // Push-to-talk mode disables the always-on microphone until press.
+      if (next) {
         try { stopCapture(); } catch (err) { console.error(err); }
         setIsRecording(false);
+      } else if (isVoiceActive) {
+        setCaptureEnabled(true);
       }
       return next;
     });
-  }, [isRecording, stopCapture]);
+  }, [isVoiceActive, setCaptureEnabled, stopCapture]);
 
   const handleMicClick = useCallback(async () => {
     if (!isVoiceActive || pttMode) return; // click-to-toggle only applies in mute/unmute mode
@@ -538,6 +564,29 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
       try { await startCapture(); } catch (err) { console.error(err); }
     }
   }, [isVoiceActive, pttMode, isRecording, startCapture, stopCapture]);
+
+  const startMicCapture = useCallback(async () => {
+    if (!isVoiceActive) return;
+    setIsRecording(true);
+    try { await startCapture(); } catch (err) { console.error(err); }
+  }, [isVoiceActive, startCapture]);
+
+  const handleDisconnect = useCallback(() => {
+    setMessages([]);
+    setDraft("");
+    setIsRecording(false);
+    setIsPlaying(false);
+    setAudioUrl(null);
+    setAudioBlob(null);
+    setAudioCurrentTime(0);
+    setAudioDuration(0);
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.removeAttribute("src");
+      audioRef.current.load?.();
+    }
+    stopVoiceSession();
+  }, [stopVoiceSession]);
 
   const conversationStarted = messages.length > 0;
   const modeSelected = mode !== null;
@@ -770,6 +819,7 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
                               // rely on audio element onPlay to set playing state and notify server
                             } else {
                               audioRef.current.pause();
+                              pauseSpeaking?.();
                             }
                           }}
                           onReplay={handleReplay}
@@ -781,14 +831,14 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
                         type="button"
                         onClick={togglePttMode}
                         aria-pressed={pttMode}
-                        title="Toggle Push-to-talk mode"
+                        title={pttMode ? "Switch to always-on microphone" : "Switch to push-to-talk"}
                         className="absolute left-0 flex items-center gap-2"
                       >
-                        <span className={`relative inline-block w-9 h-5 rounded-full transition-colors ${pttMode ? 'bg-[var(--primary-bg)]' : 'bg-gray-300'}`}>
+                        <span className={`relative inline-block w-9 h-5 rounded-full transition-colors ${pttMode ? 'bg-[var(--success-default)]' : 'bg-gray-300'}`}>
                           <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${pttMode ? 'translate-x-4' : 'translate-x-0'}`} />
                         </span>
                         <span className="text-[10px] font-bold text-[var(--secondary-contrast)] whitespace-nowrap">
-                          Push-to-talk
+                          {pttMode ? "Push-to-talk" : "Microphone"}
                         </span>
                       </button>
                       <div className="flex flex-row items-center justify-center gap-2">
@@ -797,7 +847,11 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
                         type="button"
                         onClick={() => startVoiceSession()}
                         disabled={isVoiceActive}
-                        className="inline-flex items-center gap-1.5 px-2 py-1 text-xs rounded-md font-semibold transition bg-[var(--primary-bg)] text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                        className={`inline-flex items-center gap-1.5 px-2 py-1 text-xs rounded-md font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed ${
+                          isVoiceActive
+                            ? "bg-[var(--primary-default)] text-white"
+                            : "bg-[var(--primary-bg)]"
+                        }`}
                       >
                         {isVoiceActive ? <FiCheckCircle aria-hidden="true" /> : <FiLink aria-hidden="true" />}
                         {isVoiceActive ? "Connected" : "Connect"}
@@ -808,8 +862,7 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
                         onMouseDown={async (e) => {
                           e.preventDefault();
                           if (!isVoiceActive || !pttMode) return;
-                          setIsRecording(true);
-                          try { await startCapture(); } catch (err) { console.error(err); }
+                          await startMicCapture();
                         }}
                         onMouseUp={async (e) => {
                           e.preventDefault();
@@ -826,7 +879,7 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
                           e.preventDefault();
                           if (!isVoiceActive || !pttMode) return;
                           setIsRecording(true);
-                          try { await startCapture(); } catch (err) { console.error(err); }
+                          await startMicCapture();
                         }}
                         onTouchEnd={async (e) => {
                           e.preventDefault();
@@ -846,13 +899,13 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
                               ? "Hold to speak"
                               : (isRecording ? "Click to mute microphone" : "Click to unmute microphone")
                         }
-                        className={`w-14 h-14 rounded-full grid place-items-center text-2xl shadow-md transition-colors ${isVoiceActive ? (isRecording ? 'bg-[var(--danger-default)] text-white mic-recording' : 'bg-[var(--primary-bg)] text-white') : 'bg-[var(--primary-bg)] text-white'}`}
+                        className={`w-14 h-14 rounded-full grid place-items-center text-2xl shadow-md transition-colors ${isVoiceActive ? (isRecording ? 'bg-[var(--success-default)] text-white mic-recording' : 'bg-[var(--primary-bg)] text-white') : 'bg-[var(--primary-bg)] text-white'}`}
                       >
                         {isRecording ? '🎤' : '🎙️'}
                       </button>
                       <button
                         type="button"
-                        onClick={() => stopVoiceSession()}
+                        onClick={handleDisconnect}
                         disabled={!isVoiceActive}
                         className={`inline-flex items-center gap-1.5 px-2 py-1 text-xs rounded-md font-semibold transition ${!isVoiceActive ? 'opacity-50 cursor-not-allowed bg-white text-[var(--text-muted)]' : 'bg-[var(--danger-default)] text-white'}`}
                       >
@@ -872,12 +925,14 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
                   try { setAudioDuration(audioRef.current?.duration || 0); } catch (_) { setAudioDuration(0); }
                 }} onTimeUpdate={() => {
                   try { setAudioCurrentTime(audioRef.current?.currentTime || 0); } catch (_) { setAudioCurrentTime(0); }
-                }} onPlay={() => {
+                }} onPlaying={() => {
                   setIsPlaying(true);
                   notifyPlaybackStarted();
                   setAgentSpeaking(true);
                   setAgentSpeakingGate?.(true);
                   playbackEndedNotifiedRef.current = false;
+                }} onWaiting={() => {
+                  setIsPlaying(false);
                 }} onPause={() => {
                   setIsPlaying(false);
                   setAgentSpeakingGate?.(false);

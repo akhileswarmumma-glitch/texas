@@ -2,14 +2,27 @@
 export class AudioPlayback {
   constructor() {
     this._context = null;
+    this._destination = null;
+    this._ownsContext = false;
     this._nextStart = 0;
     this._activeSrcs = [];
     this._paused = false;
     this._bufferQueue = [];
+    this._maxAheadSeconds = 0.12;
   }
-
-  async init() {
-    this._context = new AudioContext({ sampleRate: 24000 });
+  // Pass a shared { context, destination } (from EchoSafeAudioPipeline) so
+  // this playback's audio is routed through the echo-safe relay instead of
+  // straight to the speakers, where it would leak back into the mic.
+  async init(sharedContext, sharedDestination) {
+    if (sharedContext && sharedDestination) {
+      this._context = sharedContext;
+      this._destination = sharedDestination;
+      this._ownsContext = false;
+    } else {
+      this._context = new AudioContext({ sampleRate: 24000 });
+      this._destination = this._context.destination;
+      this._ownsContext = true;
+    }
     this._nextStart = this._context.currentTime;
     this._activeSrcs = [];
   }
@@ -37,10 +50,15 @@ export class AudioPlayback {
 
     const src = this._context.createBufferSource();
     src.buffer = buf;
-    src.connect(this._context.destination);
+    src.connect(this._destination);
 
     const now = this._context.currentTime;
-    const start = Math.max(this._nextStart, now);
+    let start = Math.max(this._nextStart, now);
+    // Keep the scheduled queue short so pause and barge-in take effect quickly.
+    if (start - now > this._maxAheadSeconds) {
+      this.flush();
+      start = this._context.currentTime;
+    }
     src.start(start);
     this._nextStart = start + buf.duration;
 
@@ -57,6 +75,7 @@ export class AudioPlayback {
       try { src.stop(); } catch (_) {}
     }
     this._activeSrcs = [];
+    this._bufferQueue = [];
     this._nextStart = this._context.currentTime;
   }
 
@@ -75,10 +94,16 @@ export class AudioPlayback {
     }
   }
 
-  close() {
-    this._context?.close();
+    close() {
+    // Only close the context if this instance created its own — never close
+    // the shared echo-safe context, since it's reused across sessions.
+    if (this._ownsContext) {
+      this._context?.close();
+    }
     this._context = null;
+    this._destination = null;
     this._nextStart = 0;
     this._activeSrcs = [];
+    this._bufferQueue = [];
   }
 }
