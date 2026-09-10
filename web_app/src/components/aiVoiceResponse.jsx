@@ -55,17 +55,22 @@ import { useState, useEffect, useRef, useCallback } from 'react';
  *   4. Added 'session_ready' / 'auth_error' / 'consent' message handling to
  *      match the index.html reference client's wire protocol.
  *
- * PUSH-TO-TALK + MUTE/UNMUTE (kept, unchanged surface API)
+ * ECHO-CANCELLATION FIX (this revision)
  * ---------------------------------------------------------------------------
- *   - startCapture()          -> unmute / begin sending mic audio (also used
- *                                 as "press" in push-to-talk mode)
- *   - stopCapture()           -> mute / stop sending mic audio (also used as
- *                                 "release" in push-to-talk mode)
- *   - setCaptureEnabled(bool) -> programmatic mic on/off, used when toggling
- *                                 push-to-talk mode itself in landingPage.jsx
- * These are unchanged so landingPage.jsx's mic button (click-to-mute/unmute
- * and hold-to-talk via onMouseDown/onMouseUp/onTouchStart/onTouchEnd) keeps
- * working exactly as before.
+ *   AudioPlayback previously connected its BufferSource nodes straight to
+ *   `AudioContext.destination`. Chromium's native AEC (requested via
+ *   `echoCancellation: true` in AudioCapture's getUserMedia constraints)
+ *   only reliably references audio that plays out through an actual
+ *   <audio>/<video> element's render path — NOT raw Web Audio API output
+ *   connected directly to `context.destination`. That mismatch meant AEC
+ *   never "saw" the agent's speech as the thing to cancel out of the mic,
+ *   even though the mic constraints were requesting it correctly.
+ *
+ *   Fix: playback now runs through a MediaStreamAudioDestinationNode, whose
+ *   output MediaStream is played by a real (visually hidden) <audio>
+ *   element appended to the DOM. Everything else about AudioPlayback
+ *   (enqueue/flush/pause/resume scheduling, the public API surface, and
+ *   every other file's usage of it) is unchanged.
  * ===========================================================================
  */
 
@@ -175,15 +180,23 @@ export class AudioCapture {
 
 // -----------------------------------------------------------------------------
 // AudioPlayback — decodes Base64 PCM-16 chunks and streams playback via the
-// Web Audio API, straight out to the default output (own AudioContext, own
-// destination) — same as index.html's native <audio> element playing agent
-// audio directly, no loopback relay in between.
+// Web Audio API. Output is routed through a MediaStreamAudioDestinationNode
+// and played by a real (hidden) <audio> element rather than connected
+// directly to `AudioContext.destination`, because Chromium's native AEC only
+// reliably references audio played through an <audio>/<video> element's
+// render path. Connecting straight to `context.destination` makes sound
+// audible but invisible to the echo canceller, which is what allowed the
+// agent's own speech to leak back into the mic. This mirrors the working
+// index.html reference client, which plays agent audio through a native
+// <audio> element.
 // -----------------------------------------------------------------------------
 export class AudioPlayback {
   constructor(onPlaybackStateChange) {
     this._onPlaybackStateChange = onPlaybackStateChange;
     this._context = null;
     this._destination = null;
+    this._streamDestination = null;
+    this._audioEl = null;
     this._nextStart = 0;
     this._activeSrcs = [];
     this._paused = false;
@@ -193,7 +206,38 @@ export class AudioPlayback {
 
   async init() {
     this._context = new AudioContext({ sampleRate: 24000 });
-    this._destination = this._context.destination;
+
+    // Route playback through a MediaStreamAudioDestinationNode instead of
+    // this._context.destination directly, then play that stream via a real
+    // <audio> element. This is what lets the browser's native echo canceller
+    // (requested on the mic side in AudioCapture) actually reference the
+    // agent's output — see the class comment above for why.
+    this._streamDestination = this._context.createMediaStreamDestination();
+    this._destination = this._streamDestination;
+
+    this._audioEl = document.createElement('audio');
+    this._audioEl.autoplay = true;
+    this._audioEl.muted = false;
+    this._audioEl.srcObject = this._streamDestination.stream;
+    // Kept out of the visual layout, but must stay attached to the DOM —
+    // some browsers are unreliable about autoplay/AEC registration for
+    // <audio> elements that are never inserted into the document.
+    this._audioEl.style.position = 'fixed';
+    this._audioEl.style.width = '0';
+    this._audioEl.style.height = '0';
+    this._audioEl.style.opacity = '0';
+    this._audioEl.style.pointerEvents = 'none';
+    document.body.appendChild(this._audioEl);
+
+    try {
+      await this._audioEl.play();
+    } catch (err) {
+      // Autoplay can be blocked until a user gesture has occurred; the
+      // session is normally started from a click/tap so this should
+      // succeed, but we don't want init() to throw if it doesn't.
+      console.warn('[VoiceAgent] agent <audio> element play() was blocked:', err);
+    }
+
     this._nextStart = this._context.currentTime;
     this._activeSrcs = [];
   }
@@ -271,6 +315,15 @@ export class AudioPlayback {
 
   close() {
     this._context?.close();
+    if (this._audioEl) {
+      try {
+        this._audioEl.pause();
+        this._audioEl.srcObject = null;
+        if (this._audioEl.parentNode) this._audioEl.parentNode.removeChild(this._audioEl);
+      } catch (_) {}
+    }
+    this._audioEl = null;
+    this._streamDestination = null;
     this._context = null;
     this._destination = null;
     this._nextStart = 0;
@@ -436,10 +489,10 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
       captureEnabledRef.current = false;
       setStatus('connecting');
 
-      // Initialize Audio Playback — own AudioContext -> default destination,
-      // played straight out like the index.html reference client's <audio>
-      // element. The mic's native echoCancellation (see AudioCapture above)
-      // is what cancels this back out of the capture, no separate relay.
+      // Initialize Audio Playback — routed through a hidden <audio> element
+      // (see AudioPlayback class comment) so the mic's native
+      // echoCancellation (see AudioCapture above) can actually reference and
+      // cancel it out of the capture.
       const playback = new AudioPlayback((playing) => {
         agentSpeakingRef.current = playing;
         if (!playing && statusRef.current === 'speaking') {
@@ -766,9 +819,10 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
 
   // Kept as a no-op for backward compatibility with landingPage.jsx, which
   // still calls registerAgentAudioElement(audioRef.current) on mount. There
-  // is no echo-safe relay to tap into anymore — the <audio> element plays
-  // directly, exactly like index.html's native <audio controls> — so this is
-  // intentionally a harmless no-op rather than requiring landingPage.jsx edits.
+  // is no echo-safe relay to tap into anymore — AudioPlayback now owns and
+  // manages its own internal <audio> element for the AEC fix above — so
+  // this remains an intentional no-op rather than requiring landingPage.jsx
+  // edits.
   const registerAgentAudioElement = useCallback(() => {}, []);
 
   return {
