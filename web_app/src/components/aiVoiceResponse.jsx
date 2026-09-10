@@ -301,6 +301,8 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
   const statusRef = useRef('disconnected'); // mirrors `status` state, but always reads the LATEST value inside closures
   const agentSpeakingRef = useRef(false);
   const captureActiveRef = useRef(false);
+  const playbackSuppressionRef = useRef(false);
+  const suppressionTimerRef = useRef(null);
   // Sessions now start MUTED by default (mirrors landingPage.jsx's isRecording
   // state, which is false right after connecting). Previously this ref
   // defaulted to `true` while the UI defaulted to "muted" — that mismatch
@@ -506,11 +508,12 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
                 // picked up as fake user speech.
                 if (!captureEnabledRef.current) return;
 
-                // While the agent is speaking, do not stream raw mic frames.
-                // This prevents speaker leakage from reaching the backend. The
-                // level callback below releases this gate after real speech is
-                // detected for several consecutive frames.
-                if (agentSpeakingRef.current) return;
+                // If we're suppressing initial mic frames right after switching
+                // to agent audio (to avoid echo leakage), drop frames until
+                // suppression is cleared. User speech will still trigger the
+                // level callback which clears suppression and causes an
+                // immediate interrupt so we don't miss real barge-in.
+                if (playbackSuppressionRef.current) return;
 
                 if (wsRef.current?.readyState === WebSocket.OPEN) {
                   const binary = atob(base64Chunk);
@@ -528,7 +531,8 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
             },
             (level) => {
               setMicLevel(level);
-              if (!captureEnabledRef.current || !agentSpeakingRef.current) {
+              // Only process level-based barge-in when the mic is enabled.
+              if (!captureEnabledRef.current) {
                 speechFramesRef.current = 0;
                 return;
               }
@@ -537,9 +541,15 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
                 speechFramesRef.current += 1;
                 if (speechFramesRef.current >= speechFramesRequired) {
                   speechFramesRef.current = 0;
-                  // The current worklet frame is sent after this callback, so
-                  // interruptPlayback() opens the gate for the user's speech.
+                  // User has started speaking: interrupt playback so server
+                  // recognizes the user's speech immediately.
                   interruptPlayback();
+                  // If we were suppressing mic frames to avoid echo, stop
+                  // suppressing so subsequent frames are forwarded.
+                  if (playbackSuppressionRef.current) {
+                    playbackSuppressionRef.current = false;
+                    if (suppressionTimerRef.current) { clearTimeout(suppressionTimerRef.current); suppressionTimerRef.current = null; }
+                  }
                 }
               } else {
                 speechFramesRef.current = 0;
@@ -625,6 +635,18 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
                 for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
                 const blob = new Blob([bytes], { type: data.format || 'audio/mpeg' });
                 const url = URL.createObjectURL(blob);
+                // Mark agent as speaking immediately and briefly suppress
+                // forwarding of mic frames while the client swaps to the
+                // new audio clip. The suppression is cleared automatically
+                // after a short delay, or immediately when the user speaks.
+                agentSpeakingRef.current = true;
+                setStatus('speaking');
+                playbackSuppressionRef.current = true;
+                if (suppressionTimerRef.current) { clearTimeout(suppressionTimerRef.current); suppressionTimerRef.current = null; }
+                suppressionTimerRef.current = setTimeout(() => {
+                  playbackSuppressionRef.current = false;
+                  suppressionTimerRef.current = null;
+                }, 300);
                 if (options.onAudio && typeof options.onAudio === 'function') {
                   options.onAudio({ url, blob, format: data.format || 'audio/mpeg' });
                 } else {
