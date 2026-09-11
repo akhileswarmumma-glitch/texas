@@ -2,27 +2,15 @@
 export class AudioPlayback {
   constructor() {
     this._context = null;
-    this._destination = null;
-    this._ownsContext = false;
     this._nextStart = 0;
     this._activeSrcs = [];
     this._paused = false;
     this._bufferQueue = [];
     this._maxAheadSeconds = 0.12;
   }
-  // Pass a shared { context, destination } (from EchoSafeAudioPipeline) so
-  // this playback's audio is routed through the echo-safe relay instead of
-  // straight to the speakers, where it would leak back into the mic.
-  async init(sharedContext, sharedDestination) {
-    if (sharedContext && sharedDestination) {
-      this._context = sharedContext;
-      this._destination = sharedDestination;
-      this._ownsContext = false;
-    } else {
-      this._context = new AudioContext({ sampleRate: 24000 });
-      this._destination = this._context.destination;
-      this._ownsContext = true;
-    }
+
+  async init() {
+    this._context = new AudioContext({ sampleRate: 24000 });
     this._nextStart = this._context.currentTime;
     this._activeSrcs = [];
   }
@@ -50,7 +38,7 @@ export class AudioPlayback {
 
     const src = this._context.createBufferSource();
     src.buffer = buf;
-    src.connect(this._destination);
+    src.connect(this._context.destination);
 
     const now = this._context.currentTime;
     let start = Math.max(this._nextStart, now);
@@ -94,14 +82,9 @@ export class AudioPlayback {
     }
   }
 
-    close() {
-    // Only close the context if this instance created its own — never close
-    // the shared echo-safe context, since it's reused across sessions.
-    if (this._ownsContext) {
-      this._context?.close();
-    }
+  close() {
+    this._context?.close();
     this._context = null;
-    this._destination = null;
     this._nextStart = 0;
     this._activeSrcs = [];
     this._bufferQueue = [];

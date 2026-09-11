@@ -415,7 +415,6 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
     }
     audioRef.current.currentTime = 0;
     setAgentSpeaking(false);
-    setIsPlaying(false);
   }, []);
 
   const handleReplay = useCallback(() => {
@@ -426,17 +425,12 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
     if (p && p.then) p.catch(() => { });
   }, []);
 
-  const [isRecording, setIsRecording] = useState(false);
-const [pttMode, setPttMode] = useState(false);
-
-const handleBargeIn = useCallback(() => {
-  setIsRecording(true);
-}, []);
-
   const { isVoiceActive, startVoiceSession, stopVoiceSession, startCapture, stopCapture, micLevel, status: voiceStatus,
-    speakingPaused, pauseSpeaking, resumeSpeaking, notifyPlaybackStarted, notifyPlaybackEnded, setAgentSpeakingGate, interruptPlayback, setCaptureEnabled } =
-    useVoiceAgent(addMessage, setLoading, { onAudio: handleAudio, onInterrupt: handleInterrupt, onBargeIn: handleBargeIn });
+    speakingPaused, pauseSpeaking, resumeSpeaking, notifyPlaybackStarted, notifyPlaybackEnded, setAgentSpeakingGate } =
+    useVoiceAgent(addMessage, setLoading, { onAudio: handleAudio, onInterrupt: handleInterrupt });
 
+  const [isRecording, setIsRecording] = useState(false);
+  const [pttMode, setPttMode] = useState(true);
 
   const npStateLabel = !isVoiceActive ? "Idle" : speakingPaused ? "Paused" : isPlaying ? "Speaking" : "Idle";
   useEffect(() => {
@@ -451,12 +445,14 @@ const handleBargeIn = useCallback(() => {
   }, [isVoiceActive, onNewChat]);
 
   useEffect(() => {
-    // Mic (and its UI indicator) always starts muted/idle on a fresh
-    // session — this now matches the actual capture state coming from
-    // aiVoiceResponse.jsx, which no longer auto-enables the microphone on
-    // connect. (Removed a duplicate copy of this effect that ran twice.)
     if (!isVoiceActive) {
-      setIsRecording(false);
+      setIsRecording(false); // always start each new session muted/idle
+    }
+  }, [isVoiceActive]);
+
+  useEffect(() => {
+    if (!isVoiceActive) {
+      setIsRecording(false); // always start each new session muted/idle
     }
   }, [isVoiceActive]);
 
@@ -543,16 +539,14 @@ const handleBargeIn = useCallback(() => {
   const togglePttMode = useCallback(() => {
     setPttMode((prev) => {
       const next = !prev;
-      // Push-to-talk mode disables the always-on microphone until press.
-      if (next) {
+      // Switching modes mid-session: cleanly stop any active capture first
+      if (isRecording) {
         try { stopCapture(); } catch (err) { console.error(err); }
         setIsRecording(false);
-      } else if (isVoiceActive) {
-        setCaptureEnabled(true);
       }
       return next;
     });
-  }, [isVoiceActive, setCaptureEnabled, stopCapture]);
+  }, [isRecording, stopCapture]);
 
   const handleMicClick = useCallback(async () => {
     if (!isVoiceActive || pttMode) return; // click-to-toggle only applies in mute/unmute mode
@@ -564,12 +558,6 @@ const handleBargeIn = useCallback(() => {
       try { await startCapture(); } catch (err) { console.error(err); }
     }
   }, [isVoiceActive, pttMode, isRecording, startCapture, stopCapture]);
-
-  const startMicCapture = useCallback(async () => {
-    if (!isVoiceActive) return;
-    setIsRecording(true);
-    try { await startCapture(); } catch (err) { console.error(err); }
-  }, [isVoiceActive, startCapture]);
 
   const handleDisconnect = useCallback(() => {
     setMessages([]);
@@ -827,27 +815,27 @@ const handleBargeIn = useCallback(() => {
                       </div>
                     </div>
                     <div className="relative mt-5 flex min-h-14 w-full items-center justify-center">
-                      <button
+                      {/* <button
                         type="button"
                         onClick={togglePttMode}
                         aria-pressed={pttMode}
-                        title={pttMode ? "Switch to always-on microphone" : "Switch to push-to-talk"}
+                        title="Toggle Push-to-talk mode"
                         className="absolute left-0 flex items-center gap-2"
                       >
-                        <span className={`relative inline-block w-9 h-5 rounded-full transition-colors ${pttMode ? 'bg-[var(--success-default)]' : 'bg-gray-300'}`}>
+                        <span className={`relative inline-block w-9 h-5 rounded-full transition-colors ${pttMode ? 'bg-[var(--primary-bg)]' : 'bg-gray-300'}`}>
                           <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${pttMode ? 'translate-x-4' : 'translate-x-0'}`} />
                         </span>
                         <span className="text-[10px] font-bold text-[var(--secondary-contrast)] whitespace-nowrap">
-                          {pttMode ? "Push-to-talk" : "Microphone"}
+                          Push-to-talk
                         </span>
-                      </button>
+                      </button> */}
                       <div className="flex flex-row items-center justify-center gap-2">
                       
                       <button
                         type="button"
                         onClick={() => startVoiceSession()}
                         disabled={isVoiceActive}
-                        className={`inline-flex items-center gap-1.5 px-2 py-1 text-xs rounded-md font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed ${
+                         className={`inline-flex items-center gap-1.5 px-2 py-1 text-xs rounded-md font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed ${
                           isVoiceActive
                             ? "bg-[var(--primary-default)] text-white"
                             : "bg-[var(--primary-bg)]"
@@ -862,7 +850,8 @@ const handleBargeIn = useCallback(() => {
                         onMouseDown={async (e) => {
                           e.preventDefault();
                           if (!isVoiceActive || !pttMode) return;
-                          await startMicCapture();
+                          setIsRecording(true);
+                          try { await startCapture(); } catch (err) { console.error(err); }
                         }}
                         onMouseUp={async (e) => {
                           e.preventDefault();
@@ -879,7 +868,7 @@ const handleBargeIn = useCallback(() => {
                           e.preventDefault();
                           if (!isVoiceActive || !pttMode) return;
                           setIsRecording(true);
-                          await startMicCapture();
+                          try { await startCapture(); } catch (err) { console.error(err); }
                         }}
                         onTouchEnd={async (e) => {
                           e.preventDefault();
@@ -889,7 +878,7 @@ const handleBargeIn = useCallback(() => {
                         }}
                         title={
                           pttMode
-                            ? "Hold to talk (push-to-talk)"
+                            ? "Hold to talk"
                             : (isRecording ? "Click to mute" : "Click to unmute")
                         }
                         aria-label={
@@ -899,7 +888,7 @@ const handleBargeIn = useCallback(() => {
                               ? "Hold to speak"
                               : (isRecording ? "Click to mute microphone" : "Click to unmute microphone")
                         }
-                        className={`w-14 h-14 rounded-full grid place-items-center text-2xl shadow-md transition-colors ${isVoiceActive ? (isRecording ? 'bg-[var(--success-default)] text-white mic-recording' : 'bg-[var(--primary-bg)] text-white') : 'bg-[var(--primary-bg)] text-white'}`}
+                        className={`w-14 h-14 rounded-full grid place-items-center text-2xl shadow-md transition-colors ${isVoiceActive ? (isRecording ? 'bg-[var(--danger-default)] text-white mic-recording' : 'bg-[var(--primary-bg)] text-white') : 'bg-[var(--primary-bg)] text-white'}`}
                       >
                         {isRecording ? '🎤' : '🎙️'}
                       </button>
@@ -1039,6 +1028,10 @@ const LandingPage = () => {
         method: "GET",
         credentials: "include",
       });
+      if (response.status === 401) {
+        await handleLogout();
+        return;
+      }
       if (response.ok) {
         const data = await response.json();
         const conversationId = data.conversation_id || "";
