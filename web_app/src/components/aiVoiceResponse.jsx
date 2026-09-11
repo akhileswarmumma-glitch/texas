@@ -196,17 +196,32 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
               audioPlaybackRef.current?.enqueue(data.data);
               break;
 
-            case 'agent_audio':
-              setLoading?.(false);
-              try {
-                if (data.audio_base64) {
-                  // Pass the MP3 base64 string directly to AudioPlayback.enqueue
-                  audioPlaybackRef.current?.enqueue(data.audio_base64);
+            // In aiVoiceResponse.jsx -> inside ws.onmessage switch statement:
+
+          case 'agent_audio':
+            setLoading?.(false);
+            try {
+              if (data.audio_base64) {
+                // 1. Convert Base64 MP3 payload to a Blob Object URL
+                const bin = atob(data.audio_base64);
+                const bytes = new Uint8Array(bin.length);
+                for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+                const blob = new Blob([bytes], { type: data.format || 'audio/mpeg' });
+                const url = URL.createObjectURL(blob);
+
+                // 2. Mark agent as speaking
+                agentSpeakingRef.current = true;
+                setStatus('speaking');
+
+                // 3. Delegate playback to LandingPage.jsx's <audio ref={audioRef}>
+                if (options.onAudio && typeof options.onAudio === 'function') {
+                  options.onAudio({ url, blob, format: data.format || 'audio/mpeg' });
                 }
-              } catch (err) {
-                console.error('Failed to handle agent_audio:', err);
               }
-              break;
+            } catch (err) {
+              console.error('Failed to handle agent_audio:', err);
+            }
+            break;
 
             case 'agent_text_delta':
               setLoading?.(false);

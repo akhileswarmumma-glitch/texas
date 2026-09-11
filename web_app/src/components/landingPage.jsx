@@ -381,21 +381,22 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
-  const handleAudio = useCallback(({ url, blob, format }) => {
+  // In LandingPage.jsx:
+
+  const handleAudio = useCallback(({ url, blob }) => {
     try {
       if (!audioRef.current) return;
-      // programmatic swap: mark suppress so pause handler doesn't notify
-      if (!audioRef.current.paused) {
-        suppressPauseNotifyRef.current = true;
-        audioRef.current.pause();
-      }
+
+      // Reset previous audio state
+      audioRef.current.pause();
       audioRef.current.src = url;
       setAudioUrl(url);
       setAudioBlob(blob || null);
       setIsPlaying(false);
       playbackEndedNotifiedRef.current = false;
       setAgentSpeaking(true);
-      // attempt to play and notify server via hook when started (hook returns notifier)
+
+      // Play new clip
       const playPromise = audioRef.current.play();
       if (playPromise && typeof playPromise.then === 'function') {
         playPromise.catch((err) => {
@@ -910,32 +911,60 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
                 </div>
                 
 
-                <audio ref={audioRef} id="player" className="hidden" onLoadedMetadata={() => {
-                  try { setAudioDuration(audioRef.current?.duration || 0); } catch (_) { setAudioDuration(0); }
-                }} onTimeUpdate={() => {
-                  try { setAudioCurrentTime(audioRef.current?.currentTime || 0); } catch (_) { setAudioCurrentTime(0); }
-                }} onPlaying={() => {
-                  setIsPlaying(true);
-                  notifyPlaybackStarted();
-                  setAgentSpeaking(true);
-                  setAgentSpeakingGate?.(true);
-                  playbackEndedNotifiedRef.current = false;
-                }} onWaiting={() => {
-                  setIsPlaying(false);
-                }} onPause={() => {
-                  setIsPlaying(false);
-                  setAgentSpeakingGate?.(false);
-                  if (suppressPauseNotifyRef.current) { suppressPauseNotifyRef.current = false; return; }
-                  if (!playbackEndedNotifiedRef.current) {
-                    playbackEndedNotifiedRef.current = true;
-                    notifyPlaybackEnded();
-                    setAgentSpeaking(false);
-                  }
-                }} onEnded={() => {
-                  setIsPlaying(false);
-                  setAgentSpeakingGate?.(false);
-                  if (!playbackEndedNotifiedRef.current) { playbackEndedNotifiedRef.current = true; notifyPlaybackEnded(); setAgentSpeaking(false); }
-                }} />
+                {/* In LandingPage.jsx */}
+                <audio
+                  ref={audioRef}
+                  id="player"
+                  className="hidden"
+                  preload="metadata"
+                  onLoadedMetadata={() => {
+                    try {
+                      if (audioRef.current) {
+                        setAudioDuration(audioRef.current.duration || 0);
+                      }
+                    } catch (_) {
+                      setAudioDuration(0);
+                    }
+                  }}
+                  onTimeUpdate={() => {
+                    try {
+                      if (audioRef.current) {
+                        setAudioCurrentTime(audioRef.current.currentTime || 0);
+                      }
+                    } catch (_) {
+                      setAudioCurrentTime(0);
+                    }
+                  }}
+                  onPlaying={() => {
+                    setIsPlaying(true);
+                    notifyPlaybackStarted(); // Sends playback_started to main.py
+                    setAgentSpeaking(true);
+                    setAgentSpeakingGate?.(true);
+                    playbackEndedNotifiedRef.current = false;
+                  }}
+                  onPause={() => {
+                    setIsPlaying(false);
+                    setAgentSpeakingGate?.(false);
+                    if (suppressPauseNotifyRef.current) {
+                      suppressPauseNotifyRef.current = false;
+                      return;
+                    }
+                    if (!playbackEndedNotifiedRef.current) {
+                      playbackEndedNotifiedRef.current = true;
+                      notifyPlaybackEnded(); // Sends playback_ended to main.py
+                      setAgentSpeaking(false);
+                    }
+                  }}
+                  onEnded={() => {
+                    setIsPlaying(false);
+                    setAgentSpeakingGate?.(false);
+                    if (!playbackEndedNotifiedRef.current) {
+                      playbackEndedNotifiedRef.current = true;
+                      notifyPlaybackEnded();
+                      setAgentSpeaking(false);
+                    }
+                  }}
+                />
               </div>
             )}
           </div>
