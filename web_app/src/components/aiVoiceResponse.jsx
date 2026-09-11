@@ -200,6 +200,7 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
               setLoading?.(false);
               try {
                 if (data.audio_base64) {
+                  // Pass the MP3 base64 string directly to AudioPlayback.enqueue
                   audioPlaybackRef.current?.enqueue(data.audio_base64);
                 }
               } catch (err) {
