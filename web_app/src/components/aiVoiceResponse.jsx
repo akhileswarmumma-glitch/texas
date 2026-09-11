@@ -3,7 +3,7 @@ import { AudioCapture } from './audioCapture';
 import { AudioPlayback } from './audioPlayback';
 
 const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
-  const [status, setStatus] = useState('disconnected'); // 'disconnected' | 'connecting' | 'connected' | 'listening' | 'speaking' | 'ready'
+  const [status, setStatus] = useState('disconnected');
   const [sessionId, setSessionId] = useState(null);
   const [isVoiceActive, setIsVoiceActive] = useState(false);
   const [micLevel, setMicLevel] = useState(0);
@@ -13,8 +13,9 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
   const audioCaptureRef = useRef(null);
   const audioPlaybackRef = useRef(null);
   const callbackRef = useRef(onAgentMessage);
-  const statusRef = useRef('disconnected'); // mirrors `status` state, but always reads the LATEST value inside closures (e.g. the audio_chunk sender in onopen)
+  const statusRef = useRef('disconnected');
   const agentSpeakingRef = useRef(false);
+  const captureEnabledRef = useRef(false); // Controls Push-To-Talk / Mute state
 
   useEffect(() => {
     callbackRef.current = onAgentMessage;
@@ -24,6 +25,18 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
     statusRef.current = status;
   }, [status]);
 
+  const interruptPlayback = useCallback(() => {
+    audioPlaybackRef.current?.flush();
+    options.onInterrupt?.();
+    options.onBargeIn?.();
+    agentSpeakingRef.current = false;
+    setSpeakingPaused(false);
+    setStatus('listening');
+
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'playback_ended' }));
+    }
+  }, [options]);
 
   const stopVoiceSession = useCallback(() => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
@@ -32,6 +45,7 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
 
     audioCaptureRef.current?.stop();
     audioCaptureRef.current = null;
+    captureEnabledRef.current = false;
 
     audioPlaybackRef.current?.close();
     audioPlaybackRef.current = null;
@@ -47,23 +61,43 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
     setSpeakingPaused(false);
   }, [setLoading]);
 
+  // --- Push-to-Talk / Unmute ---
   const startCapture = useCallback(async () => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
-    if (!audioCaptureRef.current) return;   // mic wasn't ready yet (created in onopen)
-    try { wsRef.current.send(JSON.stringify({ type: 'start_listening' })); } catch (e) { console.warn('start_listening failed', e); }
-    console.log('VoiceAgent: starting capture');
+    if (!audioCaptureRef.current) return;
+
+    captureEnabledRef.current = true;
     audioCaptureRef.current.setEnabled(true);
+
+    // Instant local client-side barge-in if agent is speaking when user engages mic
+    if (agentSpeakingRef.current) {
+      interruptPlayback();
+    }
+
+    try {
+      wsRef.current.send(JSON.stringify({ type: 'start_listening' }));
+    } catch (e) {
+      console.warn('start_listening failed', e);
+    }
+
     setStatus('listening');
-  }, []);
+  }, [interruptPlayback]);
 
-
+  // --- Release Push-to-Talk / Mute ---
   const stopCapture = useCallback(() => {
+    captureEnabledRef.current = false;
     audioCaptureRef.current?.setEnabled(false);
+
     setTimeout(() => {
-      try { wsRef.current?.send(JSON.stringify({ type: 'stop_listening' })); } catch (e) { console.warn('stop_listening failed', e); }
+      try {
+        wsRef.current?.send(JSON.stringify({ type: 'stop_listening' }));
+      } catch (e) {
+        console.warn('stop_listening failed', e);
+      }
     }, 600);
+
     setStatus((prev) => (prev === 'listening' ? 'connected' : prev));
-  }, [setLoading]);
+  }, []);
 
   const startVoiceSession = useCallback(async () => {
     if (isVoiceActive) {
@@ -73,109 +107,85 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
 
     try {
       setStatus('connecting');
+      captureEnabledRef.current = false;
 
-      // Initialize Audio Playback
-      const playback = new AudioPlayback();
+      const playback = new AudioPlayback((playing) => {
+        agentSpeakingRef.current = playing;
+
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+          wsRef.current.send(
+            JSON.stringify({
+              type: playing ? 'playback_started' : 'playback_ended',
+            })
+          );
+        }
+
+        if (!playing && statusRef.current === 'speaking') {
+          setStatus(captureEnabledRef.current ? 'listening' : 'connected');
+        }
+      });
+
       await playback.init();
       audioPlaybackRef.current = playback;
 
-      // Prefer environment-configured API base so deployments are flexible.
       const apiBase = (import.meta.env.VITE_API_BASE || '').replace(/\/+$/, '');
-      let wsUrl = '';
-      if (apiBase) {
-        // convert http(s) to ws(s)
-        wsUrl = apiBase.replace(/^https?:/, (m) => (m === 'https:' ? 'wss:' : 'ws:')) + '/voice/chat';
-      } else {
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        wsUrl = `${protocol}//${window.location.host}/voice/chat`;
-      }
-      // Fallback hard-coded host (legacy)
-      if (!wsUrl) wsUrl = "wss://txrh-app-roadierangerdev-6279-stosup-phmo.azurewebsites.net/voice/chat";
-      console.debug('VoiceAgent: connecting wsUrl=', wsUrl);
-
-      // Optional nonce retrieval (matches your backend check)
-      try {
-        const nonceRes = await fetch(`${apiBase || ''}/api/ws-nonce`, { credentials: 'include' });
-        if (nonceRes.ok) {
-          const { nonce } = await nonceRes.json();
-          wsUrl += `?nonce=${encodeURIComponent(nonce)}`;
-        } else {
-          console.warn('WS nonce endpoint returned status', nonceRes.status);
-        }
-      } catch (err) {
-        console.warn('Failed to fetch WS nonce, proceeding with direct connection:', err);
-      }
+      let wsUrl = apiBase
+        ? apiBase.replace(/^https?:/, (m) => (m === 'https:' ? 'wss:' : 'ws:')) + '/voice/chat'
+        : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/voice/chat`;
 
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
       ws.onopen = async () => {
-        console.debug('VoiceAgent: websocket open', wsUrl, ws.readyState);
         const voiceSessionId = crypto.randomUUID();
         setSessionId(voiceSessionId);
         setStatus('connected');
         setIsVoiceActive(true);
-        // The BFF requires init to be the first frame on every voice connection.
-        ws.send(JSON.stringify({ type: 'init', session_id: voiceSessionId }));
-        // Do not start mic capture here; push-to-talk will initiate listening when user presses the mic.
 
-        // 🆕 ADD THIS ENTIRE BLOCK — create the mic ONCE per connection
+        ws.send(JSON.stringify({ type: 'init', session_id: voiceSessionId }));
+
         try {
-          let sentChunks = 0;
           const capture = new AudioCapture(
             (base64Chunk) => {
-              try {
-                // Mic gating: never write frames to the socket while the agent is
-                // thinking, synthesizing, OR actually playing audio back (ground
-                // truth from the <audio> element, since the backend's status frame
-                // never says "speaking" and flips to "ready" before playback ends).
-                const gatedStatuses = ['thinking', 'synthesizing'];
-                if (gatedStatuses.includes(statusRef.current) || agentSpeakingRef.current) return;
+              // Only stream audio frames if mic is enabled via Push-To-Talk or Unmute
+              if (!captureEnabledRef.current) return;
 
-
-                if (wsRef.current?.readyState === WebSocket.OPEN) {
-                  const binary = atob(base64Chunk);
-                  const audioBytes = new Uint8Array(binary.length);
-                  for (let i = 0; i < binary.length; i += 1) {
-                    audioBytes[i] = binary.charCodeAt(i);
-                  }
-                  wsRef.current.send(audioBytes.buffer);
-                  sentChunks += 1;
-                  if (sentChunks === 1) console.debug('VoiceAgent: sent first audio chunk');
+              if (wsRef.current?.readyState === WebSocket.OPEN) {
+                const binary = atob(base64Chunk);
+                const audioBytes = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i += 1) {
+                  audioBytes[i] = binary.charCodeAt(i);
                 }
-              } catch (err) {
-                console.error('VoiceAgent: failed to send audio chunk', err);
+                wsRef.current.send(audioBytes.buffer);
               }
             },
             (level) => setMicLevel(level)
           );
+
           await capture.start();
           audioCaptureRef.current = capture;
-          console.log('VoiceAgent: mic initialized on connect');
+          audioCaptureRef.current.setEnabled(false); // Start session muted until user interacts
         } catch (err) {
           console.error('VoiceAgent: failed to initialize mic on connect', err);
         }
       };
+
       ws.onmessage = (event) => {
-        // try to parse JSON frames, but some frames may be binary or text — log raw for debugging
         try {
           let data = null;
-          try { data = JSON.parse(event.data); } catch (e) { /* not JSON */ }
-          if (!data) {
-            console.debug('VoiceAgent: ws message (raw):', event.data);
-            return;
-          }
-          console.debug('VoiceAgent: ws message type=', data.type);
+          try { data = JSON.parse(event.data); } catch (e) { return; }
+          if (!data) return;
+
           switch (data.type) {
             case 'session_id':
-              setSessionId(data.id);
+            case 'session_ready':
+              if (data.id || data.session_id) setSessionId(data.id || data.session_id);
+              setStatus('connected');
               break;
 
             case 'status':
-              if (data.text === 'barge_in') {
-                // Instantly silence speaker output when user interrupts
-                audioPlaybackRef.current?.flush();
-                setStatus('listening');
+              if (data.text === 'interrupted' || data.text === 'barge_in') {
+                interruptPlayback();
               } else {
                 setStatus(data.text);
               }
@@ -188,33 +198,9 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
 
             case 'agent_audio':
               setLoading?.(false);
-              // server sent a ready-to-play audio clip (e.g. mp3)
               try {
-                const bin = atob(data.audio_base64 || '');
-                const bytes = new Uint8Array(bin.length);
-                for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-                const blob = new Blob([bytes], { type: data.format || 'audio/mpeg' });
-                const url = URL.createObjectURL(blob);
-                if (options.onAudio && typeof options.onAudio === 'function') {
-                  options.onAudio({ url, blob, format: data.format || 'audio/mpeg' });
-                } else {
-                  // fallback: enqueue via WebAudio if available (not ideal for encoded formats)
+                if (data.audio_base64) {
                   audioPlaybackRef.current?.enqueue(data.audio_base64);
-                }
-
-                // If the server provided a link or consent-like metadata, surface it as an AI message
-                // so the existing MessageBubble consent UI can render (uses `link` and `consentRequired`).
-                try {
-                  const hasLink = Boolean(data.link);
-                  const consentFlag = Boolean(data.consent || data.consentRequired || hasLink);
-                  if (hasLink || consentFlag) {
-                    const caption = data.caption || data.text || 'Voice message contains a link — grant consent to open.';
-                    if (typeof callbackRef.current === 'function') {
-                      callbackRef.current(caption, 'ai', { streaming: false, link: data.link || '', consentRequired: consentFlag });
-                    }
-                  }
-                } catch (err) {
-                  console.warn('Failed to emit consent message for agent_audio:', err);
                 }
               } catch (err) {
                 console.error('Failed to handle agent_audio:', err);
@@ -241,33 +227,25 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
 
             case 'agent_text':
               setLoading?.(false);
-              // Consent is emitted separately with its link and metadata. Do not
-              // also render the plain consent announcement as a buttonless bubble.
-              const agentText = data.text || '';
-              const isConsentAnnouncement = /authorize access to your servicenow account/i.test(agentText);
-              if (isConsentAnnouncement) break;
               if (typeof callbackRef.current === 'function') {
-                callbackRef.current(agentText, 'ai', { streaming: false });
+                callbackRef.current(data.text || '', 'ai', { streaming: false });
               }
               break;
 
             case 'consent':
               setLoading?.(false);
               if (typeof callbackRef.current === 'function') {
-                callbackRef.current(
-                  data.text || 'Please provide the consent to access the tools',
-                  'ai',
-                  { streaming: false, link: data.link || '', consentRequired: true }
-                );
+                callbackRef.current(data.text || 'Consent required to continue.', 'ai', {
+                  streaming: false,
+                  link: data.link || '',
+                  consentRequired: true,
+                });
               }
               break;
 
             case 'error':
               console.error('Voice Agent Error:', data.text);
               setLoading?.(false);
-              if (typeof callbackRef.current === 'function') {
-                callbackRef.current(`⚠️ ${data.text || 'Something went wrong.'}`, 'ai', { streaming: false });
-              }
               break;
 
             default:
@@ -278,25 +256,16 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
         }
       };
 
-      ws.onclose = (ev) => {
-        console.debug('VoiceAgent: websocket closed', ev.code, ev.reason);
-        stopVoiceSession();
-      };
-
-      ws.onerror = (err) => {
-        console.error('Voice WebSocket Error:', err);
-        // do not immediately stop; allow onclose to handle cleanup
-      };
+      ws.onclose = () => stopVoiceSession();
+      ws.onerror = (err) => console.error('Voice WebSocket Error:', err);
     } catch (err) {
       console.error('Failed to start voice session:', err);
       stopVoiceSession();
     }
-  }, [isVoiceActive, setLoading, stopVoiceSession]);
+  }, [isVoiceActive, setLoading, stopVoiceSession, interruptPlayback, speakingPaused]);
 
   useEffect(() => {
-    return () => {
-      stopVoiceSession();
-    };
+    return () => stopVoiceSession();
   }, [stopVoiceSession]);
 
   const pauseSpeaking = useCallback(() => {
@@ -311,22 +280,6 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
     setStatus('speaking');
   }, []);
 
-  const notifyPlaybackStarted = useCallback(() => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: 'playback_started' }));
-    }
-  }, []);
-
-  const notifyPlaybackEnded = useCallback(() => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: 'playback_ended' }));
-    }
-  }, []);
-
-  const setAgentSpeakingGate = useCallback((value) => {
-    agentSpeakingRef.current = value;
-  }, []);
-
   return {
     isVoiceActive,
     startVoiceSession,
@@ -339,9 +292,6 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
     speakingPaused,
     pauseSpeaking,
     resumeSpeaking,
-    notifyPlaybackStarted,
-    notifyPlaybackEnded,
-    setAgentSpeakingGate,
   };
 };
 

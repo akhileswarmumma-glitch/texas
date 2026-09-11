@@ -1,7 +1,13 @@
-// Decodes Base64 PCM-16 chunks and streams playback via Web Audio API.
+// Decodes Base64 PCM-16/MP3 chunks and streams playback via Web Audio API.
+// Output is routed through a MediaStreamAudioDestinationNode and played via a hidden
+// <audio> element so Chromium's native AEC engine can reference output and cancel it out of the mic.
 export class AudioPlayback {
-  constructor() {
+  constructor(onPlaybackStateChange) {
+    this._onPlaybackStateChange = onPlaybackStateChange;
     this._context = null;
+    this._destination = null;
+    this._streamDestination = null;
+    this._audioEl = null;
     this._nextStart = 0;
     this._activeSrcs = [];
     this._paused = false;
@@ -10,7 +16,30 @@ export class AudioPlayback {
   }
 
   async init() {
-    this._context = new AudioContext({ sampleRate: 24000 });
+    // 16 kHz AudioContext to align with AudioCapture and maintain sample clock sync for AEC
+    this._context = new AudioContext({ sampleRate: 16000 });
+
+    this._streamDestination = this._context.createMediaStreamDestination();
+    this._destination = this._streamDestination;
+
+    this._audioEl = document.createElement('audio');
+    this._audioEl.autoplay = true;
+    this._audioEl.muted = false;
+    this._audioEl.srcObject = this._streamDestination.stream;
+
+    this._audioEl.style.position = 'fixed';
+    this._audioEl.style.width = '0';
+    this._audioEl.style.height = '0';
+    this._audioEl.style.opacity = '0';
+    this._audioEl.style.pointerEvents = 'none';
+    document.body.appendChild(this._audioEl);
+
+    try {
+      await this._audioEl.play();
+    } catch (err) {
+      console.warn('[VoiceAgent] agent <audio> element play() was blocked:', err);
+    }
+
     this._nextStart = this._context.currentTime;
     this._activeSrcs = [];
   }
@@ -33,27 +62,33 @@ export class AudioPlayback {
       float32[i] = int16[i] / (int16[i] < 0 ? 0x8000 : 0x7fff);
     }
 
-    const buf = this._context.createBuffer(1, float32.length, 24000);
+    const buf = this._context.createBuffer(1, float32.length, 16000);
     buf.copyToChannel(float32, 0);
 
     const src = this._context.createBufferSource();
     src.buffer = buf;
-    src.connect(this._context.destination);
+    src.connect(this._destination);
 
     const now = this._context.currentTime;
     let start = Math.max(this._nextStart, now);
-    // Keep the scheduled queue short so pause and barge-in take effect quickly.
+
     if (start - now > this._maxAheadSeconds) {
       this.flush();
       start = this._context.currentTime;
     }
+
     src.start(start);
     this._nextStart = start + buf.duration;
 
     this._activeSrcs.push(src);
+    this._onPlaybackStateChange?.(true);
+
     src.onended = () => {
       const idx = this._activeSrcs.indexOf(src);
       if (idx !== -1) this._activeSrcs.splice(idx, 1);
+      if (this._activeSrcs.length === 0 && this._bufferQueue.length === 0) {
+        this._onPlaybackStateChange?.(false);
+      }
     };
   }
 
@@ -65,6 +100,7 @@ export class AudioPlayback {
     this._activeSrcs = [];
     this._bufferQueue = [];
     this._nextStart = this._context.currentTime;
+    this._onPlaybackStateChange?.(false);
   }
 
   pause() {
@@ -84,9 +120,20 @@ export class AudioPlayback {
 
   close() {
     this._context?.close();
+    if (this._audioEl) {
+      try {
+        this._audioEl.pause();
+        this._audioEl.srcObject = null;
+        if (this._audioEl.parentNode) this._audioEl.parentNode.removeChild(this._audioEl);
+      } catch (_) {}
+    }
+    this._audioEl = null;
+    this._streamDestination = null;
     this._context = null;
+    this._destination = null;
     this._nextStart = 0;
     this._activeSrcs = [];
     this._bufferQueue = [];
+    this._onPlaybackStateChange?.(false);
   }
 }
