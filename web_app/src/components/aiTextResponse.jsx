@@ -181,6 +181,10 @@ const useTextAgent = (onAgentMessage, setLoading, handleLogout, initialSessionId
         ) {
           userMessage =
             `⚠️ **The service is currently experiencing high demand. Please try your request again in a few moments.**`;
+        }else if (
+          errorMsg
+        ){
+          userMessage = errorMsg
         }
 
         if (typeof callbackRef.current === 'function') {

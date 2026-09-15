@@ -1,5 +1,4 @@
-// Captures mic audio as PCM-16 16 kHz mono and streams Base64 chunks.
-// Requests browser native Echo Cancellation (AEC) so agent playback is subtracted.
+// Captures mic audio as PCM-16 24 kHz mono and streams Base64 chunks.
 export class AudioCapture {
   constructor(onChunk, onLevel) {
     this._onChunk = onChunk;
@@ -12,18 +11,11 @@ export class AudioCapture {
   }
 
   async start() {
-    // Request mic access with native AEC, noise suppression, and AGC
     this._stream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        channelCount: { ideal: 1 },
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      },
+      audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true, noiseSuppression: true }
     });
 
-    // Force Web Audio Context to resample mic stream to clean 16 kHz mono PCM
-    this._context = new AudioContext({ sampleRate: 16000, latencyHint: 'interactive' });
+    this._context = new AudioContext({ sampleRate: 16000 });
     this._source = this._context.createMediaStreamSource(this._stream);
 
     const workletCode = `
@@ -31,7 +23,7 @@ export class AudioCapture {
         constructor() {
           super();
           this._buf = [];
-          this._frameSize = 800; // Exactly 50ms @ 16kHz
+          this._frameSize = 1200; // 50ms @ 24kHz
         }
         process(inputs) {
           const ch = inputs[0]?.[0];
@@ -65,13 +57,9 @@ export class AudioCapture {
       const { pcm, rms } = ev.data;
       this._onLevel?.(Math.min(1, rms * 6));
       if (!this._enabled) return;
-
       const bytes = new Uint8Array(pcm);
       let binary = '';
-      const len = bytes.byteLength;
-      for (let i = 0; i < len; i++) {
-        binary += String.fromCharCode(bytes[i]);
-      }
+      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
       this._onChunk(btoa(binary));
     };
 

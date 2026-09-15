@@ -1,50 +1,21 @@
-// Decodes Base64 PCM-16 or MP3 chunks and streams clear playback via Web Audio API.
-// Output is routed through a MediaStreamAudioDestinationNode and played via a hidden
-// <audio> element so Chromium's native AEC engine can reference output and cancel it out of the mic.
+// Decodes Base64 PCM-16 chunks and streams playback via Web Audio API.
 export class AudioPlayback {
-  constructor(onPlaybackStateChange) {
-    this._onPlaybackStateChange = onPlaybackStateChange;
+  constructor() {
     this._context = null;
-    this._destination = null;
-    this._streamDestination = null;
-    this._audioEl = null;
     this._nextStart = 0;
     this._activeSrcs = [];
     this._paused = false;
     this._bufferQueue = [];
-    this._maxAheadSeconds = 0.2;
+    this._maxAheadSeconds = 0.12;
   }
 
   async init() {
-    // 24 kHz AudioContext matches Azure TTS output rate
-    this._context = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
-
-    this._streamDestination = this._context.createMediaStreamDestination();
-    this._destination = this._streamDestination;
-
-    this._audioEl = document.createElement('audio');
-    this._audioEl.autoplay = true;
-    this._audioEl.muted = false;
-    this._audioEl.srcObject = this._streamDestination.stream;
-
-    this._audioEl.style.position = 'fixed';
-    this._audioEl.style.width = '0';
-    this._audioEl.style.height = '0';
-    this._audioEl.style.opacity = '0';
-    this._audioEl.style.pointerEvents = 'none';
-    document.body.appendChild(this._audioEl);
-
-    try {
-      await this._audioEl.play();
-    } catch (err) {
-      console.warn('[VoiceAgent] agent <audio> element play() was blocked:', err);
-    }
-
+    this._context = new AudioContext({ sampleRate: 24000 });
     this._nextStart = this._context.currentTime;
     this._activeSrcs = [];
   }
 
-  async enqueue(base64) {
+  enqueue(base64) {
     if (!this._context) return;
 
     if (this._paused) {
@@ -52,61 +23,38 @@ export class AudioPlayback {
       return;
     }
 
-    try {
-      const binary = atob(base64);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const int16 = new Int16Array(bytes.buffer);
 
-      let audioBuffer = null;
-
-      // Check if payload is MP3 (starts with 'ID3' or 0xFF 0xFB frame headers)
-      const isMp3 = (bytes[0] === 0x49 && bytes[1] === 0x44 && bytes[2] === 0x33) || 
-                    (bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0);
-
-      if (isMp3) {
-        // Decode MP3 clip natively using browser AudioContext decoder
-        audioBuffer = await this._context.decodeAudioData(bytes.buffer.slice(0));
-      } else {
-        // Fallback: decode as raw PCM-16 24kHz mono
-        const int16 = new Int16Array(bytes.buffer);
-        const float32 = new Float32Array(int16.length);
-        for (let i = 0; i < int16.length; i++) {
-          float32[i] = int16[i] / (int16[i] < 0 ? 0x8000 : 0x7fff);
-        }
-        audioBuffer = this._context.createBuffer(1, float32.length, 24000);
-        audioBuffer.copyToChannel(float32, 0);
-      }
-
-      if (!audioBuffer) return;
-
-      const src = this._context.createBufferSource();
-      src.buffer = audioBuffer;
-      src.connect(this._destination);
-
-      const now = this._context.currentTime;
-      let start = Math.max(this._nextStart, now);
-
-      if (start - now > this._maxAheadSeconds) {
-        this.flush();
-        start = this._context.currentTime;
-      }
-
-      src.start(start);
-      this._nextStart = start + audioBuffer.duration;
-
-      this._activeSrcs.push(src);
-      this._onPlaybackStateChange?.(true);
-
-      src.onended = () => {
-        const idx = this._activeSrcs.indexOf(src);
-        if (idx !== -1) this._activeSrcs.splice(idx, 1);
-        if (this._activeSrcs.length === 0 && this._bufferQueue.length === 0) {
-          this._onPlaybackStateChange?.(false);
-        }
-      };
-    } catch (err) {
-      console.error('[AudioPlayback] Failed to decode or schedule audio payload:', err);
+    const float32 = new Float32Array(int16.length);
+    for (let i = 0; i < int16.length; i++) {
+      float32[i] = int16[i] / (int16[i] < 0 ? 0x8000 : 0x7fff);
     }
+
+    const buf = this._context.createBuffer(1, float32.length, 24000);
+    buf.copyToChannel(float32, 0);
+
+    const src = this._context.createBufferSource();
+    src.buffer = buf;
+    src.connect(this._context.destination);
+
+    const now = this._context.currentTime;
+    let start = Math.max(this._nextStart, now);
+    // Keep the scheduled queue short so pause and barge-in take effect quickly.
+    if (start - now > this._maxAheadSeconds) {
+      this.flush();
+      start = this._context.currentTime;
+    }
+    src.start(start);
+    this._nextStart = start + buf.duration;
+
+    this._activeSrcs.push(src);
+    src.onended = () => {
+      const idx = this._activeSrcs.indexOf(src);
+      if (idx !== -1) this._activeSrcs.splice(idx, 1);
+    };
   }
 
   flush() {
@@ -117,7 +65,6 @@ export class AudioPlayback {
     this._activeSrcs = [];
     this._bufferQueue = [];
     this._nextStart = this._context.currentTime;
-    this._onPlaybackStateChange?.(false);
   }
 
   pause() {
@@ -137,20 +84,9 @@ export class AudioPlayback {
 
   close() {
     this._context?.close();
-    if (this._audioEl) {
-      try {
-        this._audioEl.pause();
-        this._audioEl.srcObject = null;
-        if (this._audioEl.parentNode) this._audioEl.parentNode.removeChild(this._audioEl);
-      } catch (_) {}
-    }
-    this._audioEl = null;
-    this._streamDestination = null;
     this._context = null;
-    this._destination = null;
     this._nextStart = 0;
     this._activeSrcs = [];
     this._bufferQueue = [];
-    this._onPlaybackStateChange?.(false);
   }
 }
