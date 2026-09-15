@@ -819,7 +819,7 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
                 title="Start a new voice chat"
                 onClick={() => handleModeSelection("voice")}
                 className={`inline-flex gap-2 cursor-pointer items-center justify-center rounded-full border px-2.5 py-1.5 text-[10px] font-bold sm:px-3 sm:text-xs ${mode === "voice"
-                  ? "border-[var(--danger-default)] bg-[var(--danger-default)] text-white"
+                  ? "border-[var(--primary-default)] bg-[var(--primary-default)] text-white"
                   : "border-emerald-800 bg-[#102a20] text-gray-200"
                   }`}
               >
