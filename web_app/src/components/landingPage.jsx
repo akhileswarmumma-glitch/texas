@@ -414,6 +414,8 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
   const handleInterrupt = useCallback(() => {
     const audio = audioRef.current;
     if (audio) {
+      const currentTime = Number.isFinite(audio.currentTime) ? audio.currentTime : 0;
+
       // Mute FIRST — this silences the output path within a few ms,
       // unlike pause() alone which can leave 1-2s of buffered audio playing.
       suppressPauseNotifyRef.current = true;
@@ -421,16 +423,7 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
       if (!audio.paused) {
         audio.pause();
       }
-      // Hard-reset so no already-buffered samples remain queued
-      // at the hardware/driver level.
-      try {
-        const currentSrc = audio.src;
-        audio.removeAttribute("src");
-        audio.load();
-        if (currentSrc) audio.src = currentSrc;
-      } catch (err) {
-        console.warn("Failed to hard-reset audio element:", err);
-      }
+      audio.currentTime = currentTime;
       audio.muted = false; // restore so future playback isn't silent
     }
     setIsPlaying(false);
