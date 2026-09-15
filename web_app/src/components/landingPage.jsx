@@ -476,6 +476,13 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
   const [pttMode, setPttMode] = useState(true);
 
   const listeningBlocked = loading || agentSpeaking || isPlaying;
+  const listeningStatusText = loading
+    ? "Listening paused while Roadie Ranger thinks"
+    : pttMode
+      ? "Hold to talk"
+      : isRecording
+        ? "Click to mute"
+        : "Click to unmute";
 
   // Pulse only when:
   // 1. voice session is connected
@@ -528,7 +535,7 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
         ? "speaking..."
         : isAudioCapturing
           ? "listening..."
-          : speakingPaused
+          : speakingPaused && audioUrl
             ? "paused"
             : "idle";
   useEffect(() => {
@@ -1103,7 +1110,7 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
                           }}
                           title={
                             listeningBlocked
-                              ? "Listening paused while Roadie Ranger thinking"
+                              ? listeningStatusText
                               : pttMode
                                 ? "Hold to talk"
                                 : isRecording
@@ -1114,7 +1121,7 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
                             !isVoiceActive
                               ? "Connect first to speak"
                               : listeningBlocked
-                                ? "Listening paused while Roadie Ranger thinking"
+                                ? listeningStatusText
                                 : pttMode
                                   ? "Hold to speak"
                                   : isRecording
