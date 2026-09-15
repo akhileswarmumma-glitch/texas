@@ -642,7 +642,7 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
   }, [isRecording, stopCapture]);
 
   const handleMicClick = useCallback(async () => {
-    if (!isVoiceActive || pttMode) return;
+    if (!isVoiceActive || pttMode || loading) return;
 
     if (isRecording) {
       try {
@@ -658,13 +658,6 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
       suspendCapture();
       setIsRecording(true);
 
-      if (loading) return;
-
-      if (agentSpeaking || isPlaying) {
-        handleInterrupt();
-        await new Promise((resolve) => setTimeout(resolve, 1000)); // 1s settle delay
-      }
-
       await startCapture();
     } catch (err) {
       console.error(err);
@@ -675,9 +668,6 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
     pttMode,
     isRecording,
     loading,
-    agentSpeaking,
-    isPlaying,
-    handleInterrupt,
     startCapture,
     stopCapture,
     suspendCapture,
@@ -1013,8 +1003,11 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
 
                         <button
                           type="button"
-                          onClick={() => startVoiceSession()}
-                          disabled={isVoiceActive}
+                          onClick={() => {
+                            if (loading) return;
+                            startVoiceSession();
+                          }}
+                          disabled={isVoiceActive || loading}
                           className={`inline-flex cursor-pointer items-center gap-1.5 px-2 py-1 text-xs rounded-md font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed ${isVoiceActive
                             ? "bg-[var(--primary-default)] text-white"
                             : "bg-[var(--primary-bg)]"
@@ -1026,21 +1019,14 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
                         <button
                           type="button"
                           onClick={handleMicClick}
+                          disabled={loading || !isVoiceActive}
                           onMouseDown={async (e) => {
                             e.preventDefault();
-                            if (!isVoiceActive || !pttMode) return;
+                            if (!isVoiceActive || !pttMode || loading) return;
 
                             try {
                               suspendCapture();
                               setIsRecording(true);
-
-                              if (loading) return; // unchanged — nothing to interrupt yet
-
-                              if (agentSpeaking || isPlaying) {
-                                handleInterrupt();
-                                await new Promise((resolve) => setTimeout(resolve, 1000));
-                              }
-
                               await startCapture();
                             } catch (err) {
                               console.error(err);
@@ -1060,22 +1046,11 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
                           }}
                           onTouchStart={async (e) => {
                             e.preventDefault();
-                            if (!isVoiceActive || !pttMode) return;
+                            if (!isVoiceActive || !pttMode || loading) return;
 
                             try {
                               suspendCapture();
                               setIsRecording(true);
-
-                              // Still thinking, no audio yet — nothing to interrupt.
-                              if (loading) return;
-
-                              // Agent audio is currently playing — stop it and let the output
-                              // actually go silent before we start forwarding mic audio.
-                              if (agentSpeaking || isPlaying) {
-                                handleInterrupt();
-                                await new Promise((resolve) => setTimeout(resolve, 1000));
-                              }
-
                               await startCapture();
                             } catch (err) {
                               console.error(err);
@@ -1108,13 +1083,11 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
                                     ? "Click to mute microphone"
                                     : "Click to unmute microphone"
                           }
-                          className={`w-14 h-14 cursor-pointer rounded-full grid place-items-center text-2xl shadow-md transition-colors ${isVoiceActive
-                            ? (
-                              isRecording
-                                ? 'bg-[var(--primary-default)] text-white'
-                                : 'bg-[var(--primary-bg)] text-white'
-                            )
-                            : 'bg-[var(--primary-bg)] text-white'
+                          className={`w-14 h-14 rounded-full grid place-items-center text-2xl shadow-md transition-colors ${loading || !isVoiceActive
+                            ? 'bg-[var(--primary-bg)] text-white opacity-50 cursor-not-allowed'
+                            : isRecording
+                              ? 'bg-[var(--primary-default)] text-white cursor-pointer'
+                              : 'bg-[var(--primary-bg)] text-white cursor-pointer'
                             } ${isAudioCapturing ? 'mic-recording' : ''
                             }`}
                         >
