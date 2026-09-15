@@ -625,6 +625,9 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
     }
     await onNewChat();
     setMode(pendingMode);
+    if (pendingMode === "voice") {
+      try { await startVoiceSession(); } catch (err) { console.error("Auto-connect failed:", err); }
+    }
     setPendingMode(null);
     setShowModeWarning(false);
   }, [isVoiceActive, onNewChat, pendingMode, stopVoiceSession]);
@@ -722,6 +725,9 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
       setAudioUrl(null); setAudioBlob(null); setAudioCurrentTime(0); setAudioDuration(0); setIsPlaying(false);
       await onNewChat();
       setMode(nextMode);
+      if (nextMode === "voice") {
+        try { await startVoiceSession(); } catch (err) { console.error("Auto-connect failed:", err); }
+      }
       return;
     }
 
@@ -736,11 +742,14 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
       setAudioUrl(null); setAudioBlob(null); setAudioCurrentTime(0); setAudioDuration(0); setIsPlaying(false);
       await onNewChat();
       setMode(nextMode);
+      if (nextMode === "voice") {
+        try { await startVoiceSession(); } catch (err) { console.error("Auto-connect failed:", err); }
+      }
       return;
     }
 
     requestModeChange(nextMode);
-  }, [mode, onNewChat, requestModeChange]);
+  }, [mode, onNewChat, requestModeChange, stopVoiceSession, startVoiceSession]);
 
   return (
     <main className="min-h-screen bg-[#faf5ea] text-gray-200 font-sans flex flex-col">
