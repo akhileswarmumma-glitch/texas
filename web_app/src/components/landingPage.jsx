@@ -979,20 +979,16 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
                               // rely on audio element onPlay to set playing state and notify server
                             } else {
                               const audio = audioRef.current;
+                              const currentTime = Number.isFinite(audio.currentTime) ? audio.currentTime : 0;
 
-                              // 1. Mute FIRST — this silences the OS/driver output path instantly,
-                              //    even though .pause() itself can leave a 1-2s audible tail.
+                              // Keep the current playback position when the user pauses.
+                              // Resetting the element source rewinds the clip to 0 and causes
+                              // the next play() to start from the beginning.
                               audio.muted = true;
                               pauseSpeaking?.();
                               audio.pause();
-
-                              // 2. Hard-reset the media element so no already-buffered samples
-                              //    remain queued at the hardware/driver level.
-                              const currentSrc = audio.src;
-                              audio.removeAttribute("src");
-                              audio.load();
-                              audio.src = currentSrc;
-                              audio.muted = false; // restore for the next play/replay
+                              audio.currentTime = currentTime;
+                              audio.muted = false;
 
                               playbackEndedNotifiedRef.current = true;
                               setIsPlaying(false);
