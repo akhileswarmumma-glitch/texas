@@ -104,7 +104,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 // Hardcoded last-resort fallback if VITE_API_BASE isn't set AND we can't infer
 // a same-origin BFF from window.location (e.g. very early SSR/build tooling).
 const DEFAULT_WS_URL =
-  "wss://txrh-app-roadierangerdev-6279-stosup-phmo.azurewebsites.net/voice/chat";
+  "/voice/chat";
 
 // Must match the backend's INPUT_SAMPLE_RATE (main.py: INPUT_SAMPLE_RATE=16000).
 const TARGET_SAMPLE_RATE = 16000;

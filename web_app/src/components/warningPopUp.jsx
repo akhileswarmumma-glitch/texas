@@ -5,6 +5,7 @@ const WarningPopUp = ({
   message,
   continueLabel = "Continue",
   cancelLabel = "Cancel",
+  singleAction = false,
 }) => {
   if (!isOpen) return null;
 
@@ -16,19 +17,21 @@ const WarningPopUp = ({
           {message || "To switch model in middle create a new chat"}
         </p>
         <div className="flex w-full gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex-1 border py-2.5 px-4 rounded-[10px] bg-[var(--neutral-200)] text-[var(--secondary-contrast)] font-semibold cursor-pointer transition-transform duration-150 active:scale-95"
-          >
-            {cancelLabel}
-          </button>
+          {!singleAction && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 border py-2.5 px-4 rounded-[10px] bg-[var(--neutral-200)] text-[var(--secondary-contrast)] font-semibold cursor-pointer transition-transform duration-150 active:scale-95"
+            >
+              {cancelLabel}
+            </button>
+          )}
           <button
             type="button"
             onClick={onContinue || onClose}
             className="flex-1 border py-2.5 px-4 rounded-[10px] bg-[var(--success-default)] text-[var(--secondary-default)] font-semibold cursor-pointer transition-transform duration-150 active:scale-95"
           >
-            {continueLabel}
+            {singleAction ? cancelLabel : continueLabel}
           </button>
         </div>
       </div>

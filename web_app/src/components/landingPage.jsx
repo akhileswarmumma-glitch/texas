@@ -317,6 +317,7 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
   const [showModeWarning, setShowModeWarning] = useState(false);
   const [pendingMode, setPendingMode] = useState(null);
   const [showDisconnectWarning, setShowDisconnectWarning] = useState(false);
+  const [voiceNotice, setVoiceNotice] = useState("");
   const textareaRef = useRef(null);
   const [loading, setLoading] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
@@ -442,6 +443,7 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
 
   const {
     isVoiceActive,
+    setIsVoiceActive,
     startVoiceSession,
     stopVoiceSession,
     startCapture,
@@ -458,7 +460,11 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
   } = useVoiceAgent(
     addMessage,
     setLoading,
-    { onAudio: handleAudio, onInterrupt: handleInterrupt }
+    {
+      onAudio: handleAudio,
+      onInterrupt: handleInterrupt,
+      onNotice: setVoiceNotice,
+    }
   );
 
   useEffect(() => {
@@ -582,14 +588,15 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
     void sendTextMessage(text);
   }, [addMessage, isVoiceActive, loading, sendTextMessage]);
 
-  const populateQuery = useCallback((text) => {
+  const populateQuery = useCallback(async (text) => {
     // place query into input instead of sending
     if (isVoiceActive) return;
+    await onNewChat();
     setMode("text");
     setDraft(text);
     // focus the textarea after it renders
     setTimeout(() => textareaRef.current?.focus(), 50);
-  }, [isVoiceActive]);
+  }, [isVoiceActive,onNewChat]);
 
   const requestModeChange = useCallback((nextMode) => {
     if (!nextMode || nextMode === mode) {
@@ -707,12 +714,17 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
 
   const conversationStarted = messages.length > 0;
   const modeSelected = mode !== null;
-  const inputPlaceholder = isVoiceActive
-    ? `Voice active (${voiceStatus})...`
-    : "Write a message...";
+  // const inputPlaceholder = isVoiceActive
+  //   ? `Voice active (${voiceStatus})...`
+  //   : "Write a message...";
+
+  const inputPlaceholder = "Write a message..."
 
   const handleModeSelection = useCallback(async (nextMode) => {
+    console.log("current mode",mode, "===", "next mode", nextMode)
     if (!nextMode) return;
+    setAgentSpeaking(false);
+    
 
     if (mode === null) {
       setMessages([]);
@@ -720,36 +732,207 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
       setPendingMode(null);
       setShowModeWarning(false);
       // ensure any previous voice session is stopped and player reset
-      try { stopVoiceSession(); } catch (err) { /* ignore */ }
-      try { if (audioRef.current) { audioRef.current.pause(); audioRef.current.removeAttribute('src'); audioRef.current.load?.(); } } catch (e) { }
+      // try { stopVoiceSession(); } catch (err) { /* ignore */ }
+      if (isRecording) {
+        try {
+          stopCapture();
+        } catch (err) {
+          console.error("Failed to stop microphone:", err);
+        }
+        setIsRecording(false);
+      }
+      try {
+        if (audioRef.current) {
+          if (!audioRef.current.paused) {
+            suppressPauseNotifyRef.current = true; audioRef.current.pause();
+          }
+          audioRef.current.removeAttribute('src'); audioRef.current.load?.();
+        }
+      } catch (e) { }
       setAudioUrl(null); setAudioBlob(null); setAudioCurrentTime(0); setAudioDuration(0); setIsPlaying(false);
-      await onNewChat();
+      setAgentSpeaking(false);
+      setIsRecording(false);
       setMode(nextMode);
+      if (nextMode === "text") {
+        console.log("nex mode triggred!!!!!!")
+        await onNewChat();
+        return;
+      }
+      
       if (nextMode === "voice") {
-        try { await startVoiceSession(); } catch (err) { console.error("Auto-connect failed:", err); }
+        try {
+          console.log("VoiceChat: restarting voice session");
+
+          // ------------------------------------------------
+          // 1. Immediately stop browser audio output
+          // ------------------------------------------------
+          if (audioRef.current) {
+            suppressPauseNotifyRef.current = true;
+
+            audioRef.current.muted = true;
+
+            try {
+              audioRef.current.pause();
+            } catch (err) {
+              console.warn("Failed to pause current audio:", err);
+            }
+
+            audioRef.current.removeAttribute("src");
+            audioRef.current.load?.();
+            audioRef.current.muted = false;
+          }
+
+          setIsPlaying(false);
+          setAgentSpeaking(false);
+          setAgentSpeakingGateRef.current?.(false);
+
+          setAudioUrl(null);
+          setAudioBlob(null);
+          setAudioCurrentTime(0);
+          setAudioDuration(0);
+
+          setIsRecording(false);
+
+          // ------------------------------------------------
+          // 2. FULLY close the current voice session
+          // ------------------------------------------------
+          await stopVoiceSession();
+
+          // ------------------------------------------------
+          // 3. Create fresh conversation
+          // ------------------------------------------------
+          await onNewChat();
+
+          // ------------------------------------------------
+          // 4. Start completely fresh WebSocket + mic
+          // ------------------------------------------------
+          await startVoiceSession();
+
+          console.log("VoiceChat: new voice session started");
+        } catch (err) {
+          console.error(
+            "Failed to restart voice session:",
+            err
+          );
+        }
+
+        return;
       }
       return;
     }
-
     if (nextMode === mode) {
       setMessages([]);
       setDraft("");
       setPendingMode(null);
       setShowModeWarning(false);
+
+      if (isRecording) {
+        try {
+          stopCapture();
+        } catch (err) {
+          console.error("Failed to stop microphone:", err);
+        }
+        setIsRecording(false);
+      }
       // Reset voice session and player when starting a fresh chat in the same mode
-      try { stopVoiceSession(); } catch (err) { /* ignore */ }
-      try { if (audioRef.current) { audioRef.current.pause(); audioRef.current.removeAttribute('src'); audioRef.current.load?.(); } } catch (e) { }
-      setAudioUrl(null); setAudioBlob(null); setAudioCurrentTime(0); setAudioDuration(0); setIsPlaying(false);
-      await onNewChat();
-      setMode(nextMode);
+      // try { stopVoiceSession(); } catch (err) { /* ignore */ }
+      try {
+        if (audioRef.current) {
+            suppressPauseNotifyRef.current = true;
+
+            audioRef.current.muted = true;
+
+            try {
+              audioRef.current.pause();
+            } catch (err) {
+              console.warn("Failed to pause current audio:", err);
+            }
+
+            audioRef.current.removeAttribute("src");
+            audioRef.current.load?.();
+            audioRef.current.muted = false;
+          }
+        setIsPlaying(false);
+        setAgentSpeaking(false);
+        setAgentSpeakingGateRef.current?.(false);
+
+        setAudioUrl(null);
+        setAudioBlob(null);
+        setAudioCurrentTime(0);
+        setAudioDuration(0);
+
+        setIsRecording(false);
+      } catch (e) { }
+      
+      if (nextMode === "text") {
+        await onNewChat();
+        return;
+      }
+
       if (nextMode === "voice") {
-        try { await startVoiceSession(); } catch (err) { console.error("Auto-connect failed:", err); }
+        try {
+          console.log("VoiceChat: restarting voice session");
+
+          // ------------------------------------------------
+          // 1. Immediately stop browser audio output
+          // ------------------------------------------------
+          if (audioRef.current) {
+            suppressPauseNotifyRef.current = true;
+
+            audioRef.current.muted = true;
+
+            try {
+              audioRef.current.pause();
+            } catch (err) {
+              console.warn("Failed to pause current audio:", err);
+            }
+
+            audioRef.current.removeAttribute("src");
+            audioRef.current.load?.();
+            audioRef.current.muted = false;
+          }
+
+          setIsPlaying(false);
+          setAgentSpeaking(false);
+          setAgentSpeakingGateRef.current?.(false);
+
+          setAudioUrl(null);
+          setAudioBlob(null);
+          setAudioCurrentTime(0);
+          setAudioDuration(0);
+
+          setIsRecording(false);
+
+          // ------------------------------------------------
+          // 2. FULLY close the current voice session
+          // ------------------------------------------------
+          await stopVoiceSession();
+
+          // ------------------------------------------------
+          // 3. Create fresh conversation
+          // ------------------------------------------------
+          await onNewChat();
+
+          // ------------------------------------------------
+          // 4. Start completely fresh WebSocket + mic
+          // ------------------------------------------------
+          await startVoiceSession();
+
+          console.log("VoiceChat: new voice session started");
+        } catch (err) {
+          console.error(
+            "Failed to restart voice session:",
+            err
+          );
+        }
+
+        return;
       }
       return;
     }
 
     requestModeChange(nextMode);
-  }, [mode, onNewChat, requestModeChange, stopVoiceSession, startVoiceSession]);
+  }, [mode, isVoiceActive, isRecording, onNewChat, requestModeChange, stopVoiceSession, startVoiceSession, stopCapture]);
 
   return (
     <main className="min-h-screen bg-[#faf5ea] text-gray-200 font-sans flex flex-col">
@@ -765,6 +948,7 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
               onClick={() => {
                 // Reset UI to home state and start a fresh chat
                 setMessages([]);
+                setIsVoiceActive(false)
                 setMode(null);
                 void onNewChat();
               }}
@@ -1010,7 +1194,7 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
                         />
                       </div>
                     </div>
-                    <div className="flex items-center justify-center mt-5 mr-3.5 mb-2">
+                    <div className="flex items-center justify-center mt-5 mb-2">
                       {/* <span className="text-[10px] font-extrabold tracking-wider" style={{ color: "#9aa2b1" }}>CURRENT RESPONSE</span> */}
                       <span className="text-[11px] font-semibold" style={{ color: "#5b8cff" }}>{npStateLabel}</span>
                     </div>
@@ -1032,7 +1216,7 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
 
                       <div className="flex flex-row items-center justify-center gap-6">
 
-                        <button
+                        {/* <button
                           type="button"
                           onClick={() => startVoiceSession()}
                           disabled={isVoiceActive}
@@ -1043,7 +1227,7 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
                         >
                           {isVoiceActive ? <FiCheckCircle aria-hidden="true" /> : <FiLink aria-hidden="true" />}
                           {isVoiceActive ? "Connected" : "Connect"}
-                        </button>
+                        </button> */}
                         <button
                           type="button"
                           onClick={handleMicClick}
@@ -1142,7 +1326,7 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
                         >
                           {isRecording ? '🎤' : '🎙️'}
                         </button>
-                        <button
+                        {/* <button
                           type="button"
                           onClick={() => setShowDisconnectWarning(true)}
                           disabled={!isVoiceActive}
@@ -1153,7 +1337,7 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
                         >
                           <FiPower aria-hidden="true" />
                           Disconnect
-                        </button>
+                        </button> */}
 
 
 
@@ -1235,6 +1419,14 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
               handleDisconnect();
             }}
             message="Disconnecting will end the current conversation. Would you like to continue?"
+          />
+
+          <WarningPopUp
+            isOpen={Boolean(voiceNotice)}
+            onClose={() => setVoiceNotice("")}
+            message={voiceNotice}
+            singleAction
+            cancelLabel="Dismiss"
           />
         </section>
 

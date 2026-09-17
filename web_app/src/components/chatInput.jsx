@@ -27,7 +27,7 @@ const ChartInput = ({ messages = [], sessionId, onSendMessage, loading, setLoadi
     //     const lastAi = [...messages].reverse().find((m) => m.sender === "ai" && m.message_id);
     //     const previous_response_id = lastAi ? lastAi.message_id : "";
     //     try{
-    //         const resp = await fetch("https://txrh-app-roadierangerdev-6279-stosup-phmo.azurewebsites.net/api/chat",{
+    //         const resp = await fetch("/api/chat",{
     //             method: "POST",
     //             credentials: "include",
     //             headers: {

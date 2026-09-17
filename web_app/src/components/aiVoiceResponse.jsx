@@ -10,6 +10,7 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
   const [speakingPaused, setSpeakingPaused] = useState(false);
 
   const wsRef = useRef(null);
+  const voiceActiveRef = useRef(false);
   const audioCaptureRef = useRef(null);
   const audioPlaybackRef = useRef(null);
   const callbackRef = useRef(onAgentMessage);
@@ -25,21 +26,80 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
   }, [status]);
 
 
-  const stopVoiceSession = useCallback(() => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: 'stop' }));
-    }
+  const stopVoiceSession = useCallback(async () => {
+    voiceActiveRef.current = false;
 
-    audioCaptureRef.current?.stop();
-    audioCaptureRef.current = null;
+    const socket = wsRef.current;
 
-    audioPlaybackRef.current?.close();
-    audioPlaybackRef.current = null;
-
-    if (wsRef.current) {
-      wsRef.current.close();
+    // Detach immediately so this old socket can never interfere
+    // with the next voice session.
+    if (wsRef.current === socket) {
       wsRef.current = null;
     }
+
+    // Stop microphone first
+    try {
+      audioCaptureRef.current?.setEnabled(false);
+      audioCaptureRef.current?.stop();
+    } catch (err) {
+      console.warn('Failed to stop audio capture:', err);
+    }
+
+    audioCaptureRef.current = null;
+
+    // Stop internal playback
+    try {
+      audioPlaybackRef.current?.close();
+    } catch (err) {
+      console.warn('Failed to close audio playback:', err);
+    }
+
+    audioPlaybackRef.current = null;
+
+    // IMPORTANT:
+    // Wait until THIS socket is actually closed.
+    if (socket) {
+      try {
+        if (socket.readyState === WebSocket.OPEN) {
+          try {
+            socket.send(JSON.stringify({ type: 'stop' }));
+          } catch (err) {
+            console.warn('Failed to send voice stop:', err);
+          }
+        }
+
+        if (
+          socket.readyState === WebSocket.OPEN ||
+          socket.readyState === WebSocket.CONNECTING
+        ) {
+          await new Promise((resolve) => {
+            let finished = false;
+
+            const finish = () => {
+              if (finished) return;
+              finished = true;
+              resolve();
+            };
+
+            socket.addEventListener('close', finish, { once: true });
+
+            try {
+              socket.close(1000, 'Voice session ended');
+            } catch (err) {
+              console.warn('Failed to close websocket:', err);
+              finish();
+            }
+
+            // Safety fallback only.
+            setTimeout(finish, 1500);
+          });
+        }
+      } catch (err) {
+        console.warn('Voice websocket cleanup failed:', err);
+      }
+    }
+
+    agentSpeakingRef.current = false;
 
     setIsVoiceActive(false);
     setStatus('disconnected');
@@ -58,9 +118,11 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
 
 
   const stopCapture = useCallback(() => {
+    const socket = wsRef.current;
     audioCaptureRef.current?.setEnabled(false);
     setTimeout(() => {
-      try { wsRef.current?.send(JSON.stringify({ type: 'stop_listening' })); } catch (e) { console.warn('stop_listening failed', e); }
+      if (wsRef.current !== socket || socket?.readyState !== WebSocket.OPEN) return;
+      try { socket.send(JSON.stringify({ type: 'stop_listening' })); } catch (e) { console.warn('stop_listening failed', e); }
     }, 600);
     setStatus((prev) => (prev === 'listening' ? 'connected' : prev));
   }, [setLoading]);
@@ -70,7 +132,7 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
   }, []);
 
   const startVoiceSession = useCallback(async () => {
-    if (isVoiceActive) {
+    if (voiceActiveRef.current) {
       stopVoiceSession();
       return;
     }
@@ -93,9 +155,8 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         wsUrl = `${protocol}//${window.location.host}/voice/chat`;
       }
-      // Fallback hard-coded host (legacy)
-      if (!wsUrl) wsUrl = "wss://txrh-app-roadierangerdev-6279-stosup-phmo.azurewebsites.net/voice/chat";
-      console.debug('VoiceAgent: connecting wsUrl=', wsUrl);
+      
+      // console.debug('VoiceAgent: connecting wsUrl=', wsUrl);
 
       // Optional nonce retrieval (matches your backend check)
       try {
@@ -117,8 +178,6 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
         console.debug('VoiceAgent: websocket open', wsUrl, ws.readyState);
         const voiceSessionId = crypto.randomUUID();
         setSessionId(voiceSessionId);
-        setStatus('connected');
-        setIsVoiceActive(true);
         // The BFF requires init to be the first frame on every voice connection.
         ws.send(JSON.stringify({ type: 'init', session_id: voiceSessionId }));
         // Do not start mic capture here; push-to-talk will initiate listening when user presses the mic.
@@ -154,7 +213,19 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
             (level) => setMicLevel(level)
           );
           await capture.start();
+
+          // Do not expose the session until its own microphone is ready. This
+          // prevents a restart from accepting a mic press while the capture
+          // object is still being initialized.
+          if (wsRef.current !== ws || ws.readyState !== WebSocket.OPEN) {
+            capture.stop();
+            return;
+          }
+
           audioCaptureRef.current = capture;
+          voiceActiveRef.current = true;
+          setStatus('connected');
+          setIsVoiceActive(true);
           console.log('VoiceAgent: mic initialized on connect');
         } catch (err) {
           console.error('VoiceAgent: failed to initialize mic on connect', err);
@@ -261,6 +332,12 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
               }
               break;
 
+            case 'notice':
+              if (data.code === 'scale_in' && typeof options.onNotice === 'function') {
+                options.onNotice(data.message || 'session timeout please create a new chat to continue');
+              }
+              break;
+
             case 'error':
               console.error('Voice Agent Error:', data.text);
               setLoading?.(false);
@@ -278,8 +355,37 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
       };
 
       ws.onclose = (ev) => {
-        console.debug('VoiceAgent: websocket closed', ev.code, ev.reason);
-        stopVoiceSession();
+        console.debug(
+          'VoiceAgent: websocket closed',
+          ev.code,
+          ev.reason
+        );
+
+        // Ignore close events from an OLD voice connection.
+        // A new WebSocket may already have been created.
+        if (wsRef.current !== ws) {
+          console.debug(
+            'VoiceAgent: ignoring close from old websocket'
+          );
+          return;
+        }
+
+        wsRef.current = null;
+        voiceActiveRef.current = false;
+
+        try {
+          audioCaptureRef.current?.setEnabled(false);
+          audioCaptureRef.current?.stop();
+        } catch (err) {
+          console.warn('Failed to clean microphone after websocket close:', err);
+        }
+
+        audioCaptureRef.current = null;
+
+        setIsVoiceActive(false);
+        setStatus('disconnected');
+        setLoading?.(false);
+        setSpeakingPaused(false);
       };
 
       ws.onerror = (err) => {
@@ -328,6 +434,7 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
 
   return {
     isVoiceActive,
+    setIsVoiceActive,
     startVoiceSession,
     stopVoiceSession,
     startCapture,
