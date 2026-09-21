@@ -304,7 +304,54 @@ function TypingIndicator() {
       <AgentAvatar />
       <div className="max-w-[80%] p-3.5 rounded-xl text-sm break-words bg-[#F2E8D2] border-l-2 border-[var(--maroon-primary)] text-gray-200">
         <div className="text-[var(--maroon-primary)] text-xs font-extrabold mb-1">✦ Roadie Ranger</div>
-        <div className="flex gap-1"><span className="w-2 h-2 bg-[var(--primary-lighter)] rounded-full animate-pulse" /><span className="w-2 h-2 bg-[var(--primary-light)] rounded-full animate-pulse delay-75" /><span className="w-2 h-2 bg-[var(--primary-default)] rounded-full animate-pulse delay-150" /></div>
+        {/* <div className="flex gap-1"><span className="w-2 h-2 bg-[var(--primary-lighter)] rounded-full animate-pulse" /><span className="w-2 h-2 bg-[var(--primary-light)] rounded-full animate-pulse delay-75" /><span className="w-2 h-2 bg-[var(--primary-default)] rounded-full animate-pulse delay-150" /></div> */}
+        <div
+          className="flex items-center gap-1 h-6"
+          role="status"
+          aria-label="Roadie Ranger is thinking"
+        >
+          <span
+            className="
+      w-1.5 h-2 rounded-full
+      bg-[var(--primary-lighter)]
+      animate-[thinking_1s_ease-in-out_infinite]
+    "
+          />
+
+          <span
+            className="
+      w-1.5 h-4 rounded-full
+      bg-[var(--primary-light)]
+      animate-[thinking_1s_ease-in-out_0.15s_infinite]
+    "
+          />
+
+          <span
+            className="
+      w-1.5 h-5 rounded-full
+      bg-[var(--primary-default)]
+      animate-[thinking_1s_ease-in-out_0.3s_infinite]
+    "
+          />
+
+          <span
+            className="
+      w-1.5 h-4 rounded-full
+      bg-[var(--primary-light)]
+      animate-[thinking_1s_ease-in-out_0.45s_infinite]
+    "
+          />
+
+          <span
+            className="
+      w-1.5 h-2 rounded-full
+      bg-[var(--primary-lighter)]
+      animate-[thinking_1s_ease-in-out_0.6s_infinite]
+    "
+          />
+
+          <span className="sr-only">Roadie Ranger is thinking...</span>
+        </div>
       </div>
     </div>
   );
@@ -596,7 +643,7 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
     setDraft(text);
     // focus the textarea after it renders
     setTimeout(() => textareaRef.current?.focus(), 50);
-  }, [isVoiceActive,onNewChat]);
+  }, [isVoiceActive, onNewChat]);
 
   const requestModeChange = useCallback((nextMode) => {
     if (!nextMode || nextMode === mode) {
@@ -721,10 +768,10 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
   const inputPlaceholder = "Write a message..."
 
   const handleModeSelection = useCallback(async (nextMode) => {
-    console.log("current mode",mode, "===", "next mode", nextMode)
+    console.log("current mode", mode, "===", "next mode", nextMode)
     if (!nextMode) return;
     setAgentSpeaking(false);
-    
+
 
     if (mode === null) {
       setMessages([]);
@@ -758,7 +805,7 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
         await onNewChat();
         return;
       }
-      
+
       if (nextMode === "voice") {
         try {
           console.log("VoiceChat: restarting voice session");
@@ -838,20 +885,20 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
       // try { stopVoiceSession(); } catch (err) { /* ignore */ }
       try {
         if (audioRef.current) {
-            suppressPauseNotifyRef.current = true;
+          suppressPauseNotifyRef.current = true;
 
-            audioRef.current.muted = true;
+          audioRef.current.muted = true;
 
-            try {
-              audioRef.current.pause();
-            } catch (err) {
-              console.warn("Failed to pause current audio:", err);
-            }
-
-            audioRef.current.removeAttribute("src");
-            audioRef.current.load?.();
-            audioRef.current.muted = false;
+          try {
+            audioRef.current.pause();
+          } catch (err) {
+            console.warn("Failed to pause current audio:", err);
           }
+
+          audioRef.current.removeAttribute("src");
+          audioRef.current.load?.();
+          audioRef.current.muted = false;
+        }
         setIsPlaying(false);
         setAgentSpeaking(false);
         setAgentSpeakingGateRef.current?.(false);
@@ -863,7 +910,7 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
 
         setIsRecording(false);
       } catch (e) { }
-      
+
       if (nextMode === "text") {
         await onNewChat();
         return;
