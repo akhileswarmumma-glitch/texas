@@ -261,11 +261,11 @@ function MessageBubble({ item }) {
         <div className="chat-markdown">
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
-          // components={{
-          //   a: ({ node, ...props }) => (
-          //     <a {...props} target="_blank" rel="noopener noreferrer" />
-          //   ),
-          // }}
+            components={{
+              a: ({ node, ...props }) => (
+                <a {...props} target="_blank" rel="noopener noreferrer" />
+              ),
+            }}
           >{item.message}</ReactMarkdown>
         </div>
 

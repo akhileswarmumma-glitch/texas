@@ -1,74 +1,108 @@
-
-
 import json
 import os
-
-from fastapi import APIRouter,Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 import httpx
-
 from models.auth_models import ConversationResponse
 from models.chat_model import ChatRequest
-from router.auth import get_current_session
-from utils.utils import create_session
+from backend_for_frontend.router.auth import get_current_session
+from utils.utils import create_session, get_logger, get_http_client, user_from_session
 
 router = APIRouter(tags=["Chat"])
+
 BACKEND_URL_TEXT = os.environ.get("BACKEND_URL_TEXT", "http://localhost:8001")
 
 
+def _rid(request: Request):
+    return getattr(request.state, "request_id", None)
+
+
 @router.get("/get_conversation_id")
-async def create_conversation(session: dict = Depends(get_current_session)):
-    try:
-        if session:
-            conversation_id = create_session()
-            return ConversationResponse(message="Success", conversation_id=conversation_id)
-        else:
-            raise HTTPException(
-                status_code=401,
-                detail=f"Auth failed"
-            )
-    except Exception as error:
-        raise HTTPException(
-            status_code=401,
-            detail=f"Authencation failed: {error}"
-        )
-
-
+async def create_conversation(
+    request: Request,
+    session: dict = Depends(get_current_session),
+    logger=Depends(get_logger),
+):
+    if not session:
+        raise HTTPException(status_code=401, detail="Auth failed: no valid session")
+    conversation_id = create_session()
+    logger.log({
+        "event": "bff_conversation_created",
+        "request_id": _rid(request),
+        "conversation_id": conversation_id,
+        **user_from_session(session),
+    })
+    return ConversationResponse(message="Success", conversation_id=conversation_id)
 
 
 @router.post("/chat")
-async def proxy_chat(request: ChatRequest, session: dict = Depends(get_current_session)):
+async def proxy_chat(
+    request: Request,
+    body: ChatRequest,
+    session: dict = Depends(get_current_session),
+    logger=Depends(get_logger),
+    http_client: httpx.AsyncClient = Depends(get_http_client),
+):
+    user_info = user_from_session(session)
+    rid = _rid(request)
+    if not session:
+        raise HTTPException(status_code=401, detail="Auth failed: no valid session")
+    backend_token = session.sso_token["user_token"]
+    foundry_token = session.sso_token["foundry_token"]
+    payload = body.model_dump()
+
     try:
-        if session:
-            backend_token = session.sso_token["user_token"]
-
-            foundry_token = session.sso_token["foundry_token"]
-        else:
-            backend_token = ""
-            foundry_token = ""
-
-        body = request.model_dump()
-        print("foundary token is ==>",foundry_token)
-        
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{BACKEND_URL_TEXT}/chat",
-                headers={
-                    "Authorization": f"Bearer {backend_token}",
-                    "X-Foundry-Token": foundry_token
-                },
-                json=body,
-                timeout=60.0
-            )
-            
-        if response.status_code != 200:
-            raise HTTPException(status_code=response.status_code, detail=response.text)
-        return response.json()
-    except Exception as error:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Unexpected error occured : {error}"
+        response = await http_client.post(
+            f"{BACKEND_URL_TEXT}/chat",
+            headers={
+                "Authorization": f"Bearer {backend_token}",
+                "X-Foundry-Token": foundry_token,
+            },
+            json=payload,
+            timeout=60.0,
         )
+    except httpx.RequestError as net_err:
+        logger.log({
+            "event": "bff_chat_error",
+            "request_id": rid,
+            "conversation_id": payload.get("conversation_id"),
+            "error": f"{type(net_err).__name__}: {net_err}",
+            "error_category": "bff_proxy_error",
+            "display_message": "The BFF could not reach the chat backend.",
+            "backend_url": BACKEND_URL_TEXT,
+            **user_info,
+        })
+        raise HTTPException(status_code=502, detail=f"BFF could not reach backend: {net_err}")
+
+    if response.status_code != 200:
+        backend_body = response.text
+        backend_detail = backend_body
+        try:
+            parsed = response.json()
+            backend_detail = parsed.get("error") or parsed.get("detail") or backend_body
+        except Exception:
+            parsed = None
+        logger.log({
+            "event": "bff_chat_error",
+            "request_id": rid,
+            "conversation_id": payload.get("conversation_id"),
+            "status": response.status_code,
+            "error": str(backend_detail)[:2000],
+            "backend_body": backend_body[:2000],
+            "error_category": "backend_error",
+            "display_message": "The chat backend returned an error.",
+            **user_info,
+        })
+        raise HTTPException(status_code=response.status_code, detail=backend_detail)
+
+    logger.log({
+        "event": "bff_chat_request",
+        "request_id": rid,
+        "conversation_id": payload.get("conversation_id"),
+        "status": 200,
+        **user_info,
+    })
+    return response.json()
 
 
 @router.post("/chatV1")
@@ -76,46 +110,85 @@ async def proxy_chat_v1(
     request: Request,
     body: ChatRequest,
     session: dict = Depends(get_current_session),
+    logger=Depends(get_logger),
+    http_client: httpx.AsyncClient = Depends(get_http_client),
 ):
-    if session:
-        backend_token = session.sso_token["user_token"]
-        foundry_token = session.sso_token["foundry_token"]
-    else:
-        backend_token = ""
-        foundry_token = ""
+    user_info = user_from_session(session)
+    rid = _rid(request)
+    if not session:
+        raise HTTPException(status_code=401, detail="Auth failed: no valid session")
+    backend_token = session.sso_token["user_token"]
+    foundry_token = session.sso_token["foundry_token"]
 
-    print("foundary token is ==>", foundry_token)
+    logger.log({
+        "event": "bff_chat_stream_started",
+        "request_id": rid,
+        "conversation_id": body.conversation_id,
+        **user_info,
+    })
 
     async def event_stream():
-        client = httpx.AsyncClient(timeout=None)
         try:
-            async with client.stream(
+            async with http_client.stream(
                 "POST",
-                f"{BACKEND_URL_TEXT}/chatV1",
+                f"{BACKEND_URL_TEXT}/chat",
                 headers={
                     "Authorization": f"Bearer {backend_token}",
                     "X-Foundry-Token": foundry_token,
                 },
                 json=body.model_dump(),
+                timeout=None,
             ) as response:
-
                 if response.status_code != 200:
                     err_body = await response.aread()
-                    yield f'data: {{"type": "error", "error": "Backend error {response.status_code}: {err_body.decode(errors="ignore")}"}}\n\n'.encode()
+                    decoded = err_body.decode(errors="ignore")
+                    logger.log({
+                        "event": "bff_chat_stream_error",
+                        "request_id": rid,
+                        "conversation_id": body.conversation_id,
+                        "status": response.status_code,
+                        "error": decoded[:2000],
+                        "error_category": "backend_error",
+                        "display_message": "The chat backend returned an error.",
+                        **user_info,
+                    })
+                    yield f'data: {{"type": "error", "status": {response.status_code}, "error": {json.dumps(decoded)}}}\n\n'.encode()
                     return
-
                 async for chunk in response.aiter_raw():
                     if await request.is_disconnected():
+                        logger.log({
+                            "event": "bff_chat_stream_disconnected",
+                            "request_id": rid,
+                            "conversation_id": body.conversation_id,
+                            **user_info,
+                        })
                         break
                     if chunk:
                         yield chunk
-
+        except httpx.RequestError as net_err:
+            logger.log({
+                "event": "bff_chat_stream_error",
+                "request_id": rid,
+                "conversation_id": body.conversation_id,
+                "error": f"{type(net_err).__name__}: {net_err}",
+                "error_category": "bff_proxy_error",
+                "display_message": "The BFF could not reach the chat backend.",
+                **user_info,
+            })
+            yield f'data: {{"type": "error", "category": "bff_proxy_error", "error": {json.dumps(str(net_err))}}}\n\n'.encode()
         except Exception as error:
-            err_msg = f"Unexpected error occured : {error}"
-            yield f'data: {{"type": "error", "error": {json.dumps(err_msg)}}}\n\n'.encode()
-
-        finally:
-            await client.aclose()
+            import traceback as _tb
+            logger.log({
+                "event": "bff_chat_stream_error",
+                "request_id": rid,
+                "conversation_id": body.conversation_id,
+                "error": f"{type(error).__name__}: {error}",
+                "traceback": _tb.format_exc()[:6000],
+                "error_category": "bff_server_error",
+                "display_message": "An unexpected error occurred while streaming.",
+                **user_info,
+            })
+            yield f'data: {{"type": "error", "category": "bff_server_error", "error": {json.dumps(str(error))}}}\n\n'.encode()
 
     return StreamingResponse(
         event_stream(),
