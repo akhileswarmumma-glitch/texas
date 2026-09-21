@@ -263,23 +263,35 @@ function MessageBubble({ item }) {
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={{
-              a: ({ node, href, children, ...props }) => (
-                <a
-                  {...props}
-                  href={href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => {
-                    // Prevent React re-render cycles or parent container touch events from swallowing the click
-                    e.stopPropagation();
-                    if (href) {
-                      window.open(href, "_blank", "noopener,noreferrer");
-                    }
-                  }}
-                >
-                  {children}
-                </a>
-              ),
+              a: ({ node, href, children, ...props }) => {
+                // Clean out react-markdown internal props from being spread to the DOM element
+                const {
+                  index,
+                  siblingCount,
+                  ordinal,
+                  isHeader,
+                  ...restHtmlProps
+                } = props;
+
+                return (
+                  <a
+                    {...restHtmlProps}
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (href) {
+                        window.open(href, "_blank", "noopener,noreferrer");
+                      }
+                    }}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onTouchStart={(e) => e.stopPropagation()}
+                  >
+                    {children}
+                  </a>
+                );
+              },
             }}
           >
             {item.message}
