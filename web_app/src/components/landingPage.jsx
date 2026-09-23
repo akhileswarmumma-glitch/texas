@@ -253,14 +253,14 @@ function MessageBubble({ item }) {
   const resources = item.resources || [];
   const needsConsent = Boolean(item.link) || Boolean(item.consentRequired);
 
-  // Convert literal '\n' text strings into true line breaks so ReactMarkdown parses links correctly
+  // 1. Sanitize literal '\n' sequences from WebSocket string streams
   const sanitizedMessage = typeof item.message === 'string'
     ? item.message.replace(/\\n/g, '\n')
     : item.message;
 
   return (
     <div className={`flex gap-3 items-start ${item.sender === "user" ? "justify-end" : ""}`}>
-      <div className={`max-w-[90%] p-3.5 rounded-xl text-sm break-words ${item.sender === "user" ? 'bg-[var(--success-contrast)] border border-[var(--primary-bg)] text-[var(--secondary-contrast)] rounded-br-[4px]' : 'bg-[#F2E8D2] border-l-2 border-[var(--maroon-primary)] text-[var(--secondary-contrast)] rounded-bl-[4px]'}`}>
+      <div className={`max-w-[90%] p-3.5 rounded-xl text-sm break-words relative z-10 ${item.sender === "user" ? 'bg-[var(--success-contrast)] border border-[var(--primary-bg)] text-[var(--secondary-contrast)] rounded-br-[4px]' : 'bg-[#F2E8D2] border-l-2 border-[var(--maroon-primary)] text-[var(--secondary-contrast)] rounded-bl-[4px]'}`}>
         {item.sender !== "user" && <div className="text-[var(--maroon-primary)] text-xs font-extrabold mb-1">✦ Roadie Ranger</div>}
         <div className="chat-markdown">
           <ReactMarkdown
@@ -281,12 +281,11 @@ function MessageBubble({ item }) {
                     href={href}
                     target="_blank"
                     rel="noopener noreferrer"
+                    className="underline text-blue-600 font-semibold cursor-pointer relative z-20"
                     onClick={(e) => {
-                      // Prevents double-tab opening while keeping click events contained
+                      // Stop parent chat container clicks, but let standard navigation proceed
                       e.stopPropagation();
                     }}
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onTouchStart={(e) => e.stopPropagation()}
                   >
                     {children}
                   </a>
