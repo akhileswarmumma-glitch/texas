@@ -259,7 +259,6 @@ function MessageBubble({ item }) {
       <div className={`max-w-[90%] p-3.5 rounded-xl text-sm break-words ${item.sender === "user" ? 'bg-[var(--success-contrast)] border border-[var(--primary-bg)] text-[var(--secondary-contrast)] rounded-br-[4px]' : 'bg-[#F2E8D2] border-l-2 border-[var(--maroon-primary)] text-[var(--secondary-contrast)] rounded-bl-[4px]'}`}>
         {item.sender !== "user" && <div className="text-[var(--maroon-primary)] text-xs font-extrabold mb-1">✦ Roadie Ranger</div>}
         <div className="chat-markdown">
-          // In landingPage.jsx inside MessageBubble:
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={{

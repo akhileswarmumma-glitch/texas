@@ -27,12 +27,10 @@ const LoginPage = () => {
 
             <div className="mt-[10%]  tracking-tight">
                 <h1 className="font-black text-4xl mb-5">
-                    Your Home for Support,
-                    <br />
-                    Answers &amp; Growth.
+                    Your Home for Support & Answers.
                 </h1>
                 <p className="mt-5 text-[var(--neutral-200)] max-w-[500px] text-xl leading-8">
-                    Sign in to resolve HR &amp; IT queries, chat with Roadie Ranger anytime, and discover new opportunities across Texas Roadhouse.
+                    Sign in and connect with Roadie Ranger to get help you need across HR, payroll, IT, and more, all in one place.
                 </p>
                 <div className="text-xs text-white/50 mt-[10%]">
                     &copy; 2026 Texas Roadhouse Core Web Portal. All rights reserved.
