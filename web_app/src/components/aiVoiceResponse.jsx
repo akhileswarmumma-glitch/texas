@@ -319,7 +319,7 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
               if (typeof callbackRef.current === 'function') {
                 callbackRef.current(data.text || '', 'ai', {
                   streaming: false,
-                  message_id: data.response_id || data.id,
+                  message_id: data.response_id || data.id || `voice-${Date.now()}`,
                   link: data.link || '',
                   ticketNumber: data.ticket_number ?? null,
                 });
