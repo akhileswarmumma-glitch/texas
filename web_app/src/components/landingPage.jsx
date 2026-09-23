@@ -247,59 +247,47 @@ function AgentAvatar() {
   return <div className="w-8 h-8 flex-none rounded-full bg-[var(--maroon-primary)] text-black grid place-items-center text-lg font-extrabold">🤠</div>;
 }
 
-function MessageBubble({ item }) {
+function MessageBubble({ item, mode }) {
   const [showResources, setShowResources] = useState(false);
   const [showConsent, setShowConsent] = useState(true);
   const resources = item.resources || [];
   const needsConsent = Boolean(item.link) || Boolean(item.consentRequired);
 
-  // Sanitize literal '\n' sequences into true newlines
-  const sanitizedMessage = typeof item.message === 'string'
+  const formattedText = typeof item.message === 'string'
     ? item.message.replace(/\\n/g, '\n')
     : item.message;
 
-  const handleLinkClick = (e, href) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (href) {
-      window.open(href, '_blank', 'noopener,noreferrer');
-    }
-  };
+  // Custom component mapping ONLY for Text Mode
+  const markdownComponents = mode === "text" ? {
+    a: ({ href, children, ...props }) => {
+      const { index, siblingCount, ordinal, isHeader, ...restHtmlProps } = props;
+      return (
+        <a
+          {...restHtmlProps}
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => {
+            e.stopPropagation();
+            // Single-tab fix for Text Mode
+          }}
+        >
+          {children}
+        </a>
+      );
+    },
+  } : {}; // Empty object in Voice Mode uses default ReactMarkdown rendering
 
   return (
     <div className={`flex gap-3 items-start ${item.sender === "user" ? "justify-end" : ""}`}>
-      <div className={`max-w-[90%] p-3.5 rounded-xl text-sm break-words relative z-10 ${item.sender === "user" ? 'bg-[var(--success-contrast)] border border-[var(--primary-bg)] text-[var(--secondary-contrast)] rounded-br-[4px]' : 'bg-[#F2E8D2] border-l-2 border-[var(--maroon-primary)] text-[var(--secondary-contrast)] rounded-bl-[4px]'}`}>
+      <div className={`max-w-[90%] p-3.5 rounded-xl text-sm break-words relative z-20 ${item.sender === "user" ? 'bg-[var(--success-contrast)] border border-[var(--primary-bg)] text-[var(--secondary-contrast)] rounded-br-[4px]' : 'bg-[#F2E8D2] border-l-2 border-[var(--maroon-primary)] text-[var(--secondary-contrast)] rounded-bl-[4px]'}`}>
         {item.sender !== "user" && <div className="text-[var(--maroon-primary)] text-xs font-extrabold mb-1">✦ Roadie Ranger</div>}
         <div className="chat-markdown">
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
-            components={{
-              a: ({ node, href, children, ...props }) => {
-                const {
-                  index,
-                  siblingCount,
-                  ordinal,
-                  isHeader,
-                  ...restHtmlProps
-                } = props;
-
-                return (
-                  <a
-                    {...restHtmlProps}
-                    href={href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline text-blue-600 font-semibold cursor-pointer relative z-20 pointer-events-auto"
-                    onClick={(e) => handleLinkClick(e, href)}
-                    onPointerDown={(e) => e.stopPropagation()}
-                  >
-                    {children}
-                  </a>
-                );
-              },
-            }}
+            components={markdownComponents}
           >
-            {sanitizedMessage}
+            {formattedText}
           </ReactMarkdown>
         </div>
 
