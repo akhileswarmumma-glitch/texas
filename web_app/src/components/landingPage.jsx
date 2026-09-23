@@ -253,10 +253,18 @@ function MessageBubble({ item }) {
   const resources = item.resources || [];
   const needsConsent = Boolean(item.link) || Boolean(item.consentRequired);
 
-  // 1. Sanitize literal '\n' sequences from WebSocket string streams
+  // Sanitize literal '\n' sequences into true newlines
   const sanitizedMessage = typeof item.message === 'string'
     ? item.message.replace(/\\n/g, '\n')
     : item.message;
+
+  const handleLinkClick = (e, href) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (href) {
+      window.open(href, '_blank', 'noopener,noreferrer');
+    }
+  };
 
   return (
     <div className={`flex gap-3 items-start ${item.sender === "user" ? "justify-end" : ""}`}>
@@ -281,11 +289,9 @@ function MessageBubble({ item }) {
                     href={href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="underline text-blue-600 font-semibold cursor-pointer relative z-20"
-                    onClick={(e) => {
-                      // Stop parent chat container clicks, but let standard navigation proceed
-                      e.stopPropagation();
-                    }}
+                    className="underline text-blue-600 font-semibold cursor-pointer relative z-20 pointer-events-auto"
+                    onClick={(e) => handleLinkClick(e, href)}
+                    onPointerDown={(e) => e.stopPropagation()}
                   >
                     {children}
                   </a>
