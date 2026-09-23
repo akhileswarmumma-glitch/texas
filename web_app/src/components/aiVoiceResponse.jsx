@@ -317,7 +317,12 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
             case 'agent_text':
               setLoading?.(false);
               if (typeof callbackRef.current === 'function') {
-                callbackRef.current(data.text || '', 'ai', { streaming: false });
+                callbackRef.current(data.text || '', 'ai', {
+                  streaming: false,
+                  message_id: data.response_id || data.id,
+                  link: data.link || '',
+                  ticketNumber: data.ticket_number ?? null,
+                });
               }
               break;
 
