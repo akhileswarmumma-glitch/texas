@@ -253,9 +253,13 @@ function MessageBubble({ item }) {
   const resources = item.resources || [];
   const needsConsent = Boolean(item.link) || Boolean(item.consentRequired);
 
+  // Convert literal '\n' text strings into true line breaks so ReactMarkdown parses links correctly
+  const sanitizedMessage = typeof item.message === 'string'
+    ? item.message.replace(/\\n/g, '\n')
+    : item.message;
+
   return (
     <div className={`flex gap-3 items-start ${item.sender === "user" ? "justify-end" : ""}`}>
-      {/* {item.sender !== "user" && <AgentAvatar />} */}
       <div className={`max-w-[90%] p-3.5 rounded-xl text-sm break-words ${item.sender === "user" ? 'bg-[var(--success-contrast)] border border-[var(--primary-bg)] text-[var(--secondary-contrast)] rounded-br-[4px]' : 'bg-[#F2E8D2] border-l-2 border-[var(--maroon-primary)] text-[var(--secondary-contrast)] rounded-bl-[4px]'}`}>
         {item.sender !== "user" && <div className="text-[var(--maroon-primary)] text-xs font-extrabold mb-1">✦ Roadie Ranger</div>}
         <div className="chat-markdown">
@@ -263,7 +267,6 @@ function MessageBubble({ item }) {
             remarkPlugins={[remarkGfm]}
             components={{
               a: ({ node, href, children, ...props }) => {
-                // Clean out react-markdown internal props from being spread to the DOM element
                 const {
                   index,
                   siblingCount,
@@ -279,10 +282,8 @@ function MessageBubble({ item }) {
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={(e) => {
+                      // Prevents double-tab opening while keeping click events contained
                       e.stopPropagation();
-                      if (href) {
-                        window.open(href, "_blank", "noopener,noreferrer");
-                      }
                     }}
                     onMouseDown={(e) => e.stopPropagation()}
                     onTouchStart={(e) => e.stopPropagation()}
@@ -293,7 +294,7 @@ function MessageBubble({ item }) {
               },
             }}
           >
-            {item.message}
+            {sanitizedMessage}
           </ReactMarkdown>
         </div>
 
