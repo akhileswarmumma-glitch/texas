@@ -253,14 +253,17 @@ function MessageBubble({ item, mode }) {
   const resources = item.resources || [];
   const needsConsent = Boolean(item.link) || Boolean(item.consentRequired);
 
-  const formattedText = typeof item.message === 'string'
-    ? item.message.replace(/\\n/g, '\n')
-    : item.message;
+  const markdownRendor = mode === "text" ? {
+    a: ({ node, href, children, ...props }) => {
+      // Clean out react-markdown internal props from being spread to the DOM element
+      const {
+        index,
+        siblingCount,
+        ordinal,
+        isHeader,
+        ...restHtmlProps
+      } = props;
 
-  // Custom component mapping ONLY for Text Mode
-  const markdownComponents = mode === "text" ? {
-    a: ({ href, children, ...props }) => {
-      const { index, siblingCount, ordinal, isHeader, ...restHtmlProps } = props;
       return (
         <a
           {...restHtmlProps}
@@ -269,25 +272,27 @@ function MessageBubble({ item, mode }) {
           rel="noopener noreferrer"
           onClick={(e) => {
             e.stopPropagation();
-            // Single-tab fix for Text Mode
+            // if (href) {
+            //   window.open(href, "_blank", "noopener,noreferrer");
+            // }
           }}
         >
           {children}
         </a>
       );
     },
-  } : {}; // Empty object in Voice Mode uses default ReactMarkdown rendering
-
+  } : {}
   return (
     <div className={`flex gap-3 items-start ${item.sender === "user" ? "justify-end" : ""}`}>
-      <div className={`max-w-[90%] p-3.5 rounded-xl text-sm break-words relative z-20 ${item.sender === "user" ? 'bg-[var(--success-contrast)] border border-[var(--primary-bg)] text-[var(--secondary-contrast)] rounded-br-[4px]' : 'bg-[#F2E8D2] border-l-2 border-[var(--maroon-primary)] text-[var(--secondary-contrast)] rounded-bl-[4px]'}`}>
+      {/* {item.sender !== "user" && <AgentAvatar />} */}
+      <div className={`max-w-[90%] p-3.5 rounded-xl text-sm break-words ${item.sender === "user" ? 'bg-[var(--success-contrast)] border border-[var(--primary-bg)] text-[var(--secondary-contrast)] rounded-br-[4px]' : 'bg-[#F2E8D2] border-l-2 border-[var(--maroon-primary)] text-[var(--secondary-contrast)] rounded-bl-[4px]'}`}>
         {item.sender !== "user" && <div className="text-[var(--maroon-primary)] text-xs font-extrabold mb-1">✦ Roadie Ranger</div>}
         <div className="chat-markdown">
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
-            components={markdownComponents}
+            components={markdownRendor}
           >
-            {formattedText}
+            {item.message}
           </ReactMarkdown>
         </div>
 
@@ -1119,7 +1124,6 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
           </div>
         )}
 
-        {/* In landingPage.jsx inside ChatExperience JSX */}
         <div className="flex flex-col gap-3 sm:gap-4 flex-1 min-h-0 overflow-visible p-1 sm:p-2" role="log" aria-live="polite">
           {messages.map((item) => (
             <MessageBubble key={item.id} item={item} mode={mode} />
