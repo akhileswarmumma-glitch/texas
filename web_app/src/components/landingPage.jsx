@@ -1119,8 +1119,11 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
           </div>
         )}
 
+        {/* In landingPage.jsx inside ChatExperience JSX */}
         <div className="flex flex-col gap-3 sm:gap-4 flex-1 min-h-0 overflow-visible p-1 sm:p-2" role="log" aria-live="polite">
-          {messages.map((item) => <MessageBubble key={item.id} item={item} />)}
+          {messages.map((item) => (
+            <MessageBubble key={item.id} item={item} mode={mode} />
+          ))}
           {loading && <TypingIndicator />}
           <div ref={messagesEndRef} />
         </div>
