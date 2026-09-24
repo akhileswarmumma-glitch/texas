@@ -253,7 +253,7 @@ function MessageBubble({ item, mode }) {
   const resources = item.resources || [];
   const needsConsent = Boolean(item.link) || Boolean(item.consentRequired);
 
-  const markdownRendor = mode === "text" ? {
+  const markdownRendor = {
     a: ({ node, href, children, ...props }) => {
       // Clean out react-markdown internal props from being spread to the DOM element
       const {
@@ -264,24 +264,35 @@ function MessageBubble({ item, mode }) {
         ...restHtmlProps
       } = props;
 
+      const handleLinkClick = (event) => {
+        if (mode !== "voice" || !href) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        try {
+          const popup = window.open(href, "_blank", "noopener,noreferrer");
+          if (!popup) {
+            window.location.href = href;
+          }
+        } catch (err) {
+          window.location.href = href;
+        }
+      };
+
       return (
         <a
           {...restHtmlProps}
           href={href}
           target="_blank"
           rel="noopener noreferrer"
-          onClick={(e) => {
-            e.stopPropagation();
-            // if (href) {
-            //   window.open(href, "_blank", "noopener,noreferrer");
-            // }
-          }}
+          onClick={handleLinkClick}
         >
           {children}
         </a>
       );
     },
-  } : {}
+  }
   return (
     <div className={`flex gap-3 items-start ${item.sender === "user" ? "justify-end" : ""}`}>
       {/* {item.sender !== "user" && <AgentAvatar />} */}
