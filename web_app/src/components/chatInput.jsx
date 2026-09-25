@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import useTextAgent from "./aiTextResponse";
 import useVoiceAgent from "./aiVoiceResponse";
 
-const ChartInput = ({ messages = [], sessionId, onSendMessage, loading, setLoading, handleNewChat, setShowWarning, handleLogout}) => {
+const ChartInput = ({ messages = [], sessionId, onSendMessage, loading, setLoading, handleNewChat, setShowWarning, handleLogout }) => {
     const [message, setMessage] = useState("");
     const [isTextActive, setIsTextActive] = useState(false)
     const [mode, setMode] = useState(null); // null = not selected, 'text' or 'voice'
@@ -19,46 +19,6 @@ const ChartInput = ({ messages = [], sessionId, onSendMessage, loading, setLoadi
         setLoading,
         handleLogout
     );
-    
-    // const handleTextResponse = async (trimmedMessage) =>{
-    //     setLoading(true)
-    //     console.log("log is --==>",{"user_query": trimmedMessage,
-    //             "conversation_id": sessionId,})
-    //     const lastAi = [...messages].reverse().find((m) => m.sender === "ai" && m.message_id);
-    //     const previous_response_id = lastAi ? lastAi.message_id : "";
-    //     try{
-    //         const resp = await fetch("/api/chat",{
-    //             method: "POST",
-    //             credentials: "include",
-    //             headers: {
-    //                 "Content-Type": "application/json",
-    //             },
-    //             body: JSON.stringify({
-    //                 user_message: trimmedMessage,
-    //                 conversation_id: sessionId,
-    //                 previous_response_id
-    //             }),
-    //         })
-    //         console.log("resp status ios =--=>",resp.status)
-    //         if (resp.status === 401) {
-    //             await handleLogout();
-    //             return;
-    //         }
-    //         if (!resp.ok){
-    //             throw new Error(`HTTP Error: ${resp.status}`);
-    //         }
-
-    //         const resp_data = await resp.json()
-    //         console.log("resp data is ==>",resp_data)
-    //         onSendMessage(resp_data.agent_response, "ai", { message_id: resp_data.response_id, link: resp_data.link, resources: [] })
-    //     }catch(error){
-    //         console.error(error);
-    //         onSendMessage(`⚠️ **Something went wrong while contacting the agent.** Please try again later.`, "ai", { message_id: previous_response_id, link: "", resources: [] }
-    //         )
-    //     }finally{
-    //         setLoading(false)
-    //     }  
-    // }
 
     const { isVoiceActive, startVoiceSession, micLevel, status } = useVoiceAgent(
         handleAgentMessage,
@@ -87,9 +47,9 @@ const ChartInput = ({ messages = [], sessionId, onSendMessage, loading, setLoadi
         setMessage("");
     };
 
-    
+
     const containerStyle = { position: 'absolute', bottom: 0, left: 0, right: 0, width: '100%', zIndex: 10 }
-    
+
     const handleInputClick = () => {
         if (isVoiceActive) {
             setShowWarning(true);
@@ -142,9 +102,8 @@ const ChartInput = ({ messages = [], sessionId, onSendMessage, loading, setLoadi
                         <>
                             <input
                                 readOnly={isVoiceActive}
-                                className={`flex-1 h-11 rounded-full bg-white text-black px-5 text-sm border-[1.5px] border-[var(--neutral-300)] outline-none transition-all duration-200 focus:border-[var(--primary-light)] ${
-                                    isVoiceActive ? "bg-gray-100 cursor-pointer" : ""
-                                }`}
+                                className={`flex-1 h-11 rounded-full bg-white text-black px-5 text-sm border-[1.5px] border-[var(--neutral-300)] outline-none transition-all duration-200 focus:border-[var(--primary-light)] ${isVoiceActive ? "bg-gray-100 cursor-pointer" : ""
+                                    }`}
                                 type="text"
                                 placeholder={isVoiceActive ? `Voice active (${status})... stop voice call or create new chat to switch mode` : "Type here to start text mode..."}
                                 value={message}
@@ -176,18 +135,17 @@ const ChartInput = ({ messages = [], sessionId, onSendMessage, loading, setLoadi
                     {/* Voice mode UI */}
                     {mode === "voice" && (
                         <button
-                            title={isTextActive? "create new chat to access voice call" : isVoiceActive ? "Stop Voice Call" : "Start Voice Call"}
+                            title={isTextActive ? "create new chat to access voice call" : isVoiceActive ? "Stop Voice Call" : "Start Voice Call"}
                             onClick={startVoiceSession}
                             style={{
                                 boxShadow: isVoiceActive ? `0 0 ${8 + micLevel * 12}px var(--danger-default)` : 'none',
                                 backgroundColor: isVoiceActive ? 'var(--danger-default)' : 'var(--secondary-default)',
                                 color: isVoiceActive ? 'var(--danger-contrast)' : 'var(--text-muted)'
                             }}
-                            className={`flex h-10 w-10 rounded-full cursor-pointer items-center justify-center text-lg transition-all duration-200 ${
-                                isVoiceActive ? "animate-pulse" : ""
-                            }`}
+                            className={`flex h-10 w-10 rounded-full cursor-pointer items-center justify-center text-lg transition-all duration-200 ${isVoiceActive ? "animate-pulse" : ""
+                                }`}
                         >
-                            {isVoiceActive ? "⏹️" :  "🎙️"}
+                            {isVoiceActive ? "⏹️" : "🎙️"}
                         </button>
                     )}
                 </div>

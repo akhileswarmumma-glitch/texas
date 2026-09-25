@@ -55,8 +55,9 @@ export class AudioCapture {
     this._worklet = new AudioWorkletNode(this._context, 'pcm16-processor');
     this._worklet.port.onmessage = (ev) => {
       const { pcm, rms } = ev.data;
-      this._onLevel?.(Math.min(1, rms * 6));
       if (!this._enabled) return;
+      this._onLevel?.(Math.min(1, rms * 6));
+
       const bytes = new Uint8Array(pcm);
       let binary = '';
       for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);

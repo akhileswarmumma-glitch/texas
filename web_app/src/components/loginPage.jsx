@@ -1,10 +1,8 @@
-import { useState } from "react";
 import TexasLogo from "../assets/texas-logo.png"
 
 const LoginPage = () => {
 
     const handleLogin = () => {
-        console.log("Login clicked");
         const apiBase = (import.meta.env.VITE_API_BASE || '').replace(/\/+$/, '');
         window.location.href = `${apiBase || ''}/login`;
     };
@@ -54,38 +52,3 @@ const LoginPage = () => {
 };
 
 export default LoginPage;
-
-
-
-{/* <button className="flex cursor-pointer justify-center mt-[5%] border w-[80%] items-center ml-[10%] p-[3%] rounded-[6px] gap-[5%] border-[#8C8276] bg-white transition-all duration-200 hover:bg-gray-50 hover:border-[#004B2B] hover:shadow-md hover:-translate-y-0.5 active:translate-y-0"
-                    onClick={handleMicrosoftLogin}
-                    >
-                        <svg viewBox="0 0 23 23" className="w-5 h-5 shrink-0" aria-hidden="true">
-                            <path fill="#f35325" d="M0 0h11v11H0z"/>
-                            <path fill="#81bc06" d="M12 0h11v11H12z"/>
-                            <path fill="#05a6f0" d="M0 12h11v11H0z"/>
-                            <path fill="#ffba08" d="M12 12h11v11H12z"/>
-                        </svg>
-                        <span className="text-[#2F2F2F] text-sm font-bold text-[#7A7067]">Sign in with Microsoft</span>
-                    </button>
-                    <div className="text-xs flex justify-center mt-[5%] text-[#7A7067] font-semibold tracking-wider">
-                        <span>or use roadhouse account</span>
-                    </div>
-                    <form action="">
-                        <div className="mt-[10%] flex flex-col mb-5 w-full">
-                            <div className="ml-[10%] flex flex-col">
-                            <label htmlFor="email" className="font-bold text-sm mb-[2.5%]">Email Address</label>
-                            <input type="email" required value={email} onChange={(e)=>setEmail(e.target.value)} placeholder="name@company.com" className="border border-[#D5CFC6] p-[2%] w-[80%] rounded-[6px] bg-[#FDFBF7] mb-[2.5%] text-sm text-[#2D251E] outline-none transition-all duration-200 focus:border-[#004B2B] focus:bg-white focus:ring-1 focus:ring-[#004B2B]"/>
-                            <label htmlFor="password" className="font-bold text-sm mb-[2.5%]">Password</label>
-                            <input type="password" required value={password} onChange={(e)=>setPassword(e.target.value)} placeholder="•••••••••••••" className="border border-[#D5CFC6] p-[2%] w-[80%] rounded-[6px] bg-[#FDFBF7] mb-[4%] text-sm text-[#2D251E] outline-none transition-all duration-200 focus:border-[#004B2B] focus:bg-white focus:ring-1 focus:ring-[#004B2B]"/>
-                            <button onClick={(e) => {
-                                e.preventDefault();
-                                handleManualLogin(userCred)
-                            }}
-
-                            className="border w-[80%] bg-[#004B2B] p-[2%] rounded-lg text-white font-bold mb-[4%] cursor-pointer">Sign In</button>
-                            </div>
-                            
-                            <button className="ml-[0%] text-[#004B2B] text-sm font-bold cursor-pointer">Forgot password?</button>
-                        </div>
-                    </form> */}

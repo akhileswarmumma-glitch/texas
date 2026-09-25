@@ -1,7 +1,7 @@
 import { useState } from "react";
 import HomeScreen from "./homeScreen";
 
-const ChartComponent = ({ messages, setMessages, sessionId, handleNewChat,loading,setLoading, handleLogout }) => {
+const ChartComponent = ({ messages, setMessages, sessionId, handleNewChat, loading, setLoading, handleLogout }) => {
 
     const handleSendMessage = (message, sender = "user", meta = {}) => {
         // meta can be either an options object (e.g. { streaming: true })

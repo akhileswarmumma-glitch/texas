@@ -6,7 +6,7 @@ import { useMsal, useIsAuthenticated } from "@azure/msal-react";
 import Dashboard from "./dashboard.jsx";
 import WarningPopUp from "./warningPopUp.jsx";
 
-const Chat = ({handleLogout}) => {
+const Chat = ({ handleLogout }) => {
   const { instance, accounts } = useMsal();
 
   const isAuthenticated = useIsAuthenticated();
@@ -83,25 +83,20 @@ const Chat = ({handleLogout}) => {
   }, [accounts, instance]);
 
   const [messages, setMessages] = useState([]);
-  const [sessionId, setSessionId] = useState("");  
+  const [sessionId, setSessionId] = useState("");
 
   const handleNewChat = async () => {
     try {
-      console.log("====================handle chat triggred====================")
       const apiBase = (import.meta.env.VITE_API_BASE || '').replace(/\/+$/, '');
       const response = await fetch(`${apiBase || ''}/api/get_conversation_id`, {
         method: "GET",
         credentials: "include",
       });
-      console.log("status is -=>",response.status)
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
 
       const data = await response.json();
-      console.log("data is --==>",data)
-
-      console.log("Conversation ID:", data.conversation_id);
 
       setSessionId(data.conversation_id);
 

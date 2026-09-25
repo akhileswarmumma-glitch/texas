@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FaUser } from "react-icons/fa";
 import { FiLogOut, FiPlus, FiSend, FiMic, FiSquare, FiChevronDown, FiMessageSquare, FiPlay, FiPause, FiRotateCcw, FiLink, FiCheckCircle, FiPower } from "react-icons/fi";
 import ReactMarkdown from "react-markdown";
@@ -8,162 +8,6 @@ import useTextAgent from "./aiTextResponse.jsx";
 import useVoiceAgent from "./aiVoiceResponse.jsx";
 import WarningPopUp from "./warningPopUp.jsx";
 import texasLogo from "../assets/texas-logo.png";
-// Add this helper near the top of the file
-function themeColor(name, fallback) {
-  if (typeof window === "undefined") return fallback;
-  const value = getComputedStyle(document.documentElement).getPropertyValue(name);
-  return value?.trim() || fallback;
-}
-
-// function WaveformPlayer({ audioRef, audioBlob, audioDuration, isPlaying, onSeek, onPlayToggle }) {
-//   const canvasRef = useRef(null);
-//   const drawBarsRef = useRef(null);
-//   const valuesRef = useRef(null);
-//   const bars = 60;
-
-//   useEffect(() => {
-//     let cancelled = false;
-//     const canvas = canvasRef.current;
-//     if (!canvas) return;
-//     const ctx = canvas.getContext("2d");
-
-//     const roundRect = (x, y, w, h, r) => {
-//       ctx.beginPath();
-//       ctx.moveTo(x + r, y);
-//       ctx.arcTo(x + w, y, x + w, y + h, r);
-//       ctx.arcTo(x + w, y + h, x, y + h, r);
-//       ctx.arcTo(x, y + h, x, y, r);
-//       ctx.arcTo(x, y, x + w, y, r);
-//       ctx.closePath();
-//       ctx.fill();
-//     };
-
-//     const drawBars = (values) => {
-//       const dpr = window.devicePixelRatio || 1;
-//       const cssW = canvas.clientWidth || 320;
-//       const cssH = canvas.clientHeight || 40;
-//       canvas.width = Math.floor(cssW * dpr);
-//       canvas.height = Math.floor(cssH * dpr);
-//       const w = canvas.width / dpr;
-//       const h = canvas.height / dpr;
-//       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-//       ctx.clearRect(0, 0, w, h);
-
-//       const gap = 3;
-//       const barW = Math.max(2, (w - (bars - 1) * gap) / bars);
-//       const vals = Array.isArray(values)
-//         ? values
-//         : new Array(bars).fill(0).map(() => Math.random() * 0.5 + 0.15);
-
-//       const barColor = themeColor("--maroon-primary", "#7a2331");
-//       const playedColor = themeColor("--primary-bg", "#f2b807");
-//       const progress = audioDuration ? (audioRef.current?.currentTime || 0) / audioDuration : 0;
-
-//       for (let i = 0; i < bars; i++) {
-//         const val = vals[i] ?? 0.2;
-//         const bh = Math.max(3, val * h);
-//         const x = i * (barW + gap);
-//         const y = (h - bh) / 2;
-//         const played = i / bars <= progress;
-//         ctx.fillStyle = played ? playedColor : barColor;
-//         ctx.globalAlpha = played ? 1 : 0.55;
-//         roundRect(x, y, barW, bh, Math.min(3, barW / 2));
-//       }
-//       ctx.globalAlpha = 1;
-//     };
-//     drawBarsRef.current = drawBars;
-
-//     const decodeAndDraw = async (blob) => {
-//       try {
-//         const arrayBuffer = await blob.arrayBuffer();
-//         const ac = new (window.AudioContext || window.webkitAudioContext)();
-//         const audioBuffer = await ac.decodeAudioData(arrayBuffer.slice(0));
-//         const channel = audioBuffer.getChannelData(0);
-//         const values = new Array(bars).fill(0).map((_, i) => {
-//           const start = Math.floor((i / bars) * channel.length);
-//           const end = Math.floor(((i + 1) / bars) * channel.length);
-//           let sum = 0;
-//           for (let j = start; j < end; j++) sum += Math.abs(channel[j]);
-//           return sum / (end - start) || 0;
-//         });
-//         if (!cancelled) {
-//           valuesRef.current = values.map((v) => Math.min(1, v * 4));
-//           drawBarsRef.current?.(valuesRef.current);
-//         }
-//         ac.close();
-//       } catch (err) {
-//         if (!cancelled) {
-//           valuesRef.current = new Array(bars).fill(0).map(() => Math.random() * 0.5 + 0.15);
-//           drawBarsRef.current?.(valuesRef.current);
-//         }
-//       }
-//     };
-
-//     if (audioBlob) decodeAndDraw(audioBlob);
-//     else {
-//       valuesRef.current = new Array(bars).fill(0).map(() => Math.random() * 0.5 + 0.15);
-//       drawBarsRef.current(valuesRef.current);
-//     }
-
-//     return () => { cancelled = true; };
-//   }, [audioBlob, audioDuration, isPlaying]);
-
-//   useEffect(() => {
-//     if (!isPlaying) return undefined;
-//     let animationFrame;
-//     const redraw = () => {
-//       drawBarsRef.current?.(valuesRef.current);
-//       animationFrame = requestAnimationFrame(redraw);
-//     };
-//     animationFrame = requestAnimationFrame(redraw);
-//     return () => cancelAnimationFrame(animationFrame);
-//   }, [isPlaying]);
-
-//   useEffect(() => {
-//     const canvas = canvasRef.current;
-//     if (!canvas) return;
-//     const handleClick = (ev) => {
-//       const rect = canvas.getBoundingClientRect();
-//       const rel = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width));
-//       if (typeof onSeek === "function") onSeek(rel * (audioDuration || 0));
-//     };
-//     canvas.addEventListener("click", handleClick);
-//     return () => canvas.removeEventListener("click", handleClick);
-//   }, [audioDuration, onSeek]);
-
-//   return (
-//     <div
-//       className="rounded-xl w-[70%] h-[40px] flex items-center gap-3 p-2.5 border border-[var(--neutral-300)]"
-//       style={{ background: "var(--white-100, #fff)" }}
-//     >
-//       <button
-//         type="button"
-//         onClick={onPlayToggle}
-//         aria-label={isPlaying ? "Pause response" : "Play response"}
-//         aria-pressed={isPlaying}
-//         className="flex-shrink-0 w-[30px] h-[30px] rounded-full grid place-items-center text-white transition hover:opacity-90"
-//         style={{ background: "var(--maroon-primary)" }}
-//       >
-//         {isPlaying ? (
-//           <span className="flex gap-[3px]">
-//             <span className="w-[3px] h-3.5 bg-white rounded-sm" />
-//             <span className="w-[3px] h-3.5 bg-white rounded-sm" />
-//           </span>
-//         ) : (
-//           <span className="ml-0.5" style={{ fontSize: 14 }}>▶</span>
-//         )}
-//       </button>
-//       <canvas
-//         ref={canvasRef}
-//         aria-label="Seek within response audio"
-//         role="slider"
-//         aria-valuemin={0}
-//         aria-valuemax={audioDuration || 0}
-//         style={{ flex: 1, width: "70%", height: 40, cursor: "pointer" }}
-//       />
-//     </div>
-//   );
-// }
 
 function formatDuration(t) {
   if (!t && t !== 0) return "0:00";
@@ -241,58 +85,41 @@ const QUICK_INQUIRIES = [
   { category: "Finance & Ops", text: "How do I contact travel, expense or vendor support?" },
 ];
 
-const MAX_MESSAGE_LENGTH = 2000;
 
 function AgentAvatar() {
   return <div className="w-8 h-8 flex-none rounded-full bg-[var(--maroon-primary)] text-black grid place-items-center text-lg font-extrabold">🤠</div>;
 }
+const markdownRendor = {
+  a: ({ node, href, children, ...props }) => {
+    const {
+      index,
+      siblingCount,
+      ordinal,
+      isHeader,
+      ...restHtmlProps
+    } = props;
 
-function MessageBubble({ item, mode }) {
+    return (
+      <a
+        {...restHtmlProps}
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {children}
+      </a>
+    );
+  },
+};
+
+const MessageBubble = memo(function MessageBubble({ item, mode }) {
   const [showResources, setShowResources] = useState(false);
   const [showConsent, setShowConsent] = useState(true);
   const resources = item.resources || [];
   const needsConsent = Boolean(item.link) || Boolean(item.consentRequired);
 
-  const markdownRendor = {
-    a: ({ node, href, children, ...props }) => {
-      // Clean out react-markdown internal props from being spread to the DOM element
-      const {
-        index,
-        siblingCount,
-        ordinal,
-        isHeader,
-        ...restHtmlProps
-      } = props;
 
-      const handleLinkClick = (event) => {
-        if (mode !== "voice" || !href) return;
-
-        event.preventDefault();
-        event.stopPropagation();
-
-        try {
-          const popup = window.open(href, "_blank", "noopener,noreferrer");
-          if (!popup) {
-            window.location.href = href;
-          }
-        } catch (err) {
-          window.location.href = href;
-        }
-      };
-
-      return (
-        <a
-          {...restHtmlProps}
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={handleLinkClick}
-        >
-          {children}
-        </a>
-      );
-    },
-  }
   return (
     <div className={`flex gap-3 items-start ${item.sender === "user" ? "justify-end" : ""}`}>
       {/* {item.sender !== "user" && <AgentAvatar />} */}
@@ -334,7 +161,7 @@ function MessageBubble({ item, mode }) {
       </div>
     </div>
   );
-}
+})
 
 function TypingIndicator() {
   return (
@@ -350,42 +177,42 @@ function TypingIndicator() {
         >
           <span
             className="
-      w-1.5 h-2 rounded-full
-      bg-[var(--primary-lighter)]
-      animate-[thinking_1s_ease-in-out_infinite]
-    "
+              w-1.5 h-2 rounded-full
+              bg-[var(--primary-lighter)]
+              animate-[thinking_1s_ease-in-out_infinite]
+            "
           />
 
           <span
             className="
-      w-1.5 h-4 rounded-full
-      bg-[var(--primary-light)]
-      animate-[thinking_1s_ease-in-out_0.15s_infinite]
-    "
+              w-1.5 h-4 rounded-full
+              bg-[var(--primary-light)]
+              animate-[thinking_1s_ease-in-out_0.15s_infinite]
+            "
           />
 
           <span
             className="
-      w-1.5 h-5 rounded-full
-      bg-[var(--primary-default)]
-      animate-[thinking_1s_ease-in-out_0.3s_infinite]
-    "
+              w-1.5 h-5 rounded-full
+              bg-[var(--primary-default)]
+              animate-[thinking_1s_ease-in-out_0.3s_infinite]
+            "
           />
 
           <span
             className="
-      w-1.5 h-4 rounded-full
-      bg-[var(--primary-light)]
-      animate-[thinking_1s_ease-in-out_0.45s_infinite]
-    "
+              w-1.5 h-4 rounded-full
+              bg-[var(--primary-light)]
+              animate-[thinking_1s_ease-in-out_0.45s_infinite]
+            "
           />
 
           <span
             className="
-      w-1.5 h-2 rounded-full
-      bg-[var(--primary-lighter)]
-      animate-[thinking_1s_ease-in-out_0.6s_infinite]
-    "
+              w-1.5 h-2 rounded-full
+              bg-[var(--primary-lighter)]
+              animate-[thinking_1s_ease-in-out_0.6s_infinite]
+            "
           />
 
           <span className="sr-only">Roadie Ranger is thinking...</span>
@@ -424,6 +251,7 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
 
       if (sender === "ai") {
         const index = [...previous].map((item, i) => ({ item, i })).reverse().find(({ item }) => item.sender === "ai" && item.streaming)?.i;
+
         if (index !== undefined) {
           return previous.map((item, i) => i === index ? {
             ...item,
@@ -799,14 +627,10 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
 
   const conversationStarted = messages.length > 0;
   const modeSelected = mode !== null;
-  // const inputPlaceholder = isVoiceActive
-  //   ? `Voice active (${voiceStatus})...`
-  //   : "Write a message...";
 
   const inputPlaceholder = "Write a message..."
 
   const handleModeSelection = useCallback(async (nextMode) => {
-    console.log("current mode", mode, "===", "next mode", nextMode)
     if (!nextMode) return;
     setAgentSpeaking(false);
 
@@ -817,7 +641,7 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
       setPendingMode(null);
       setShowModeWarning(false);
       // ensure any previous voice session is stopped and player reset
-      // try { stopVoiceSession(); } catch (err) { /* ignore */ }
+      // try { stopVoiceSession(); } catch (err) { console.error("error is ",err) }
       if (isRecording) {
         try {
           stopCapture();
@@ -839,15 +663,12 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
       setIsRecording(false);
       setMode(nextMode);
       if (nextMode === "text") {
-        console.log("nex mode triggred!!!!!!")
         await onNewChat();
         return;
       }
 
       if (nextMode === "voice") {
         try {
-          console.log("VoiceChat: restarting voice session");
-
           // ------------------------------------------------
           // 1. Immediately stop browser audio output
           // ------------------------------------------------
@@ -893,7 +714,6 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
           // ------------------------------------------------
           await startVoiceSession();
 
-          console.log("VoiceChat: new voice session started");
         } catch (err) {
           console.error(
             "Failed to restart voice session:",
@@ -956,7 +776,6 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
 
       if (nextMode === "voice") {
         try {
-          console.log("VoiceChat: restarting voice session");
 
           // ------------------------------------------------
           // 1. Immediately stop browser audio output
@@ -1002,8 +821,6 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
           // 4. Start completely fresh WebSocket + mic
           // ------------------------------------------------
           await startVoiceSession();
-
-          console.log("VoiceChat: new voice session started");
         } catch (err) {
           console.error(
             "Failed to restart voice session:",
@@ -1223,21 +1040,6 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
                 {/* <p className="text-black">Coming soon... please switch to text mode to continue.</p> */}
                 <div className="flex items-center gap-4">
                   <div className="flex-1">
-                    {/* <div className="flex items-center justify-center">
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => startVoiceSession()}
-                          disabled={isVoiceActive}
-                          className="px-2 py-1 text-xs rounded-md font-semibold transition bg-[var(--primary-bg)] text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {isVoiceActive ? "Connected" : "Connect"}
-                        </button>
-
-                        
-
-                      </div>
-                    </div> */}
 
                     <div className="mt-3 flex items-center gap-3">
                       <div className="w-full">

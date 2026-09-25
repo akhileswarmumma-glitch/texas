@@ -60,7 +60,7 @@ export class AudioPlayback {
   flush() {
     if (!this._context) return;
     for (const src of this._activeSrcs) {
-      try { src.stop(); } catch (_) {}
+      try { src.stop(); } catch (_) { }
     }
     this._activeSrcs = [];
     this._bufferQueue = [];
@@ -78,7 +78,7 @@ export class AudioPlayback {
     this._paused = false;
     while (this._bufferQueue.length > 0) {
       const base64 = this._bufferQueue.shift();
-      try { this.enqueue(base64); } catch (_) {}
+      try { this.enqueue(base64); } catch (_) { }
     }
   }
 

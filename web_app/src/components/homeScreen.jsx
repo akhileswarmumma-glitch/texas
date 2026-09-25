@@ -10,8 +10,6 @@ const HomeScreen = ({ messages, onSendMessage, sessionId, loading, setLoading, h
     const [showWarning, setShowWarning] = useState(false);
     const messagesEndRef = useRef(null);
     
-    console.log("message is --==>",messages);
-
     useEffect(() => {
         if (messagesEndRef.current) {
             messagesEndRef.current.scrollIntoView({ behavior: "smooth" });

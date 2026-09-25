@@ -111,7 +111,7 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
     if (!audioCaptureRef.current) return;   // mic wasn't ready yet (created in onopen)
     try { wsRef.current.send(JSON.stringify({ type: 'start_listening' })); } catch (e) { console.warn('start_listening failed', e); }
-    console.log('VoiceAgent: starting capture');
+
     audioCaptureRef.current.setEnabled(true);
     setStatus('listening');
   }, []);
@@ -155,8 +155,7 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         wsUrl = `${protocol}//${window.location.host}/voice/chat`;
       }
-      
-      // console.debug('VoiceAgent: connecting wsUrl=', wsUrl);
+
 
       // Optional nonce retrieval (matches your backend check)
       try {
@@ -226,7 +225,7 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
           voiceActiveRef.current = true;
           setStatus('connected');
           setIsVoiceActive(true);
-          console.log('VoiceAgent: mic initialized on connect');
+
         } catch (err) {
           console.error('VoiceAgent: failed to initialize mic on connect', err);
         }
