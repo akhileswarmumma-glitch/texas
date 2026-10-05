@@ -770,7 +770,7 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
       } catch (e) { }
 
       if (nextMode === "text") {
-        await onNewChat();
+        handleLogoClick()
         return;
       }
 
@@ -836,6 +836,76 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
     requestModeChange(nextMode);
   }, [mode, isVoiceActive, isRecording, onNewChat, requestModeChange, stopVoiceSession, startVoiceSession, stopCapture]);
 
+  const stopVoiceMode = useCallback(async () => {
+    try {
+      // Stop microphone capture first
+      try {
+        stopCapture();
+      } catch (err) {
+        console.warn("Failed to stop microphone capture:", err);
+      }
+
+      setIsRecording(false);
+
+      // Immediately stop any playing agent audio
+      const audio = audioRef.current;
+
+      if (audio) {
+        suppressPauseNotifyRef.current = true;
+        audio.muted = true;
+
+        try {
+          audio.pause();
+        } catch (err) {
+          console.warn("Failed to pause voice audio:", err);
+        }
+
+        audio.removeAttribute("src");
+        audio.load?.();
+        audio.muted = false;
+      }
+
+      // Reset audio and voice-related UI state
+      setIsPlaying(false);
+      setAgentSpeaking(false);
+      setAgentSpeakingGateRef.current?.(false);
+
+      setAudioUrl(null);
+      setAudioBlob(null);
+      setAudioCurrentTime(0);
+      setAudioDuration(0);
+
+      setLoading(false);
+      setVoiceNotice("");
+
+      // Close the WebSocket and voice resources
+      await Promise.resolve(stopVoiceSession());
+    } catch (err) {
+      console.error("Failed to stop voice mode:", err);
+    }
+  }, [stopCapture, stopVoiceSession]);
+
+  const handleLogoClick = useCallback(async () => {
+    // Prevent the isVoiceActive effect from also creating another conversation.
+    // Without this, onNewChat() could be called twice.
+    if (isVoiceActive) {
+      skipVoiceCloseRefresh.current = true;
+    }
+
+    // Stop voice mode and release microphone/WebSocket/audio resources
+    await stopVoiceMode();
+
+    // Reset chat UI
+    setMessages([]);
+    setDraft("");
+    setMode(null);
+    setPendingMode(null);
+    setShowModeWarning(false);
+    setShowDisconnectWarning(false);
+
+    // Create exactly one fresh conversation
+    await onNewChat();
+  }, [isVoiceActive, onNewChat, stopVoiceMode]);
   return (
     <main className="min-h-screen bg-[#faf5ea] text-gray-200 font-sans flex flex-col">
       <header className="flex items-center justify-between gap-2 border-b border-emerald-900 bg-[var(--maroon-primary)] px-3 py-2.5 sticky top-0 z-20 shrink-0 sm:px-5 md:px-8">
@@ -849,10 +919,7 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
               aria-label="Go to home"
               onClick={() => {
                 // Reset UI to home state and start a fresh chat
-                setMessages([]);
-                setIsVoiceActive(false)
-                setMode(null);
-                void onNewChat();
+                void handleLogoClick();
               }}
             />
           </div>
