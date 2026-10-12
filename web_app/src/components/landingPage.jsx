@@ -377,8 +377,14 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
       onAudio: handleAudio,
       onInterrupt: handleInterrupt,
       onNotice: setVoiceNotice,
-    }
+    },
+    sessionId
   );
+
+  const startVoiceChat = useCallback(async () => {
+    const nextSessionId = await onNewChat();
+    await startVoiceSession({ sessionId: nextSessionId || sessionId });
+  }, [onNewChat, sessionId, startVoiceSession]);
 
   useEffect(() => {
     setAgentSpeakingGateRef.current = setAgentSpeakingGate;
@@ -550,7 +556,7 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
     await onNewChat();
     setMode(pendingMode);
     if (pendingMode === "voice") {
-      try { await startVoiceSession(); } catch (err) { console.error("Auto-connect failed:", err); }
+      try { await startVoiceChat(); } catch (err) { console.error("Auto-connect failed:", err); }
     }
     setPendingMode(null);
     setShowModeWarning(false);
@@ -715,12 +721,7 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
           // ------------------------------------------------
           // 3. Create fresh conversation
           // ------------------------------------------------
-          await onNewChat();
-
-          // ------------------------------------------------
-          // 4. Start completely fresh WebSocket + mic
-          // ------------------------------------------------
-          await startVoiceSession();
+          await startVoiceChat();
 
         } catch (err) {
           console.error(
@@ -828,7 +829,7 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
           // ------------------------------------------------
           // 4. Start completely fresh WebSocket + mic
           // ------------------------------------------------
-          await startVoiceSession();
+          await startVoiceChat();
         } catch (err) {
           console.error(
             "Failed to restart voice session:",

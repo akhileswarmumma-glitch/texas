@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { AudioCapture } from './audioCapture';
 import { AudioPlayback } from './audioPlayback';
 
-const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
+const useVoiceAgent = (onAgentMessage, setLoading, options = {}, initialSessionId = "") => {
   const [status, setStatus] = useState('disconnected'); // 'disconnected' | 'connecting' | 'connected' | 'listening' | 'speaking' | 'ready'
   const [sessionId, setSessionId] = useState(null);
   const [isVoiceActive, setIsVoiceActive] = useState(false);
@@ -37,6 +37,14 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
   useEffect(() => {
     statusRef.current = status;
   }, [status]);
+
+  useEffect(() => {
+    const nextSessionId = String(initialSessionId || '').trim();
+    if (!nextSessionId || voiceSessionIdRef.current === nextSessionId) return;
+
+    voiceSessionIdRef.current = nextSessionId;
+    setSessionId(nextSessionId);
+  }, [initialSessionId]);
 
 
   const stopVoiceSession = useCallback(async () => {
@@ -153,7 +161,7 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
     audioCaptureRef.current?.setEnabled(false);
   }, []);
 
-  const startVoiceSession = useCallback(async ({ resume = false } = {}) => {
+  const startVoiceSession = useCallback(async ({ resume = false, sessionId: requestedSessionId = "" } = {}) => {
     if (connectingRef.current) return;
     if (voiceActiveRef.current && !resume) return;
 
@@ -161,7 +169,11 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
     const generation = ++connectionGenerationRef.current;
 
     if (!resume) {
-      voiceSessionIdRef.current = crypto.randomUUID();
+      const fallbackSessionId = typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `voice-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      const nextSessionId = String(requestedSessionId || initialSessionId || fallbackSessionId).trim();
+      voiceSessionIdRef.current = nextSessionId || null;
       previousResponseIdRef.current = null;
     }
 
@@ -225,7 +237,7 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
 
         ws.send(JSON.stringify({
           type: 'init',
-          session_id: voiceSessionId,
+          ...(voiceSessionId ? { session_id: voiceSessionId } : {}),
           ...(resume && previousResponseIdRef.current
             ? { previous_response_id: previousResponseIdRef.current }
             : {}),
