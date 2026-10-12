@@ -439,27 +439,31 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
     stopCapture,
   ]);
 
-  const npStateLabel = !isVoiceActive
-    ? "idle"
-    : loading
-      ? "thinking..."
-      : isPlaying || agentSpeaking
-        ? "speaking..."
-        : isAudioCapturing
-          ? "listening..."
-          : speakingPaused && audioUrl
-            ? "paused"
-            : "idle";
-  useEffect(() => {
-    if (wasVoiceActive.current && !isVoiceActive) {
-      if (skipVoiceCloseRefresh.current) {
-        skipVoiceCloseRefresh.current = false;
-      } else {
-        void onNewChat();
-      }
-    }
-    wasVoiceActive.current = isVoiceActive;
-  }, [isVoiceActive, onNewChat]);
+  const npStateLabel =
+    voiceStatus === "reconnecting"
+      ? "reconnecting..."
+      : !isVoiceActive
+        ? "idle"
+        : loading
+          ? "thinking..."
+          : isPlaying || agentSpeaking
+            ? "speaking..."
+            : isAudioCapturing
+              ? "listening..."
+              : speakingPaused && audioUrl
+                ? "paused"
+                : "idle";
+
+  // useEffect(() => {
+  //   if (wasVoiceActive.current && !isVoiceActive) {
+  //     if (skipVoiceCloseRefresh.current) {
+  //       skipVoiceCloseRefresh.current = false;
+  //     } else {
+  //       void onNewChat();
+  //     }
+  //   }
+  //   wasVoiceActive.current = isVoiceActive;
+  // }, [isVoiceActive, onNewChat]);
 
   useEffect(() => {
     if (!isVoiceActive) {
@@ -608,7 +612,7 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
 
 
 
-  const handleDisconnect = useCallback(() => {
+  const handleDisconnect = useCallback(async () => {
     setMessages([]);
     setDraft("");
     setIsRecording(false);
@@ -617,13 +621,17 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
     setAudioBlob(null);
     setAudioCurrentTime(0);
     setAudioDuration(0);
+
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.removeAttribute("src");
       audioRef.current.load?.();
     }
-    stopVoiceSession();
-  }, [stopVoiceSession]);
+
+    await stopVoiceSession();
+    await onNewChat();
+  }, [stopVoiceSession, onNewChat]);
+
 
   const conversationStarted = messages.length > 0;
   const modeSelected = mode !== null;

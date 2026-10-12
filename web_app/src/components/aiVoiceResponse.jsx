@@ -16,6 +16,19 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
   const callbackRef = useRef(onAgentMessage);
   const statusRef = useRef('disconnected'); // mirrors `status` state, but always reads the LATEST value inside closures (e.g. the audio_chunk sender in onopen)
   const agentSpeakingRef = useRef(false);
+  const voiceSessionIdRef = useRef(null);
+  const previousResponseIdRef = useRef(null);
+
+  const reconnectingRef = useRef(false);
+  const connectingRef = useRef(false);
+  const connectionGenerationRef = useRef(0);
+
+  const startVoiceSessionRef = useRef(null);
+  const optionsRef = useRef(options);
+
+  useEffect(() => {
+    optionsRef.current = options;
+  }, [options]);
 
   useEffect(() => {
     callbackRef.current = onAgentMessage;
@@ -27,6 +40,15 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
 
 
   const stopVoiceSession = useCallback(async () => {
+    // Invalidate any connection setup still running.
+    connectionGenerationRef.current += 1;
+    connectingRef.current = false;
+    reconnectingRef.current = false;
+
+    // Intentional stop means the next chat starts fresh.
+    voiceSessionIdRef.current = null;
+    previousResponseIdRef.current = null;
+    setSessionId(null);
     voiceActiveRef.current = false;
 
     const socket = wsRef.current;
@@ -131,18 +153,33 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
     audioCaptureRef.current?.setEnabled(false);
   }, []);
 
-  const startVoiceSession = useCallback(async () => {
-    if (voiceActiveRef.current) {
-      stopVoiceSession();
-      return;
+  const startVoiceSession = useCallback(async ({ resume = false } = {}) => {
+    if (connectingRef.current) return;
+    if (voiceActiveRef.current && !resume) return;
+
+    connectingRef.current = true;
+    const generation = ++connectionGenerationRef.current;
+
+    if (!resume) {
+      voiceSessionIdRef.current = crypto.randomUUID();
+      previousResponseIdRef.current = null;
     }
 
+    const voiceSessionId = voiceSessionIdRef.current;
+
     try {
-      setStatus('connecting');
+      setStatus(resume ? 'reconnecting' : 'connecting');
 
       // Initialize Audio Playback
       const playback = new AudioPlayback();
       await playback.init();
+
+      if (generation !== connectionGenerationRef.current) {
+        playback.close();
+        return;
+      }
+
+      audioPlaybackRef.current?.close();
       audioPlaybackRef.current = playback;
 
       // Prefer environment-configured API base so deployments are flexible.
@@ -169,19 +206,35 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
       } catch (err) {
         console.warn('Failed to fetch WS nonce, proceeding with direct connection:', err);
       }
+      // A manual stop or another session may have happened during nonce retrieval.
+      if (generation !== connectionGenerationRef.current) return;
 
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
       ws.onopen = async () => {
-        console.debug('VoiceAgent: websocket open', wsUrl, ws.readyState);
-        const voiceSessionId = crypto.randomUUID();
+        if (
+          generation !== connectionGenerationRef.current ||
+          wsRef.current !== ws
+        ) {
+          ws.close();
+          return;
+        }
+
         setSessionId(voiceSessionId);
-        // The BFF requires init to be the first frame on every voice connection.
-        ws.send(JSON.stringify({ type: 'init', session_id: voiceSessionId }));
+
+        ws.send(JSON.stringify({
+          type: 'init',
+          session_id: voiceSessionId,
+          ...(resume && previousResponseIdRef.current
+            ? { previous_response_id: previousResponseIdRef.current }
+            : {}),
+        }));
+
         // Do not start mic capture here; push-to-talk will initiate listening when user presses the mic.
 
         // 🆕 ADD THIS ENTIRE BLOCK — create the mic ONCE per connection
+        
         try {
           let sentChunks = 0;
           const capture = new AudioCapture(
@@ -223,6 +276,8 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
 
           audioCaptureRef.current = capture;
           voiceActiveRef.current = true;
+          connectingRef.current = false;
+          reconnectingRef.current = false;
           setStatus('connected');
           setIsVoiceActive(true);
 
@@ -231,19 +286,29 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
         }
       };
       ws.onmessage = (event) => {
+        if (
+          wsRef.current !== ws ||
+          generation !== connectionGenerationRef.current
+        ) {
+          return;
+        }
         // try to parse JSON frames, but some frames may be binary or text — log raw for debugging
         try {
           let data = null;
-          try { data = JSON.parse(event.data); } catch (e) { /* not JSON */ }
+          try { data = JSON.parse(event.data); } catch { /* not JSON */ }
           if (!data) {
             console.debug('VoiceAgent: ws message (raw):', event.data);
             return;
           }
           console.debug('VoiceAgent: ws message type=', data.type);
           switch (data.type) {
-            case 'session_id':
-              setSessionId(data.id);
+            case 'session_id': {
+              if (typeof data.id === 'string' && data.id.trim()) {
+                voiceSessionIdRef.current = data.id.trim();
+                setSessionId(data.id.trim());
+              }
               break;
+            }
 
             case 'status':
               if (data.text === 'barge_in') {
@@ -314,6 +379,9 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
               break;
 
             case 'agent_text':
+              if (typeof data.response_id === 'string' && data.response_id.trim()) {
+                previousResponseIdRef.current = data.response_id.trim();
+                }
               setLoading?.(false);
               if (typeof callbackRef.current === 'function') {
                 callbackRef.current(data.text || '', 'ai', {
@@ -336,11 +404,55 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
               }
               break;
 
-            case 'notice':
-              if (data.code === 'scale_in' && typeof options.onNotice === 'function') {
-                options.onNotice(data.message || 'session timeout please create a new chat to continue');
+            case 'notice': {
+              if (data.code !== 'scale_in') break;
+              if (reconnectingRef.current) break;
+
+              reconnectingRef.current = true;
+              connectingRef.current = false;
+
+              // Invalidate callbacks and async initialization from this connection.
+              connectionGenerationRef.current += 1;
+
+              // Detach first so the old socket's onclose cannot reset the new session.
+              wsRef.current = null;
+              voiceActiveRef.current = false;
+
+              setIsVoiceActive(false);
+              setStatus('reconnecting');
+              setLoading?.(false);
+              setMicLevel(0);
+
+              // Stop any response audio while the replacement connection is
+              // being established, without removing its displayed message.
+              audioPlaybackRef.current?.flush();
+              try {
+                optionsRef.current.onInterrupt?.();
+              } catch (err) {
+                console.warn('Failed to stop response playback during recovery:', err);
               }
+
+              // Stop sending microphone audio to the retiring connection.
+              try {
+                audioCaptureRef.current?.setEnabled(false);
+                audioCaptureRef.current?.stop();
+              } catch (err) {
+                console.warn('Failed to stop capture during recovery:', err);
+              }
+
+              audioCaptureRef.current = null;
+
+              // Close the retiring socket without sending your application-level "stop".
+              // Keep the session ID, response ID, and displayed messages.
+              try {
+                ws.close(1000, 'Scale-in reconnect');
+              } catch (err) {
+                console.warn('Failed to close retiring socket:', err);
+              }
+
+              void startVoiceSessionRef.current?.({ resume: true });
               break;
+            }
 
             case 'error':
               console.error('Voice Agent Error:', data.text);
@@ -376,6 +488,8 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
 
         wsRef.current = null;
         voiceActiveRef.current = false;
+        connectingRef.current = false;
+        reconnectingRef.current = false;
 
         try {
           audioCaptureRef.current?.setEnabled(false);
@@ -397,10 +511,33 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}) => {
         // do not immediately stop; allow onclose to handle cleanup
       };
     } catch (err) {
-      console.error('Failed to start voice session:', err);
-      stopVoiceSession();
-    }
+        if (generation !== connectionGenerationRef.current) return;
+
+        console.error('Failed to start voice session:', err);
+
+        connectingRef.current = false;
+        reconnectingRef.current = false;
+        voiceActiveRef.current = false;
+
+        audioPlaybackRef.current?.close();
+        audioPlaybackRef.current = null;
+
+        setIsVoiceActive(false);
+        setStatus('disconnected');
+        setLoading?.(false);
+
+        // Preserve saved IDs and displayed messages after recovery failure.
+        optionsRef.current.onNotice?.(
+          resume
+            ? 'Voice connection could not be restored. Your displayed conversation is still available.'
+            : 'Unable to connect voice chat. Please try again.'
+        );
+      }
   }, [isVoiceActive, setLoading, stopVoiceSession]);
+
+  useEffect(() => {
+    startVoiceSessionRef.current = startVoiceSession;
+  }, [startVoiceSession]);
 
   useEffect(() => {
     return () => {
