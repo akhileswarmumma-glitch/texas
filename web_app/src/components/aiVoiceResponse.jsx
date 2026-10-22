@@ -86,6 +86,7 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}, initialSessionI
 
     audioPlaybackRef.current = null;
 
+    
     // IMPORTANT:
     // Wait until THIS socket is actually closed.
     if (socket) {
@@ -246,7 +247,7 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}, initialSessionI
         // Do not start mic capture here; push-to-talk will initiate listening when user presses the mic.
 
         // 🆕 ADD THIS ENTIRE BLOCK — create the mic ONCE per connection
-        
+
         try {
           let sentChunks = 0;
           const capture = new AudioCapture(
@@ -393,7 +394,7 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}, initialSessionI
             case 'agent_text':
               if (typeof data.response_id === 'string' && data.response_id.trim()) {
                 previousResponseIdRef.current = data.response_id.trim();
-                }
+              }
               setLoading?.(false);
               if (typeof callbackRef.current === 'function') {
                 callbackRef.current(data.text || '', 'ai', {
@@ -405,7 +406,9 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}, initialSessionI
               }
               break;
 
+
             case 'consent':
+              
               setLoading?.(false);
               if (typeof callbackRef.current === 'function') {
                 callbackRef.current(
@@ -416,12 +419,14 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}, initialSessionI
               }
               break;
 
+            
             case 'notice': {
               if (data.code !== 'scale_in') break;
               if (reconnectingRef.current) break;
 
               reconnectingRef.current = true;
               connectingRef.current = false;
+
 
               // Invalidate callbacks and async initialization from this connection.
               connectionGenerationRef.current += 1;
@@ -437,6 +442,7 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}, initialSessionI
 
               // Stop any response audio while the replacement connection is
               // being established, without removing its displayed message.
+
               audioPlaybackRef.current?.flush();
               try {
                 optionsRef.current.onInterrupt?.();
@@ -482,6 +488,7 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}, initialSessionI
         }
       };
 
+
       ws.onclose = (ev) => {
         console.debug(
           'VoiceAgent: websocket closed',
@@ -523,28 +530,28 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}, initialSessionI
         // do not immediately stop; allow onclose to handle cleanup
       };
     } catch (err) {
-        if (generation !== connectionGenerationRef.current) return;
+      if (generation !== connectionGenerationRef.current) return;
 
-        console.error('Failed to start voice session:', err);
+      console.error('Failed to start voice session:', err);
 
-        connectingRef.current = false;
-        reconnectingRef.current = false;
-        voiceActiveRef.current = false;
+      connectingRef.current = false;
+      reconnectingRef.current = false;
+      voiceActiveRef.current = false;
 
-        audioPlaybackRef.current?.close();
-        audioPlaybackRef.current = null;
+      audioPlaybackRef.current?.close();
+      audioPlaybackRef.current = null;
 
-        setIsVoiceActive(false);
-        setStatus('disconnected');
-        setLoading?.(false);
+      setIsVoiceActive(false);
+      setStatus('disconnected');
+      setLoading?.(false);
 
-        // Preserve saved IDs and displayed messages after recovery failure.
-        optionsRef.current.onNotice?.(
-          resume
-            ? 'Voice connection could not be restored. Your displayed conversation is still available.'
-            : 'Unable to connect voice chat. Please try again.'
-        );
-      }
+      // Preserve saved IDs and displayed messages after recovery failure.
+      optionsRef.current.onNotice?.(
+        resume
+          ? 'Voice connection could not be restored. Your displayed conversation is still available.'
+          : 'Unable to connect voice chat. Please try again.'
+      );
+    }
   }, [isVoiceActive, setLoading, stopVoiceSession]);
 
   useEffect(() => {
