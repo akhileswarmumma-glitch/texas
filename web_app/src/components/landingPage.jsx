@@ -1,6 +1,20 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FaUser } from "react-icons/fa";
-import { FiLogOut, FiPlus, FiSend, FiMic, FiSquare, FiChevronDown, FiMessageSquare, FiPlay, FiPause, FiRotateCcw, FiLink, FiCheckCircle, FiPower } from "react-icons/fi";
+import {
+  FiLogOut,
+  FiPlus,
+  FiMic,
+  FiSquare,
+  FiChevronDown,
+  FiMessageSquare,
+  FiPlay,
+  FiPause,
+  FiRotateCcw,
+  FiLink,
+  FiCheckCircle,
+  FiPower,
+  FiArrowUp,
+} from "react-icons/fi";
 import ReactMarkdown from "react-markdown";
 import "./markdown.css";
 import remarkGfm from "remark-gfm";
@@ -14,12 +28,22 @@ function formatDuration(t) {
   const sec = Math.floor(t || 0);
   const m = Math.floor(sec / 60);
   const s = sec % 60;
-  return `${m}:${s.toString().padStart(2, '0')}`;
+  return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-function CurrentResponsePlayer({ audioCurrentTime, audioDuration, isPlaying, stateLabel, onSeek, onPlayToggle, onReplay }) {
+function CurrentResponsePlayer({
+  audioCurrentTime,
+  audioDuration,
+  isPlaying,
+  stateLabel,
+  onSeek,
+  onPlayToggle,
+  onReplay,
+}) {
   const barRef = useRef(null);
-  const progress = audioDuration ? Math.min(1, audioCurrentTime / audioDuration) : 0;
+  const progress = audioDuration
+    ? Math.min(1, audioCurrentTime / audioDuration)
+    : 0;
 
   const handleBarClick = (ev) => {
     const bar = barRef.current;
@@ -33,7 +57,10 @@ function CurrentResponsePlayer({ audioCurrentTime, audioDuration, isPlaying, sta
     <>
       <div className="flex flex-row items-center gap-3">
         <AgentAvatar />
-        <div className="rounded-xl border w-full px-4 py-3" style={{ borderColor: "#2a2f3a" }}>
+        <div
+          className="rounded-xl border w-full px-4 py-3"
+          style={{ borderColor: "#2a2f3a" }}
+        >
           <div className="flex items-center gap-2.5">
             <button
               type="button"
@@ -42,18 +69,30 @@ function CurrentResponsePlayer({ audioCurrentTime, audioDuration, isPlaying, sta
               className="flex-shrink-0 w-8 h-8 cursor-pointer rounded-full grid place-items-center text-white"
               style={{ background: "var(--success-default)" }}
             >
-              {isPlaying ? <FiPause size={13} /> : <FiPlay size={13} style={{ marginLeft: 1 }} />}
+              {isPlaying ? (
+                <FiPause size={13} />
+              ) : (
+                <FiPlay size={13} style={{ marginLeft: 1 }} />
+              )}
             </button>
             <button
               type="button"
               onClick={onReplay}
               aria-label="Replay from start"
               className="flex-shrink-0 w-8 h-8 cursor-pointer rounded-full grid place-items-center border"
-              style={{ background: "var(--primary-bg)", color: "var(--secondary-contrast)" }}
+              style={{
+                background: "var(--primary-bg)",
+                color: "var(--secondary-contrast)",
+              }}
             >
               <FiRotateCcw size={13} />
             </button>
-            <span className="text-[10px] w-8 flex-shrink-0" style={{ color: "var(--secondary-contrast)" }}>{formatDuration(audioCurrentTime)}</span>
+            <span
+              className="text-[10px] w-8 flex-shrink-0"
+              style={{ color: "var(--secondary-contrast)" }}
+            >
+              {formatDuration(audioCurrentTime)}
+            </span>
             <div
               ref={barRef}
               onClick={handleBarClick}
@@ -62,42 +101,61 @@ function CurrentResponsePlayer({ audioCurrentTime, audioDuration, isPlaying, sta
             >
               <div
                 className="absolute left-0 top-0 bottom-0 rounded-full"
-                style={{ width: `${progress * 100}%`, background: "linear-gradient(90deg,#5b8cff,#7c5cff)" }}
+                style={{
+                  width: `${progress * 100}%`,
+                  background: "linear-gradient(90deg,#5b8cff,#7c5cff)",
+                }}
               />
               <div
                 className="absolute top-1/2 w-[11px] h-[11px] rounded-full bg-white shadow"
-                style={{ left: `${progress * 100}%`, transform: "translate(-50%, -50%)" }}
+                style={{
+                  left: `${progress * 100}%`,
+                  transform: "translate(-50%, -50%)",
+                }}
               />
             </div>
-            <span className="text-[10px] w-8 flex-shrink-0 text-right" style={{ color: "var(--secondary-contrast)" }}>{formatDuration(audioDuration)}</span>
+            <span
+              className="text-[10px] w-8 flex-shrink-0 text-right"
+              style={{ color: "var(--secondary-contrast)" }}
+            >
+              {formatDuration(audioDuration)}
+            </span>
           </div>
         </div>
       </div>
     </>
-
   );
 }
 
 const QUICK_INQUIRIES = [
-  { category: "HR & Benefits", text: "How do I enroll in or update my benefits?" },
-  { category: "HR & Payroll", text: "How do I update my W-4 or tax withholding forms?" },
-  { category: "POS & Billing", text: "How do I replace or redeem a damaged gift card?" },
-  { category: "Finance & Ops", text: "How do I contact travel, expense or vendor support?" },
+  {
+    category: "HR & Benefits",
+    text: "How do I enroll in or update my benefits?",
+  },
+  {
+    category: "HR & Payroll",
+    text: "How do I update my W-4 or tax withholding forms?",
+  },
+  {
+    category: "POS & Billing",
+    text: "How do I replace or redeem a damaged gift card?",
+  },
+  {
+    category: "Finance & Ops",
+    text: "How do I contact travel, expense or vendor support?",
+  },
 ];
 
-
 function AgentAvatar() {
-  return <div className="w-8 h-8 flex-none rounded-full bg-[var(--maroon-primary)] text-black grid place-items-center text-lg font-extrabold">🤠</div>;
+  return (
+    <div className="w-8 h-8 flex-none rounded-full bg-[var(--maroon-primary)] text-black grid place-items-center text-lg font-extrabold">
+      🤠
+    </div>
+  );
 }
 const markdownRendor = {
   a: ({ node, href, children, ...props }) => {
-    const {
-      index,
-      siblingCount,
-      ordinal,
-      isHeader,
-      ...restHtmlProps
-    } = props;
+    const { index, siblingCount, ordinal, isHeader, ...restHtmlProps } = props;
 
     return (
       <a
@@ -119,12 +177,19 @@ const MessageBubble = memo(function MessageBubble({ item, mode }) {
   const resources = item.resources || [];
   const needsConsent = Boolean(item.link) || Boolean(item.consentRequired);
 
-
   return (
-    <div className={`flex gap-3 items-start ${item.sender === "user" ? "justify-end" : ""}`}>
+    <div
+      className={`flex gap-3 items-start ${item.sender === "user" ? "justify-end" : ""}`}
+    >
       {/* {item.sender !== "user" && <AgentAvatar />} */}
-      <div className={`max-w-[90%] p-3.5 rounded-xl text-sm break-words ${item.sender === "user" ? 'bg-[var(--success-contrast)] border border-[var(--primary-bg)] text-[var(--secondary-contrast)] rounded-br-[4px]' : 'bg-[#F2E8D2] border-l-2 border-[var(--maroon-primary)] text-[var(--secondary-contrast)] rounded-bl-[4px]'}`}>
-        {item.sender !== "user" && <div className="text-[var(--maroon-primary)] text-xs font-extrabold mb-1">✦ Roadie Ranger</div>}
+      <div
+        className={`max-w-[90%] p-3.5 rounded-xl text-sm break-words ${item.sender === "user" ? "bg-[var(--success-contrast)] border border-[var(--primary-bg)] text-[var(--secondary-contrast)] rounded-br-[4px]" : "bg-[#F2E8D2] border-l-2 border-[var(--maroon-primary)] text-[var(--secondary-contrast)] rounded-bl-[4px]"}`}
+      >
+        {item.sender !== "user" && (
+          <div className="text-[var(--maroon-primary)] text-xs font-extrabold mb-1">
+            ✦ Roadie Ranger
+          </div>
+        )}
         <div className="chat-markdown">
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
@@ -136,14 +201,26 @@ const MessageBubble = memo(function MessageBubble({ item, mode }) {
 
         {resources.length > 0 && (
           <div className="border-t border-emerald-900 mt-3 pt-2">
-            <button type="button" onClick={() => setShowResources((value) => !value)} className="w-full flex items-center justify-between text-yellow-400 text-xs font-extrabold">
+            <button
+              type="button"
+              onClick={() => setShowResources((value) => !value)}
+              className="w-full flex items-center justify-between text-yellow-400 text-xs font-extrabold"
+            >
               <span>🔗 {resources.length} Sources Used</span>
-              <FiChevronDown className={showResources ? "transform rotate-180" : ""} />
+              <FiChevronDown
+                className={showResources ? "transform rotate-180" : ""}
+              />
             </button>
             {showResources && (
               <div className="flex flex-col gap-2 mt-2">
                 {resources.map((resource, index) => (
-                  <a key={`${resource.url}-${index}`} href={resource.url} target="_blank" rel="noreferrer" className="flex gap-2 items-center bg-[#08281d] border border-emerald-800 rounded-lg p-2 text-sm text-gray-200 no-underline">
+                  <a
+                    key={`${resource.url}-${index}`}
+                    href={resource.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex gap-2 items-center bg-[#08281d] border border-emerald-800 rounded-lg p-2 text-sm text-gray-200 no-underline"
+                  >
                     📄 <span>{resource.name || resource.url}</span>
                   </a>
                 ))}
@@ -154,21 +231,39 @@ const MessageBubble = memo(function MessageBubble({ item, mode }) {
 
         {needsConsent && showConsent && (
           <div className="flex gap-2 mt-3">
-            <button type="button" onClick={() => { if (item.link) window.open(item.link, "_blank", "noopener,noreferrer"); setShowConsent(false); }} className="rounded-md bg-yellow-400 text-black px-3 py-1 text-sm font-bold">Grant Consent</button>
-            <button type="button" onClick={() => setShowConsent(false)} className="rounded-md border px-3 py-1 text-sm">Cancel</button>
+            <button
+              type="button"
+              onClick={() => {
+                if (item.link)
+                  window.open(item.link, "_blank", "noopener,noreferrer");
+                setShowConsent(false);
+              }}
+              className="rounded-md bg-yellow-400 text-black px-3 py-1 text-sm font-bold"
+            >
+              Grant Consent
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowConsent(false)}
+              className="rounded-md border px-3 py-1 text-sm"
+            >
+              Cancel
+            </button>
           </div>
         )}
       </div>
     </div>
   );
-})
+});
 
 function TypingIndicator() {
   return (
     <div className="flex gap-3 items-start">
       <AgentAvatar />
       <div className="max-w-[80%] p-3.5 rounded-xl text-sm break-words bg-[#F2E8D2] border-l-2 border-[var(--maroon-primary)] text-gray-200">
-        <div className="text-[var(--maroon-primary)] text-xs font-extrabold mb-1">✦ Roadie Ranger</div>
+        <div className="text-[var(--maroon-primary)] text-xs font-extrabold mb-1">
+          ✦ Roadie Ranger
+        </div>
         {/* <div className="flex gap-1"><span className="w-2 h-2 bg-[var(--primary-lighter)] rounded-full animate-pulse" /><span className="w-2 h-2 bg-[var(--primary-light)] rounded-full animate-pulse delay-75" /><span className="w-2 h-2 bg-[var(--primary-default)] rounded-full animate-pulse delay-150" /></div> */}
         <div
           className="flex items-center gap-1 h-6"
@@ -222,7 +317,15 @@ function TypingIndicator() {
   );
 }
 
-function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, onNewChat, onLogout }) {
+function ChatExperience({
+  firstName,
+  userInfo,
+  userEmail,
+  initials,
+  sessionId,
+  onNewChat,
+  onLogout,
+}) {
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState("");
   const [mode, setMode] = useState(null); // null = choose mode on landing, 'text' or 'voice'
@@ -242,30 +345,60 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
     const streaming = Boolean(meta.streaming);
     setMessages((previous) => {
       if (sender === "ai" && streaming) {
-        const index = [...previous].map((item, i) => ({ item, i })).reverse().find(({ item }) => item.sender === "ai" && item.streaming)?.i;
+        const index = [...previous]
+          .map((item, i) => ({ item, i }))
+          .reverse()
+          .find(({ item }) => item.sender === "ai" && item.streaming)?.i;
         if (index !== undefined) {
-          return previous.map((item, i) => i === index ? { ...item, message: item.message + message } : item);
+          return previous.map((item, i) =>
+            i === index ? { ...item, message: item.message + message } : item,
+          );
         }
-        return [...previous, { id: `${Date.now()}-ai`, sender: "ai", message, streaming: true, ...meta }];
+        return [
+          ...previous,
+          {
+            id: `${Date.now()}-ai`,
+            sender: "ai",
+            message,
+            streaming: true,
+            ...meta,
+          },
+        ];
       }
 
       if (sender === "ai") {
-        const index = [...previous].map((item, i) => ({ item, i })).reverse().find(({ item }) => item.sender === "ai" && item.streaming)?.i;
+        const index = [...previous]
+          .map((item, i) => ({ item, i }))
+          .reverse()
+          .find(({ item }) => item.sender === "ai" && item.streaming)?.i;
 
         if (index !== undefined) {
-          return previous.map((item, i) => i === index ? {
-            ...item,
-            message,
-            streaming: false,
-            message_id: meta.message_id || item.message_id,
-            link: meta.link || item.link,
-            resources: meta.resources || item.resources,
-            consentRequired: meta.consentRequired,
-          } : item);
+          return previous.map((item, i) =>
+            i === index
+              ? {
+                  ...item,
+                  message,
+                  streaming: false,
+                  message_id: meta.message_id || item.message_id,
+                  link: meta.link || item.link,
+                  resources: meta.resources || item.resources,
+                  consentRequired: meta.consentRequired,
+                }
+              : item,
+          );
         }
       }
 
-      return [...previous, { id: `${Date.now()}-${Math.random()}`, sender, message, streaming: false, ...meta }];
+      return [
+        ...previous,
+        {
+          id: `${Date.now()}-${Math.random()}`,
+          sender,
+          message,
+          streaming: false,
+          ...meta,
+        },
+      ];
     });
   }, []);
 
@@ -277,7 +410,7 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
     addMessage,
     setLoading,
     handleLogout,
-    sessionId
+    sessionId,
   );
 
   const audioRef = useRef(null);
@@ -296,7 +429,7 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
     const sec = Math.floor(t || 0);
     const m = Math.floor(sec / 60);
     const s = sec % 60;
-    return `${m}:${s.toString().padStart(2, '0')}`;
+    return `${m}:${s.toString().padStart(2, "0")}`;
   };
 
   const handleAudio = useCallback(({ url, blob, format }) => {
@@ -315,20 +448,22 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
       setAgentSpeaking(true);
       // attempt to play and notify server via hook when started (hook returns notifier)
       const playPromise = audioRef.current.play();
-      if (playPromise && typeof playPromise.then === 'function') {
+      if (playPromise && typeof playPromise.then === "function") {
         playPromise.catch((err) => {
-          console.warn('Autoplay blocked or failed:', err);
+          console.warn("Autoplay blocked or failed:", err);
         });
       }
     } catch (err) {
-      console.error('handleAudio error', err);
+      console.error("handleAudio error", err);
     }
   }, []);
 
   const handleInterrupt = useCallback(() => {
     const audio = audioRef.current;
     if (audio) {
-      const currentTime = Number.isFinite(audio.currentTime) ? audio.currentTime : 0;
+      const currentTime = Number.isFinite(audio.currentTime)
+        ? audio.currentTime
+        : 0;
 
       // Mute FIRST — this silences the output path within a few ms,
       // unlike pause() alone which can leave 1-2s of buffered audio playing.
@@ -351,7 +486,7 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
     audioRef.current.currentTime = 0;
     setAudioCurrentTime(0);
     const p = audioRef.current.play();
-    if (p && p.then) p.catch(() => { });
+    if (p && p.then) p.catch(() => {});
   }, []);
 
   const {
@@ -369,7 +504,7 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
     resumeSpeaking,
     notifyPlaybackStarted,
     notifyPlaybackEnded,
-    setAgentSpeakingGate
+    setAgentSpeakingGate,
   } = useVoiceAgent(
     addMessage,
     setLoading,
@@ -378,7 +513,7 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
       onInterrupt: handleInterrupt,
       onNotice: setVoiceNotice,
     },
-    sessionId
+    sessionId,
   );
 
   const startVoiceChat = useCallback(async () => {
@@ -408,10 +543,7 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
   // 3. listening is not blocked
   // 4. actual microphone audio is being detected
   const isAudioCapturing =
-    isVoiceActive &&
-    isRecording &&
-    !listeningBlocked &&
-    micLevel > 0.02;
+    isVoiceActive && isRecording && !listeningBlocked && micLevel > 0.02;
 
   useEffect(() => {
     if (!isVoiceActive) return;
@@ -477,7 +609,6 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
     }
   }, [isVoiceActive]);
 
-
   useEffect(() => {
     if (messages.length === 0) return;
     requestAnimationFrame(() => {
@@ -490,7 +621,8 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
 
   useEffect(() => {
     const handleOutside = (event) => {
-      if (profileRef.current && !profileRef.current.contains(event.target)) setShowProfile(false);
+      if (profileRef.current && !profileRef.current.contains(event.target))
+        setShowProfile(false);
     };
     document.addEventListener("mousedown", handleOutside);
     return () => document.removeEventListener("mousedown", handleOutside);
@@ -504,41 +636,75 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
     void sendTextMessage(text);
   }, [addMessage, draft, isVoiceActive, loading, sendTextMessage]);
 
-  const selectInquiry = useCallback((text) => {
-    // kept for legacy use; prefer populateQuery
-    if (loading || isVoiceActive) return;
-    addMessage(text, "user");
-    void sendTextMessage(text);
-  }, [addMessage, isVoiceActive, loading, sendTextMessage]);
+  const startLandingTextChat = useCallback(async () => {
+    const text = draft.trim();
+    if (!text || loading || isVoiceActive) return;
 
-  const populateQuery = useCallback(async (text) => {
-    // place query into input instead of sending
-    if (isVoiceActive) return;
-    await onNewChat();
+    const nextText = text;
+    setDraft("");
     setMode("text");
-    setDraft(text);
-    // focus the textarea after it renders
-    setTimeout(() => textareaRef.current?.focus(), 50);
-  }, [isVoiceActive, onNewChat]);
+    setLoading(true);
+    addMessage(nextText, "user");
 
-  const requestModeChange = useCallback((nextMode) => {
-    if (!nextMode || nextMode === mode) {
-      setShowModeWarning(false);
-      setPendingMode(null);
-      return;
+    try {
+      await onNewChat();
+      void sendTextMessage(nextText);
+    } catch (error) {
+      console.error("Failed to start landing text chat:", error);
+      void sendTextMessage(nextText);
     }
-    setPendingMode(nextMode);
-    setShowModeWarning(true);
-  }, [mode]);
+  }, [addMessage, draft, isVoiceActive, loading, onNewChat, sendTextMessage]);
+
+  const selectInquiry = useCallback(
+    (text) => {
+      // kept for legacy use; prefer populateQuery
+      if (loading || isVoiceActive) return;
+      addMessage(text, "user");
+      void sendTextMessage(text);
+    },
+    [addMessage, isVoiceActive, loading, sendTextMessage],
+  );
+
+  const populateQuery = useCallback(
+    async (text) => { 
+      // place query into input instead of sending
+      if (isVoiceActive) return;
+      await onNewChat();
+      setMode("text");
+      setDraft(text);
+      // focus the textarea after it renders
+      setTimeout(() => textareaRef.current?.focus(), 50);
+    },
+    [isVoiceActive, onNewChat],
+  );
+
+  const requestModeChange = useCallback(
+    (nextMode) => {
+      if (!nextMode || nextMode === mode) {
+        setShowModeWarning(false);
+        setPendingMode(null);
+        return;
+      }
+      setPendingMode(nextMode);
+      setShowModeWarning(true);
+    },
+    [mode],
+  );
 
   const confirmModeChange = useCallback(async () => {
     if (!pendingMode) {
       setShowModeWarning(false);
       return;
     }
+
+    const nextMode = pendingMode;
     setMessages([]);
     setDraft("");
-    if (pendingMode === "text" && isVoiceActive) {
+    setMode(nextMode);
+    setPendingMode(null);
+    setShowModeWarning(false);
+
+    if (nextMode === "text" && isVoiceActive) {
       skipVoiceCloseRefresh.current = true;
       setIsRecording(false);
       setIsPlaying(false);
@@ -551,23 +717,38 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
         audioRef.current.removeAttribute("src");
         audioRef.current.load?.();
       }
-      stopVoiceSession();
+      try {
+        await stopVoiceSession();
+      } catch (err) {
+        console.error("Failed to stop voice session:", err);
+      }
     }
-    await onNewChat();
-    setMode(pendingMode);
-    if (pendingMode === "voice") {
-      try { await startVoiceChat(); } catch (err) { console.error("Auto-connect failed:", err); }
+
+    try {
+      await onNewChat();
+    } catch (err) {
+      console.error("New chat setup failed after mode switch:", err);
     }
-    setPendingMode(null);
-    setShowModeWarning(false);
-  }, [isVoiceActive, onNewChat, pendingMode, stopVoiceSession]);
+
+    if (nextMode === "voice") {
+      try {
+        await startVoiceChat();
+      } catch (err) {
+        console.error("Auto-connect failed:", err);
+      }
+    }
+  }, [isVoiceActive, onNewChat, pendingMode, startVoiceChat, stopVoiceSession]);
 
   const togglePttMode = useCallback(() => {
     setPttMode((prev) => {
       const next = !prev;
       // Switching modes mid-session: cleanly stop any active capture first
       if (isRecording) {
-        try { stopCapture(); } catch (err) { console.error(err); }
+        try {
+          stopCapture();
+        } catch (err) {
+          console.error(err);
+        }
         setIsRecording(false);
       }
       return next;
@@ -616,8 +797,6 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
     suspendCapture,
   ]);
 
-
-
   const handleDisconnect = useCallback(async () => {
     setMessages([]);
     setDraft("");
@@ -638,157 +817,120 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
     await onNewChat();
   }, [stopVoiceSession, onNewChat]);
 
-
   const conversationStarted = messages.length > 0;
   const modeSelected = mode !== null;
 
-  const inputPlaceholder = "Write a message..."
+  const inputPlaceholder = "Write a message...";
 
-  const handleModeSelection = useCallback(async (nextMode) => {
-    if (!nextMode) return;
-    setAgentSpeaking(false);
-
-
-    if (mode === null) {
-      setMessages([]);
-      setDraft("");
-      setPendingMode(null);
-      setShowModeWarning(false);
-      // ensure any previous voice session is stopped and player reset
-      // try { stopVoiceSession(); } catch (err) { console.error("error is ",err) }
-      if (isRecording) {
-        try {
-          stopCapture();
-        } catch (err) {
-          console.error("Failed to stop microphone:", err);
-        }
-        setIsRecording(false);
-      }
-      try {
-        if (audioRef.current) {
-          if (!audioRef.current.paused) {
-            suppressPauseNotifyRef.current = true; audioRef.current.pause();
-          }
-          audioRef.current.removeAttribute('src'); audioRef.current.load?.();
-        }
-      } catch (e) { }
-      setAudioUrl(null); setAudioBlob(null); setAudioCurrentTime(0); setAudioDuration(0); setIsPlaying(false);
+  const handleModeSelection = useCallback(
+    async (nextMode) => {
+      if (!nextMode) return;
       setAgentSpeaking(false);
-      setIsRecording(false);
-      setMode(nextMode);
-      if (nextMode === "text") {
-        await onNewChat();
-        return;
-      }
 
-      if (nextMode === "voice") {
+      if (mode === null) {
+        setMessages([]);
+        setDraft("");
+        setPendingMode(null);
+        setShowModeWarning(false);
+        // ensure any previous voice session is stopped and player reset
+        // try { stopVoiceSession(); } catch (err) { console.error("error is ",err) }
+        if (isRecording) {
+          try {
+            stopCapture();
+          } catch (err) {
+            console.error("Failed to stop microphone:", err);
+          }
+          setIsRecording(false);
+        }
         try {
-          // ------------------------------------------------
-          // 1. Immediately stop browser audio output
-          // ------------------------------------------------
           if (audioRef.current) {
-            suppressPauseNotifyRef.current = true;
-
-            audioRef.current.muted = true;
-
-            try {
+            if (!audioRef.current.paused) {
+              suppressPauseNotifyRef.current = true;
               audioRef.current.pause();
-            } catch (err) {
-              console.warn("Failed to pause current audio:", err);
             }
-
             audioRef.current.removeAttribute("src");
             audioRef.current.load?.();
-            audioRef.current.muted = false;
           }
-
-          setIsPlaying(false);
-          setAgentSpeaking(false);
-          setAgentSpeakingGateRef.current?.(false);
-
-          setAudioUrl(null);
-          setAudioBlob(null);
-          setAudioCurrentTime(0);
-          setAudioDuration(0);
-
-          setIsRecording(false);
-
-          // ------------------------------------------------
-          // 2. FULLY close the current voice session
-          // ------------------------------------------------
-          await stopVoiceSession();
-
-          // ------------------------------------------------
-          // 3. Create fresh conversation
-          // ------------------------------------------------
-          await startVoiceChat();
-
-        } catch (err) {
-          console.error(
-            "Failed to restart voice session:",
-            err
-          );
-        }
-
-        return;
-      }
-      return;
-    }
-    if (nextMode === mode) {
-      setMessages([]);
-      setDraft("");
-      setPendingMode(null);
-      setShowModeWarning(false);
-
-      if (isRecording) {
-        try {
-          stopCapture();
-        } catch (err) {
-          console.error("Failed to stop microphone:", err);
-        }
-        setIsRecording(false);
-      }
-      // Reset voice session and player when starting a fresh chat in the same mode
-      // try { stopVoiceSession(); } catch (err) { /* ignore */ }
-      try {
-        if (audioRef.current) {
-          suppressPauseNotifyRef.current = true;
-
-          audioRef.current.muted = true;
-
-          try {
-            audioRef.current.pause();
-          } catch (err) {
-            console.warn("Failed to pause current audio:", err);
-          }
-
-          audioRef.current.removeAttribute("src");
-          audioRef.current.load?.();
-          audioRef.current.muted = false;
-        }
-        setIsPlaying(false);
-        setAgentSpeaking(false);
-        setAgentSpeakingGateRef.current?.(false);
-
+        } catch (e) {}
         setAudioUrl(null);
         setAudioBlob(null);
         setAudioCurrentTime(0);
         setAudioDuration(0);
-
+        setIsPlaying(false);
+        setAgentSpeaking(false);
         setIsRecording(false);
-      } catch (e) { }
+        setMode(nextMode);
+        if (nextMode === "text") {
+          await onNewChat();
+          return;
+        }
 
-      if (nextMode === "text") {
-        handleLogoClick()
+        if (nextMode === "voice") {
+          try {
+            // ------------------------------------------------
+            // 1. Immediately stop browser audio output
+            // ------------------------------------------------
+            if (audioRef.current) {
+              suppressPauseNotifyRef.current = true;
+
+              audioRef.current.muted = true;
+
+              try {
+                audioRef.current.pause();
+              } catch (err) {
+                console.warn("Failed to pause current audio:", err);
+              }
+
+              audioRef.current.removeAttribute("src");
+              audioRef.current.load?.();
+              audioRef.current.muted = false;
+            }
+
+            setIsPlaying(false);
+            setAgentSpeaking(false);
+            setAgentSpeakingGateRef.current?.(false);
+
+            setAudioUrl(null);
+            setAudioBlob(null);
+            setAudioCurrentTime(0);
+            setAudioDuration(0);
+
+            setIsRecording(false);
+
+            // ------------------------------------------------
+            // 2. FULLY close the current voice session
+            // ------------------------------------------------
+            await stopVoiceSession();
+
+            // ------------------------------------------------
+            // 3. Create fresh conversation
+            // ------------------------------------------------
+            await startVoiceChat();
+          } catch (err) {
+            console.error("Failed to restart voice session:", err);
+          }
+
+          return;
+        }
         return;
       }
+      if (nextMode === mode) {
+        setMessages([]);
+        setDraft("");
+        setPendingMode(null);
+        setShowModeWarning(false);
 
-      if (nextMode === "voice") {
+        if (isRecording) {
+          try {
+            stopCapture();
+          } catch (err) {
+            console.error("Failed to stop microphone:", err);
+          }
+          setIsRecording(false);
+        }
+        // Reset voice session and player when starting a fresh chat in the same mode
+        // try { stopVoiceSession(); } catch (err) { /* ignore */ }
         try {
-
-          // ------------------------------------------------
-          // 1. Immediately stop browser audio output
-          // ------------------------------------------------
           if (audioRef.current) {
             suppressPauseNotifyRef.current = true;
 
@@ -804,7 +946,6 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
             audioRef.current.load?.();
             audioRef.current.muted = false;
           }
-
           setIsPlaying(false);
           setAgentSpeaking(false);
           setAgentSpeakingGateRef.current?.(false);
@@ -815,35 +956,81 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
           setAudioDuration(0);
 
           setIsRecording(false);
+        } catch (e) {}
 
-          // ------------------------------------------------
-          // 2. FULLY close the current voice session
-          // ------------------------------------------------
-          await stopVoiceSession();
-
-          // ------------------------------------------------
-          // 3. Create fresh conversation
-          // ------------------------------------------------
-          await onNewChat();
-
-          // ------------------------------------------------
-          // 4. Start completely fresh WebSocket + mic
-          // ------------------------------------------------
-          await startVoiceChat();
-        } catch (err) {
-          console.error(
-            "Failed to restart voice session:",
-            err
-          );
+        if (nextMode === "text") {
+          handleLogoClick();
+          return;
         }
 
+        if (nextMode === "voice") {
+          try {
+            // ------------------------------------------------
+            // 1. Immediately stop browser audio output
+            // ------------------------------------------------
+            if (audioRef.current) {
+              suppressPauseNotifyRef.current = true;
+
+              audioRef.current.muted = true;
+
+              try {
+                audioRef.current.pause();
+              } catch (err) {
+                console.warn("Failed to pause current audio:", err);
+              }
+
+              audioRef.current.removeAttribute("src");
+              audioRef.current.load?.();
+              audioRef.current.muted = false;
+            }
+
+            setIsPlaying(false);
+            setAgentSpeaking(false);
+            setAgentSpeakingGateRef.current?.(false);
+
+            setAudioUrl(null);
+            setAudioBlob(null);
+            setAudioCurrentTime(0);
+            setAudioDuration(0);
+
+            setIsRecording(false);
+
+            // ------------------------------------------------
+            // 2. FULLY close the current voice session
+            // ------------------------------------------------
+            await stopVoiceSession();
+
+            // ------------------------------------------------
+            // 3. Create fresh conversation
+            // ------------------------------------------------
+            await onNewChat();
+
+            // ------------------------------------------------
+            // 4. Start completely fresh WebSocket + mic
+            // ------------------------------------------------
+            await startVoiceChat();
+          } catch (err) {
+            console.error("Failed to restart voice session:", err);
+          }
+
+          return;
+        }
         return;
       }
-      return;
-    }
 
-    requestModeChange(nextMode);
-  }, [mode, isVoiceActive, isRecording, onNewChat, requestModeChange, stopVoiceSession, startVoiceSession, stopCapture]);
+      requestModeChange(nextMode);
+    },
+    [
+      mode,
+      isVoiceActive,
+      isRecording,
+      onNewChat,
+      requestModeChange,
+      stopVoiceSession,
+      startVoiceSession,
+      stopCapture,
+    ],
+  );
 
   const stopVoiceMode = useCallback(async () => {
     try {
@@ -932,17 +1119,26 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
               }}
             />
           </div>
-          <div className="w-7 h-7 rounded-full bg-[var(--maroon-primary)] border border-[var(--neutral-400)] text-black grid place-items-center text-sm font-extrabold sm:w-8 sm:h-8 sm:text-base">🤠</div>
+          <div className="w-7 h-7 rounded-full bg-[var(--maroon-primary)] border border-[var(--neutral-400)] text-black grid place-items-center text-sm font-extrabold sm:w-8 sm:h-8 sm:text-base">
+            🤠
+          </div>
           <div className="min-w-0">
-            <div className="font-extrabold text-[11px] leading-none sm:text-sm">Roadie Ranger</div>
-            <div className="text-[9px] text-emerald-300 mt-0.5 flex items-center sm:text-[10px]"><span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--success-default)] mr-1.5" /> Online now</div>
+            <div className="font-extrabold text-[11px] leading-none sm:text-sm">
+              Roadie Ranger
+            </div>
+            <div className="text-[9px] text-emerald-300 mt-0.5 flex items-center sm:text-[10px]">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--success-default)] mr-1.5" />{" "}
+              Online now
+            </div>
             {modeSelected && sessionId && (
               <div
                 className="mt-0.5 flex min-w-0 items-center gap-1 text-[8px] leading-none text-white/75 sm:max-w-[520px] sm:text-[9px]"
                 title={sessionId}
                 aria-label={`Conversation ID: ${sessionId}`}
               >
-                <span className="shrink-0 font-semibold text-white/90">ID:</span>
+                <span className="shrink-0 font-semibold text-white/90">
+                  ID:
+                </span>
                 <span
                   className="
                     min-w-0
@@ -964,107 +1160,202 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          {!modeSelected ? (
-            null
-          ) : (
+          {!modeSelected ? null : (
             <div className="flex items-center gap-2">
-
               {/* Text Chat */}
               <button
                 type="button"
-                title="Start a new text chat"
-                onClick={() => handleModeSelection("text")}
-                className={`inline-flex gap-2 cursor-pointer items-center justify-center rounded-full border px-2.5 py-1.5 text-[10px] font-bold sm:px-3 sm:text-xs ${mode === "text"
-                  ? "border-[var(--primary-default)] bg-[var(--primary-default)] text-white"
-                  : "border-emerald-800 bg-[#102a20] text-gray-200"
-                  }`}
+                title="Start a new chat"
+                onClick={() => void handleLogoClick()}
+                className={`inline-flex gap-2 cursor-pointer items-center justify-center rounded-full border px-2.5 py-1.5 text-[10px] font-bold sm:px-3 sm:text-xs ${
+                  mode === "text"
+                    ? "border-[var(--primary-default)] bg-[var(--primary-default)] text-white"
+                    : "border-emerald-800 bg-[#102a20] text-gray-200"
+                }`}
               >
                 <FiPlus className="text-[10px] sm:text-xs" />
                 <FiMessageSquare className="text-xs sm:hidden" />
-                <span className="hidden sm:inline">Text Chat</span>
+                <span className="hidden sm:inline">New Chat</span>
               </button>
 
               {/* Voice Chat */}
-              <button
+              {/* <button
                 type="button"
                 title="Start a new voice chat"
                 onClick={() => handleModeSelection("voice")}
-                className={`inline-flex gap-2 cursor-pointer items-center justify-center rounded-full border px-2.5 py-1.5 text-[10px] font-bold sm:px-3 sm:text-xs ${mode === "voice"
-                  ? "border-[var(--primary-default)] bg-[var(--primary-default)] text-white"
-                  : "border-emerald-800 bg-[#102a20] text-gray-200"
-                  }`}
+                className={`inline-flex gap-2 cursor-pointer items-center justify-center rounded-full border px-2.5 py-1.5 text-[10px] font-bold sm:px-3 sm:text-xs ${
+                  mode === "voice"
+                    ? "border-[var(--primary-default)] bg-[var(--primary-default)] text-white"
+                    : "border-emerald-800 bg-[#102a20] text-gray-200"
+                }`}
               >
                 <FiPlus className="text-[10px] sm:text-xs" />
                 <FiMic className="text-xs sm:hidden" />
                 <span className="hidden sm:inline">Voice Chat</span>
-              </button>
-
+              </button> */}
             </div>
           )}
           <div className="relative" ref={profileRef}>
-            <button type="button" onClick={() => setShowProfile((value) => !value)} className="w-8 h-8 cursor-pointer rounded-full border border-yellow-400 bg-yellow-400 text-black font-bold grid place-items-center text-xs sm:w-9 sm:h-9">
+            <button
+              type="button"
+              onClick={() => setShowProfile((value) => !value)}
+              className="w-8 h-8 cursor-pointer rounded-full border border-yellow-400 bg-yellow-400 text-black font-bold grid place-items-center text-xs sm:w-9 sm:h-9"
+            >
               {userInfo ? initials : <FaUser />}
             </button>
             {showProfile && (
               <div className="absolute right-0 top-10 min-w-[140px] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg z-50 sm:top-12">
                 <div className="border-b border-gray-100 px-4 py-3">
-                  <p className="truncate text-sm font-semibold text-gray-900">{userInfo || "Roadie"}</p>
-                  <p className="truncate text-xs text-gray-500">{userEmail || ""}</p>
+                  <p className="truncate text-sm font-semibold text-gray-900">
+                    {userInfo || "Roadie"}
+                  </p>
+                  <p className="truncate text-xs text-gray-500">
+                    {userEmail || ""}
+                  </p>
                 </div>
-                <button type="button" onClick={onLogout} className="w-full flex items-center justify-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"><FiLogOut size={16} /> Logout</button>
+                <button
+                  type="button"
+                  onClick={onLogout}
+                  className="w-full flex items-center justify-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                >
+                  <FiLogOut size={16} /> Logout
+                </button>
               </div>
             )}
           </div>
         </div>
       </header>
 
-      <section className={`mx-auto w-full max-w-[900px] px-3 py-6 flex-1 flex flex-col min-h-0 sm:px-4 sm:py-8 md:py-10 lg:py-5 ${conversationStarted ? "" : ""}`}>
+      <section
+        className={`mx-auto w-full max-w-[900px] px-3 py-6 flex-1 flex flex-col min-h-0 sm:px-4 sm:py-8 md:py-10 lg:py-5 ${conversationStarted ? "" : ""}`}
+      >
         {!conversationStarted && !modeSelected && (
           <div className="text-center transition-all">
-            <h1 className="m-0 mb-3 text-[var(--secondary-contrast)] text-2xl leading-tight font-extrabold tracking-tight sm:mb-4 sm:text-3xl md:text-4xl lg:text-5xl">Hey{firstName ? ` ${firstName}` : ""}, how can we help today?</h1>
-            <p className="text-[var(--secondary-contrast)] max-w-[750px] mx-auto mb-2 text-sm sm:mb-3 sm:text-base"><strong>I'm Roadie Ranger</strong> — your quick-answer sidekick on the floor.</p>
-            <p className="text-[var(--secondary-contrast)] max-w-[750px] mx-auto mb-3 text-sm sm:text-base">Roadie Ranger is your helpdesk assistant for HR, payroll, IT, store ops, travel, and compliance questions. Can't find an answer? It opens a ticket and tracks it for you.</p>
+            <h1 className="m-0 mb-3 text-[var(--secondary-contrast)] text-2xl leading-tight font-extrabold tracking-tight sm:mb-4 sm:text-3xl md:text-4xl lg:text-5xl">
+              Hey{firstName ? ` ${firstName}` : ""}, how can we help today?
+            </h1>
+            <p className="text-[var(--secondary-contrast)] max-w-[750px] mx-auto mb-2 text-sm sm:mb-3 sm:text-base">
+              <strong>I'm Roadie Ranger</strong> — your quick-answer sidekick on
+              the floor.
+            </p>
+            <p className="text-[var(--secondary-contrast)] max-w-[750px] mx-auto mb-3 text-sm sm:text-base">
+              Roadie Ranger is your helpdesk assistant for HR, payroll, IT,
+              store ops, travel, and compliance questions. Can't find an answer?
+              It opens a ticket and tracks it for you.
+            </p>
             <div className="mt-4 text-[var(--primary-bg)] font-extrabold text-xs sm:mt-6 sm:text-sm">Need help right now? I'm just a tap away.</div>
           </div>
         )}
 
-        <div className="flex flex-col gap-3 sm:gap-4 flex-1 min-h-0 overflow-visible p-1 sm:p-2" role="log" aria-live="polite">
-          {messages.map((item) => (
-            <MessageBubble key={item.id} item={item} mode={mode} />
-          ))}
-          {loading && <TypingIndicator />}
-          <div ref={messagesEndRef} />
-        </div>
-        {mode === null && (
-          <div className="w-full flex justify-center px-1 py-3 sm:px-4 sm:py-4">
-            <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
-              <button
-                type="button"
-                onClick={() => handleModeSelection("text")}
-                className="flex items-center cursor-pointer justify-center gap-2 rounded-lg border border-[var(--neutral-300)] bg-[var(--white-100)] px-4 py-2.5 text-sm font-bold text-[var(--text-muted)] transition hover:border-[var(--primary-default)] sm:px-5 sm:py-3"
-              >
-                <FiMessageSquare className="text-base" />
-                Text Mode
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleModeSelection("voice")}
-                className="flex items-center cursor-pointer justify-center gap-2 rounded-lg border border-[var(--neutral-300)] bg-[var(--white-100)] px-4 py-2.5 text-sm font-bold text-[var(--text-muted)] transition hover:border-[var(--primary-default)] sm:px-5 sm:py-3"
-              >
-                <FiMic className="text-base" />
-                Voice Mode
-              </button>
-            </div>
+        {!conversationStarted && !modeSelected ? null : (
+          <div
+            className="flex flex-col gap-3 sm:gap-4 flex-1 min-h-0 overflow-visible p-1 sm:p-2"
+            role="log"
+            aria-live="polite"
+          >
+            {messages.map((item) => (
+              <MessageBubble key={item.id} item={item} mode={mode} />
+            ))}
+            {loading && <TypingIndicator />}
+            <div ref={messagesEndRef} />
           </div>
         )}
+
+        {mode === null && (
+          <div className="w-full flex flex-col justify-center px-2 py-3 sm:px-4 sm:py-4 mt-4">
+            <div className="relative w-full">
+              <textarea
+                ref={textareaRef}
+                className="block w-full min-h-[56px] max-h-[150px] resize-none overflow-y-auto rounded-2xl border border-emerald-800 bg-[#f6f1e6] px-3 py-4 pr-20 text-sm text-[var(--secondary-contrast)] placeholder:text-[var(--text-muted)] focus:outline-none sm:text-base"
+                value={draft}
+                rows={1}
+                disabled={isVoiceActive}
+                placeholder={inputPlaceholder}
+                onChange={(event) => {
+                  const textarea = event.target;
+                  textarea.style.height = "auto";
+                  textarea.style.height = `${Math.min(
+                    textarea.scrollHeight,
+                    150,
+                  )}px`;
+                  setDraft(textarea.value);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !event.shiftKey) {
+                    event.preventDefault();
+                    void startLandingTextChat();
+                  }
+                }}
+              />
+
+              <div className="absolute right-4 top-1/2 flex -translate-y-1/2 items-center gap-2">
+              {!draft.trim() && (
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => handleModeSelection("voice")}
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--primary-default)] text-white transition-colors cursor-pointer disabled:opacity-50"
+                  aria-label="Start voice chat"
+                >
+                  <svg
+                    viewBox="0 0 32 32"
+                    width="24"
+                    height="24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M5 13v6 M9 9v14 M13 5v22 M17 11v10 M21 8v16 M25 13v6" />
+                  </svg>
+                </button>
+              )}
+
+                {draft.trim() && (
+                  <button
+                    type="button"
+                    disabled={loading || isVoiceActive}
+                    onClick={() => void startLandingTextChat()}
+                    className="flex h-9 w-9 items-center justify-center rounded-full border cursor-pointer bg-[var(--secondary-contrast)] text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
+                    aria-label="Send message"
+                  >
+                    <FiArrowUp className="text-lg" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {!conversationStarted && !modeSelected && (
+              <section className="mt-6">
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  {QUICK_INQUIRIES.map((inquiry) => (
+                    <button
+                      key={inquiry.text}
+                      type="button"
+                      onClick={() => {
+                        if (mode === "voice") return;
+                        populateQuery(inquiry.text);
+                      }}
+                      disabled={mode === "voice"}
+                      className={`rounded-full border border-[var(--primary-default)] bg-[var(--primary-contrast)] px-3 py-2 text-left text-[11px] font-medium text-[var(--secondary-contrast)] transition hover:opacity-95 ${mode === "voice" ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                    >
+                      {inquiry.text}
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )}
+          </div>
+        )}
+
         <section className="sticky bottom-0 z-10 mt-auto w-full shrink-0 bg-[#faf5ea] pt-2 pb-0">
           <div className="flex items-end gap-2 sm:gap-3">
             {mode === "text" && (
               <div className="relative flex-1">
                 <textarea
                   ref={textareaRef}
-                  className="flex items-center w-full max-h-[150px] overflow-hidden resize-none rounded-2xl border border-emerald-800 bg-[#f6f1e6] text-[10px] text-[var(--secondary-contrast)] px-3 py-3 pr-12 placeholder:text-[var(--text-muted)] focus:outline-none sm:text-base"
+                  className="block w-full min-h-[56px] max-h-[150px] resize-none overflow-y-auto rounded-2xl border border-emerald-800 bg-[#f6f1e6] px-3 py-4 pr-20 text-sm text-[var(--secondary-contrast)] placeholder:text-[var(--text-muted)] focus:outline-none sm:text-base"
                   value={draft}
                   rows={1}
                   disabled={isVoiceActive}
@@ -1072,42 +1363,56 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
                   onChange={(event) => {
                     const textarea = event.target;
                     textarea.style.height = "auto";
-                    textarea.style.height = `${Math.min(textarea.scrollHeight, 150)}px`;
+                    textarea.style.height = `${Math.min(
+                      textarea.scrollHeight,
+                      150,
+                    )}px`;
                     setDraft(textarea.value);
                   }}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" && !event.shiftKey) {
                       event.preventDefault();
-                      submit();
+                      void startLandingTextChat();
                     }
                   }}
                 />
-                <button
-                  type="button"
-                  disabled={!draft.trim() || loading || isVoiceActive}
-                  onClick={submit}
-                  className={`absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full grid place-items-center ${!draft.trim() || loading || isVoiceActive ? 'bg-[var(--success-default)] text-[--success-contrast] border border-emerald-900 cursor-not-allowed' : 'bg-[var(--primary-bg)] text-black cursor-pointer border border-yellow-400'}`}
-                >
-                  <FiSend className="text-sm" />
-                </button>
-              </div>
-            )}
 
+                <div className="absolute right-4 top-1/2 flex -translate-y-1/2 items-center gap-2">
+                {!draft.trim() && (
+                  <button
+                    type="button"
+                    disabled={loading}
+                    onClick={() => handleModeSelection("voice")}
+                    className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--primary-default)] text-white transition-colors cursor-pointer disabled:opacity-50"
+                    aria-label="Start voice chat"
+                  >
+                    <svg
+                      viewBox="0 0 32 32"
+                      width="24"
+                      height="24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.2"
+                      strokeLinecap="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M5 13v6 M9 9v14 M13 5v22 M17 11v10 M21 8v16 M25 13v6" />
+                    </svg>
+                  </button>
+                )}
 
-
-            {mode === null && (
-              <div className="flex-1 min-h-[46px] rounded-2xl border border-dashed border-emerald-800/60 bg-[#f6f1e6]/60 px-4 py-3.5 flex items-center justify-center gap-2.5 sm:py-4">
-                <p className="m-0 text-sm text-[var(--text-muted)] font-medium sm:text-base flex items-center flex-wrap gap-x-1.5 justify-center">
-                  <span>Pick</span>
-                  <span className="inline-flex items-center gap-1 text-[var(--secondary-contrast)] font-bold">
-                    <FiMessageSquare className="text-base opacity-60" /> Text
-                  </span>
-                  <span>or</span>
-                  <span className="inline-flex items-center gap-1 text-[var(--secondary-contrast)] font-bold">
-                    <FiMic className="text-base opacity-60" /> Voice
-                  </span>
-                  <span>mode above to start chatting</span>
-                </p>
+                  {draft.trim() && (
+                    <button
+                      type="button"
+                      disabled={loading || isVoiceActive}
+                      onClick={() => void startLandingTextChat()}
+                      className="flex h-9 w-9 items-center justify-center rounded-full border cursor-pointer bg-[var(--secondary-contrast)] text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
+                      aria-label="Send message"
+                    >
+                      <FiArrowUp className="text-lg" />
+                    </button>
+                  )}
+                </div>
               </div>
             )}
 
@@ -1116,7 +1421,6 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
                 {/* <p className="text-black">Coming soon... please switch to text mode to continue.</p> */}
                 <div className="flex items-center gap-4">
                   <div className="flex-1">
-
                     <div className="mt-3 flex items-center gap-3">
                       <div className="w-full">
                         <CurrentResponsePlayer
@@ -1133,11 +1437,15 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
                             if (!audioRef.current) return;
                             if (audioRef.current.paused) {
                               const p = audioRef.current.play();
-                              if (p && p.then) p.catch(() => { });
+                              if (p && p.then) p.catch(() => {});
                               // rely on audio element onPlay to set playing state and notify server
                             } else {
                               const audio = audioRef.current;
-                              const currentTime = Number.isFinite(audio.currentTime) ? audio.currentTime : 0;
+                              const currentTime = Number.isFinite(
+                                audio.currentTime,
+                              )
+                                ? audio.currentTime
+                                : 0;
 
                               // Keep the current playback position when the user pauses.
                               // Resetting the element source rewinds the clip to 0 and causes
@@ -1161,7 +1469,12 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
                     </div>
                     <div className="flex items-center justify-center mt-5 mb-2">
                       {/* <span className="text-[10px] font-extrabold tracking-wider" style={{ color: "#9aa2b1" }}>CURRENT RESPONSE</span> */}
-                      <span className="text-[11px] font-semibold" style={{ color: "#5b8cff" }}>{npStateLabel}</span>
+                      <span
+                        className="text-[11px] font-semibold"
+                        style={{ color: "#5b8cff" }}
+                      >
+                        {npStateLabel}
+                      </span>
                     </div>
                     <div className="relative flex min-h-14 w-full items-center justify-center">
                       {/* <button
@@ -1180,7 +1493,6 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
                       </button> */}
 
                       <div className="flex flex-row items-center justify-center gap-6">
-
                         {/* <button
                           type="button"
                           onClick={() => startVoiceSession()}
@@ -1209,7 +1521,9 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
 
                               if (agentSpeaking || isPlaying) {
                                 handleInterrupt();
-                                await new Promise((resolve) => setTimeout(resolve, 1000));
+                                await new Promise((resolve) =>
+                                  setTimeout(resolve, 1000),
+                                );
                               }
 
                               await startCapture();
@@ -1221,12 +1535,20 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
                           onMouseUp={async (e) => {
                             e.preventDefault();
                             if (!isVoiceActive || !pttMode) return;
-                            try { stopCapture(); } catch (err) { console.error(err); }
+                            try {
+                              stopCapture();
+                            } catch (err) {
+                              console.error(err);
+                            }
                             setIsRecording(false);
                           }}
                           onMouseLeave={async (e) => {
                             if (!isVoiceActive || !pttMode) return;
-                            try { stopCapture(); } catch (err) { console.error(err); }
+                            try {
+                              stopCapture();
+                            } catch (err) {
+                              console.error(err);
+                            }
                             setIsRecording(false);
                           }}
                           onTouchStart={async (e) => {
@@ -1244,7 +1566,9 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
                               // actually go silent before we start forwarding mic audio.
                               if (agentSpeaking || isPlaying) {
                                 handleInterrupt();
-                                await new Promise((resolve) => setTimeout(resolve, 1000));
+                                await new Promise((resolve) =>
+                                  setTimeout(resolve, 1000),
+                                );
                               }
 
                               await startCapture();
@@ -1256,7 +1580,11 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
                           onTouchEnd={async (e) => {
                             e.preventDefault();
                             if (!isVoiceActive || !pttMode) return;
-                            try { stopCapture(); } catch (err) { console.error(err); }
+                            try {
+                              stopCapture();
+                            } catch (err) {
+                              console.error(err);
+                            }
                             setIsRecording(false);
                           }}
                           title={
@@ -1279,17 +1607,17 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
                                     ? "Click to mute microphone"
                                     : "Click to unmute microphone"
                           }
-                          className={`w-14 h-14 cursor-pointer rounded-full grid place-items-center text-2xl shadow-md transition-colors ${isVoiceActive
-                            ? (
-                              isRecording
-                                ? 'bg-[var(--primary-default)] text-white'
-                                : 'bg-[var(--primary-bg)] text-white'
-                            )
-                            : 'bg-[var(--primary-bg)] text-white'
-                            } ${loading ? 'opacity-50 cursor-not-allowed' : ''} ${isAudioCapturing ? 'mic-recording' : ''
-                            }`}
+                          className={`w-14 h-14 cursor-pointer rounded-full grid place-items-center text-2xl shadow-md transition-colors ${
+                            isVoiceActive
+                              ? isRecording
+                                ? "bg-[var(--primary-default)] text-white"
+                                : "bg-[var(--primary-bg)] text-white"
+                              : "bg-[var(--primary-bg)] text-white"
+                          } ${loading ? "opacity-50 cursor-not-allowed" : ""} ${
+                            isAudioCapturing ? "mic-recording" : ""
+                          }`}
                         >
-                          {isRecording ? '🎤' : '🎙️'}
+                          {isRecording ? "🎤" : "🎙️"}
                         </button>
                         {/* <button
                           type="button"
@@ -1303,9 +1631,6 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
                           <FiPower aria-hidden="true" />
                           Disconnect
                         </button> */}
-
-
-
                       </div>
                     </div>
                     {/* <div className="mt-3 flex items-center justify-center">
@@ -1318,40 +1643,64 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
                     </div> */}
                     <div className="flex w-full justify-center mt-1 items-center gap-2 text-[10px] text-[var(--text-muted)]">
                       <span>🎧</span>
-                      <span className="italic" >
+                      <span className="italic">
                         For best voice recognition, use headphones or earbuds.
                       </span>
                     </div>
                   </div>
                 </div>
 
-
-                <audio ref={audioRef} id="player" className="hidden" onLoadedMetadata={() => {
-                  try { setAudioDuration(audioRef.current?.duration || 0); } catch (_) { setAudioDuration(0); }
-                }} onTimeUpdate={() => {
-                  try { setAudioCurrentTime(audioRef.current?.currentTime || 0); } catch (_) { setAudioCurrentTime(0); }
-                }} onPlaying={() => {
-                  setIsPlaying(true);
-                  notifyPlaybackStarted();
-                  setAgentSpeaking(true);
-                  setAgentSpeakingGate?.(true);
-                  playbackEndedNotifiedRef.current = false;
-                }} onWaiting={() => {
-                  setIsPlaying(false);
-                }} onPause={() => {
-                  setIsPlaying(false);
-                  setAgentSpeakingGate?.(false);
-                  if (suppressPauseNotifyRef.current) { suppressPauseNotifyRef.current = false; return; }
-                  if (!playbackEndedNotifiedRef.current) {
-                    playbackEndedNotifiedRef.current = true;
-                    notifyPlaybackEnded();
-                    setAgentSpeaking(false);
-                  }
-                }} onEnded={() => {
-                  setIsPlaying(false);
-                  setAgentSpeakingGate?.(false);
-                  if (!playbackEndedNotifiedRef.current) { playbackEndedNotifiedRef.current = true; notifyPlaybackEnded(); setAgentSpeaking(false); }
-                }} />
+                <audio
+                  ref={audioRef}
+                  id="player"
+                  className="hidden"
+                  onLoadedMetadata={() => {
+                    try {
+                      setAudioDuration(audioRef.current?.duration || 0);
+                    } catch (_) {
+                      setAudioDuration(0);
+                    }
+                  }}
+                  onTimeUpdate={() => {
+                    try {
+                      setAudioCurrentTime(audioRef.current?.currentTime || 0);
+                    } catch (_) {
+                      setAudioCurrentTime(0);
+                    }
+                  }}
+                  onPlaying={() => {
+                    setIsPlaying(true);
+                    notifyPlaybackStarted();
+                    setAgentSpeaking(true);
+                    setAgentSpeakingGate?.(true);
+                    playbackEndedNotifiedRef.current = false;
+                  }}
+                  onWaiting={() => {
+                    setIsPlaying(false);
+                  }}
+                  onPause={() => {
+                    setIsPlaying(false);
+                    setAgentSpeakingGate?.(false);
+                    if (suppressPauseNotifyRef.current) {
+                      suppressPauseNotifyRef.current = false;
+                      return;
+                    }
+                    if (!playbackEndedNotifiedRef.current) {
+                      playbackEndedNotifiedRef.current = true;
+                      notifyPlaybackEnded();
+                      setAgentSpeaking(false);
+                    }
+                  }}
+                  onEnded={() => {
+                    setIsPlaying(false);
+                    setAgentSpeakingGate?.(false);
+                    if (!playbackEndedNotifiedRef.current) {
+                      playbackEndedNotifiedRef.current = true;
+                      notifyPlaybackEnded();
+                      setAgentSpeaking(false);
+                    }
+                  }}
+                />
               </div>
             )}
           </div>
@@ -1395,31 +1744,6 @@ function ChatExperience({ firstName, userInfo, userEmail, initials, sessionId, o
           />
         </section>
 
-        {!conversationStarted && !modeSelected && (
-          <section className="mt-7">
-            <div className="text-[10px] font-extrabold text-[var(--success-default)] tracking-wider mb-3 sm:text-xs">POPULAR ROADIE INQUIRIES:</div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-3">
-              {QUICK_INQUIRIES.map((inquiry) => (
-                <button
-                  key={inquiry.text}
-                  type="button"
-                  onClick={() => {
-                    if (mode === "voice") return;
-                    populateQuery(inquiry.text);
-                  }}
-                  disabled={mode === "voice"}
-                  className={`bg-[var(--primary-contrast)] border border-[var(--primary-default)] rounded-xl p-4 text-left text-white transition ${mode === "voice" ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
-                >
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="bg-[var(--neutral-200)] text-[var(--primary-default)] rounded-full px-3 py-1 text-xs font-extrabold">{inquiry.category}</span>
-                    <b className="text-emerald-600">❯</b>
-                  </div>
-                  <p className="m-0 text-[12px] font-[500] text-[var(--secondary-contrast)] leading-tight">"{inquiry.text}"</p>
-                </button>
-              ))}
-            </div>
-          </section>
-        )}
       </section>
     </main>
   );
@@ -1438,8 +1762,11 @@ const LandingPage = () => {
 
     const fetchUserDetails = async () => {
       try {
-        const apiBase = (import.meta.env.VITE_API_BASE || '').replace(/\/+$/, '');
-        const response = await fetch(`${apiBase || ''}/get_user_details`, {
+        const apiBase = (import.meta.env.VITE_API_BASE || "").replace(
+          /\/+$/,
+          "",
+        );
+        const response = await fetch(`${apiBase || ""}/get_user_details`, {
           method: "GET",
           credentials: "include",
         });
@@ -1461,8 +1788,8 @@ const LandingPage = () => {
 
   const handleNewChat = useCallback(async () => {
     try {
-      const apiBase = (import.meta.env.VITE_API_BASE || '').replace(/\/+$/, '');
-      const response = await fetch(`${apiBase || ''}/api/get_conversation_id`, {
+      const apiBase = (import.meta.env.VITE_API_BASE || "").replace(/\/+$/, "");
+      const response = await fetch(`${apiBase || ""}/api/get_conversation_id`, {
         method: "GET",
         credentials: "include",
       });
@@ -1496,14 +1823,17 @@ const LandingPage = () => {
     }
   }, []);
 
-  const firstName = useMemo(() => userInfo ? userInfo.split(" ")[0] : "Roadie", [userInfo]);
+  const firstName = useMemo(
+    () => (userInfo ? userInfo.split(" ")[0] : "Roadie"),
+    [userInfo],
+  );
   const initials = useMemo(() => {
-    if (!userInfo) return '';
+    if (!userInfo) return "";
     const parts = userInfo.trim().split(/\s+/);
-    const first = parts[0] ? parts[0][0] : '';
-    const second = parts[1] ? parts[1][0] : '';
+    const first = parts[0] ? parts[0][0] : "";
+    const second = parts[1] ? parts[1][0] : "";
     const combined = (first + second).toUpperCase();
-    return combined || (first || '').toUpperCase();
+    return combined || (first || "").toUpperCase();
   }, [userInfo]);
 
   return (
