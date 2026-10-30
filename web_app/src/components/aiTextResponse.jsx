@@ -16,6 +16,7 @@ const useTextAgent = (onAgentMessage, setLoading, handleLogout, initialSessionId
   const [messages, setMessages] = useState([]);
   const [currentDelta, setCurrentDelta] = useState('');
   const [status, setStatus] = useState('disconnected'); // 'disconnected' | 'connecting' | 'connected' | 'streaming'
+  const [progressLabel, setProgressLabel] = useState('');
   const [sessionId, setSessionId] = useState(null); // holds conversation_id, kept for API-shape parity with old hook
   const [isTextActive, setTextActive] = useState(false);
 
@@ -39,6 +40,7 @@ const useTextAgent = (onAgentMessage, setLoading, handleLogout, initialSessionId
     previousResponseIdRef.current = '';
     currentDeltaRef.current = '';
     setCurrentDelta('');
+    setProgressLabel('');
     setSessionId(initialSessionId);
     setStatus('connected');
     setTextActive(true);
@@ -70,6 +72,7 @@ const useTextAgent = (onAgentMessage, setLoading, handleLogout, initialSessionId
     setTextActive(false);
     currentDeltaRef.current = '';
     setCurrentDelta('');
+    setProgressLabel('');
     setLoading?.(false);
   }, [setLoading]);
 
@@ -95,6 +98,12 @@ const useTextAgent = (onAgentMessage, setLoading, handleLogout, initialSessionId
 
   const handleFrame = (frame) => {
     switch (frame.type) {
+      case 'status': {
+        const label = typeof frame.label === 'string' ? frame.label.trim() : '';
+        if (label) setProgressLabel(label);
+        break;
+      }
+
       case 'meta':
         // Track response_id so the NEXT turn can send it as previous_response_id.
         previousResponseIdRef.current = frame.response_id || '';
@@ -106,6 +115,7 @@ const useTextAgent = (onAgentMessage, setLoading, handleLogout, initialSessionId
         break;
 
       case 'delta': {
+        setProgressLabel('');
         const nextDelta = currentDeltaRef.current + (frame.content || '');
         currentDeltaRef.current = nextDelta;
         setCurrentDelta(nextDelta);
@@ -118,6 +128,7 @@ const useTextAgent = (onAgentMessage, setLoading, handleLogout, initialSessionId
       }
 
       case 'consent': {
+        setProgressLabel('');
         // New frame type your WS code never had to handle.
         currentDeltaRef.current = '';
         setCurrentDelta('');
@@ -135,6 +146,7 @@ const useTextAgent = (onAgentMessage, setLoading, handleLogout, initialSessionId
       }
 
       case 'done': {
+        setProgressLabel('');
         const agentText = (frame.agent_response || currentDeltaRef.current || '').trim();
         currentDeltaRef.current = '';
         setCurrentDelta('');
@@ -154,6 +166,7 @@ const useTextAgent = (onAgentMessage, setLoading, handleLogout, initialSessionId
       }
 
       case 'error': {
+        setProgressLabel('');
         const errorMsg = frame.error || 'Something went wrong while contacting the agent.';
         console.error('Agent Error:', errorMsg);
         currentDeltaRef.current = '';
@@ -204,13 +217,22 @@ const useTextAgent = (onAgentMessage, setLoading, handleLogout, initialSessionId
     }
   };
 
-  const sendMessage = async (text) => {
+  const sendMessage = async (text, requestedConversationId = null) => {
     if (!text.trim()) {
       return;
     }
 
+    const requestedId = typeof requestedConversationId === 'string'
+      ? requestedConversationId.trim()
+      : '';
+    if (requestedId) {
+      conversationIdRef.current = requestedId;
+      setSessionId(requestedId);
+    }
+
     currentDeltaRef.current = '';
     setCurrentDelta('');
+    setProgressLabel('');
     setLoading?.(true);
 
     if (status === 'disconnected') {
@@ -287,6 +309,7 @@ const useTextAgent = (onAgentMessage, setLoading, handleLogout, initialSessionId
 
         currentDeltaRef.current = '';
         setCurrentDelta('');
+        setProgressLabel('');
 
         const errorMessage = err?.message || '';
 
@@ -329,6 +352,7 @@ const useTextAgent = (onAgentMessage, setLoading, handleLogout, initialSessionId
 
       setLoading?.(false);
       setStatus('connected');
+      setProgressLabel('');
     } finally {
       abortControllerRef.current = null;
     }
@@ -342,11 +366,13 @@ const useTextAgent = (onAgentMessage, setLoading, handleLogout, initialSessionId
     }
     setLoading?.(false);
     setStatus('connected');
+    setProgressLabel('');
   }, [setLoading]);
 
   return {
     messages,
     currentDelta,
+    progressLabel,
     sendMessage,
     status,
     sessionId,

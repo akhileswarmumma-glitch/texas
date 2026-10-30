@@ -14,6 +14,7 @@ import {
   FiCheckCircle,
   FiPower,
   FiArrowUp,
+  FiX,
 } from "react-icons/fi";
 import ReactMarkdown from "react-markdown";
 import "./markdown.css";
@@ -37,7 +38,6 @@ function CurrentResponsePlayer({
   isPlaying,
   stateLabel,
   onSeek,
-  onPlayToggle,
   onReplay,
 }) {
   const barRef = useRef(null);
@@ -62,19 +62,6 @@ function CurrentResponsePlayer({
           style={{ borderColor: "#2a2f3a" }}
         >
           <div className="flex items-center gap-2.5">
-            <button
-              type="button"
-              onClick={onPlayToggle}
-              aria-label={isPlaying ? "Pause response" : "Play response"}
-              className="flex-shrink-0 w-8 h-8 cursor-pointer rounded-full grid place-items-center text-white"
-              style={{ background: "var(--success-default)" }}
-            >
-              {isPlaying ? (
-                <FiPause size={13} />
-              ) : (
-                <FiPlay size={13} style={{ marginLeft: 1 }} />
-              )}
-            </button>
             <button
               type="button"
               onClick={onReplay}
@@ -256,7 +243,7 @@ const MessageBubble = memo(function MessageBubble({ item, mode }) {
   );
 });
 
-function TypingIndicator() {
+function TypingIndicator({ label }) {
   return (
     <div className="flex gap-3 items-start">
       <AgentAvatar />
@@ -264,11 +251,28 @@ function TypingIndicator() {
         <div className="text-[var(--maroon-primary)] text-xs font-extrabold mb-1">
           ✦ Roadie Ranger
         </div>
+        {label && (
+          <div
+            className="mb-2 flex items-center gap-2 text-sm text-[var(--secondary-contrast)]"
+            role="status"
+            aria-live="polite"
+          >
+            <span className="relative flex h-2.5 w-2.5 shrink-0" aria-hidden="true">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--tertiary-default)] opacity-70" />
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[var(--maroon-primary)]" />
+            </span>
+            <span className="text-[var(--primary-default)]">{label}</span>
+            {/* <span className="ml-1 inline-flex items-center gap-1" aria-hidden="true">
+              <span className="h-1.5 w-1.5 rounded-full bg-[var(--primary-default)] animate-[thinking_1s_ease-in-out_infinite]" />
+              <span className="h-1.5 w-1.5 rounded-full bg-[var(--primary-light)] animate-[thinking_1s_ease-in-out_0.2s_infinite]" />
+              <span className="h-1.5 w-1.5 rounded-full bg-[var(--tertiary-default)] animate-[thinking_1s_ease-in-out_0.4s_infinite]" />
+            </span> */}
+          </div>
+        )}
         {/* <div className="flex gap-1"><span className="w-2 h-2 bg-[var(--primary-lighter)] rounded-full animate-pulse" /><span className="w-2 h-2 bg-[var(--primary-light)] rounded-full animate-pulse delay-75" /><span className="w-2 h-2 bg-[var(--primary-default)] rounded-full animate-pulse delay-150" /></div> */}
         <div
           className="flex items-center gap-1 h-6"
-          role="status"
-          aria-label="Roadie Ranger is thinking"
+          aria-hidden="true"
         >
           <span
             className="
@@ -406,7 +410,7 @@ function ChatExperience({
     await onLogout();
   }, [onLogout]);
 
-  const { sendMessage: sendTextMessage } = useTextAgent(
+  const { sendMessage: sendTextMessage, progressLabel: textProgressLabel } = useTextAgent(
     addMessage,
     setLoading,
     handleLogout,
@@ -499,6 +503,7 @@ function ChatExperience({
     suspendCapture,
     micLevel,
     status: voiceStatus,
+    progressLabel: voiceProgressLabel,
     speakingPaused,
     pauseSpeaking,
     resumeSpeaking,
@@ -515,6 +520,30 @@ function ChatExperience({
     },
     sessionId,
   );
+
+  const handlePlaybackToggle = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (audio.paused) {
+      const playPromise = audio.play();
+      if (playPromise?.then) playPromise.catch(() => {});
+      return;
+    }
+
+    const currentTime = Number.isFinite(audio.currentTime) ? audio.currentTime : 0;
+    audio.muted = true;
+    pauseSpeaking?.();
+    audio.pause();
+    audio.currentTime = currentTime;
+    audio.muted = false;
+
+    playbackEndedNotifiedRef.current = true;
+    setIsPlaying(false);
+    setAgentSpeaking(false);
+    setAgentSpeakingGate?.(false);
+    notifyPlaybackEnded();
+  }, [notifyPlaybackEnded, pauseSpeaking, setAgentSpeakingGate]);
 
   const startVoiceChat = useCallback(async () => {
     const nextSessionId = await onNewChat();
@@ -647,13 +676,17 @@ function ChatExperience({
     addMessage(nextText, "user");
 
     try {
-      await onNewChat();
-      void sendTextMessage(nextText);
+      const conversationId = sessionId || await onNewChat();
+      if (!conversationId) {
+        throw new Error("Conversation could not be initialized.");
+      }
+      void sendTextMessage(nextText, conversationId);
     } catch (error) {
       console.error("Failed to start landing text chat:", error);
-      void sendTextMessage(nextText);
+      setLoading(false);
+      addMessage("Unable to start the conversation. Please try again.", "ai", { error: true });
     }
-  }, [addMessage, draft, isVoiceActive, loading, onNewChat, sendTextMessage]);
+  }, [addMessage, draft, isVoiceActive, loading, onNewChat, sendTextMessage, sessionId]);
 
   const selectInquiry = useCallback(
     (text) => {
@@ -819,6 +852,9 @@ function ChatExperience({
 
   const conversationStarted = messages.length > 0;
   const modeSelected = mode !== null;
+  const activeProgressLabel = mode === "voice"
+    ? voiceProgressLabel
+    : textProgressLabel;
 
   const inputPlaceholder = "Write a message...";
 
@@ -1160,7 +1196,7 @@ function ChatExperience({
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          {!modeSelected ? null : (
+          {mode !== "text" ? null : (
             <div className="flex items-center gap-2">
               {/* Text Chat */}
               <button
@@ -1256,7 +1292,9 @@ function ChatExperience({
             {messages.map((item) => (
               <MessageBubble key={item.id} item={item} mode={mode} />
             ))}
-            {loading && <TypingIndicator />}
+            {(loading || activeProgressLabel) && (
+              <TypingIndicator label={activeProgressLabel} />
+            )}
             <div ref={messagesEndRef} />
           </div>
         )}
@@ -1294,6 +1332,7 @@ function ChatExperience({
                   type="button"
                   disabled={loading}
                   onClick={() => handleModeSelection("voice")}
+                  title="Start voice chat"
                   className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--primary-default)] text-white transition-colors cursor-pointer disabled:opacity-50"
                   aria-label="Start voice chat"
                 >
@@ -1382,6 +1421,7 @@ function ChatExperience({
                   <button
                     type="button"
                     disabled={loading}
+                    title="Start voice chat"
                     onClick={() => handleModeSelection("voice")}
                     className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--primary-default)] text-white transition-colors cursor-pointer disabled:opacity-50"
                     aria-label="Start voice chat"
@@ -1417,13 +1457,13 @@ function ChatExperience({
             )}
 
             {mode === "voice" && (
-              <div className="flex-1 flex flex-col gap-3 rounded-2xl border border-emerald-800 bg-[#f6f1e6] p-4">
+              <div className="flex-1 flex flex-col gap-3 rounded-2xl border-emerald-800 bg-[#f6f1e6] p-4">
                 {/* <p className="text-black">Coming soon... please switch to text mode to continue.</p> */}
                 <div className="flex items-center gap-4">
                   <div className="flex-1">
                     <div className="mt-3 flex items-center gap-3">
                       <div className="w-full">
-                        <CurrentResponsePlayer
+                        {/* <CurrentResponsePlayer
                           audioCurrentTime={audioCurrentTime}
                           audioDuration={audioDuration}
                           isPlaying={isPlaying}
@@ -1433,38 +1473,8 @@ function ChatExperience({
                             audioRef.current.currentTime = t;
                             setAudioCurrentTime(t);
                           }}
-                          onPlayToggle={() => {
-                            if (!audioRef.current) return;
-                            if (audioRef.current.paused) {
-                              const p = audioRef.current.play();
-                              if (p && p.then) p.catch(() => {});
-                              // rely on audio element onPlay to set playing state and notify server
-                            } else {
-                              const audio = audioRef.current;
-                              const currentTime = Number.isFinite(
-                                audio.currentTime,
-                              )
-                                ? audio.currentTime
-                                : 0;
-
-                              // Keep the current playback position when the user pauses.
-                              // Resetting the element source rewinds the clip to 0 and causes
-                              // the next play() to start from the beginning.
-                              audio.muted = true;
-                              pauseSpeaking?.();
-                              audio.pause();
-                              audio.currentTime = currentTime;
-                              audio.muted = false;
-
-                              playbackEndedNotifiedRef.current = true;
-                              setIsPlaying(false);
-                              setAgentSpeaking(false);
-                              setAgentSpeakingGate?.(false);
-                              notifyPlaybackEnded();
-                            }
-                          }}
                           onReplay={handleReplay}
-                        />
+                        /> */}
                       </div>
                     </div>
                     <div className="flex items-center justify-center mt-5 mb-2">
@@ -1493,6 +1503,17 @@ function ChatExperience({
                       </button> */}
 
                       <div className="flex flex-row items-center justify-center gap-6">
+                        <button
+                          type="button"
+                          onClick={handlePlaybackToggle}
+                          disabled={!audioUrl}
+                          aria-label={isPlaying ? "Pause response" : "Play response"}
+                          title={isPlaying ? "Pause response" : "Play response"}
+                          className="flex h-14 w-14 flex-shrink-0 cursor-pointer items-center justify-center rounded-full text-white shadow-md disabled:cursor-not-allowed disabled:opacity-40"
+                          style={{ background: "var(--success-default)" }}
+                        >
+                          {isPlaying ? <FiPause size={20} /> : <FiPlay size={20} />}
+                        </button>
                         {/* <button
                           type="button"
                           onClick={() => startVoiceSession()}
@@ -1619,6 +1640,16 @@ function ChatExperience({
                         >
                           {isRecording ? "🎤" : "🎙️"}
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowDisconnectWarning(true)}
+                          aria-label="Close voice chat"
+                          title="Close voice chat"
+                          className="flex h-14 w-14 flex-shrink-0 cursor-pointer items-center justify-center rounded-full text-white shadow-md transition-opacity hover:opacity-90"
+                          style={{ background: "var(--danger-default)" }}
+                        >
+                          <FiX size={22} />
+                        </button>
                         {/* <button
                           type="button"
                           onClick={() => setShowDisconnectWarning(true)}
@@ -1730,9 +1761,10 @@ function ChatExperience({
             }}
             onContinue={() => {
               setShowDisconnectWarning(false);
-              handleDisconnect();
+              void handleLogoClick();
             }}
-            message="Disconnecting will end the current conversation. Would you like to continue?"
+            message="Closing voice chat will end this conversation and return you to the home screen. Would you like to continue?"
+            continueLabel="Close voice chat"
           />
 
           <WarningPopUp

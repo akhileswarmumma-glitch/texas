@@ -5,11 +5,11 @@ import Loader from "./loader";
 import UserQuestion from "./userQuestion";
 import WarningPopUp from "./warningPopUp";
 
-const HomeScreen = ({ messages, onSendMessage, sessionId, loading, setLoading, handleNewChat,handleLogout}) => {
+const HomeScreen = ({ messages, onSendMessage, sessionId, loading, setLoading, handleNewChat, handleLogout }) => {
     // const containerClass = `flex flex-col w-full ${compact ? "h-auto" : "h-screen"} bg-[#f9f7f2]`;
     const [showWarning, setShowWarning] = useState(false);
     const messagesEndRef = useRef(null);
-    
+
     useEffect(() => {
         if (messagesEndRef.current) {
             messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
@@ -30,15 +30,15 @@ const HomeScreen = ({ messages, onSendMessage, sessionId, loading, setLoading, h
                             <AiChatResponse key={item.id} item={item} />
                         );
                     })
-                    
+
                 )}
 
                 {loading && <Loader />}
-                {showWarning &&<WarningPopUp isOpen={true} onClose={()=>{setShowWarning(false)}} message="To switch model in middle create a new session" /> }
+                {showWarning && <WarningPopUp isOpen={true} onClose={() => { setShowWarning(false) }} message="To switch model in middle create a new session" />}
                 <div ref={messagesEndRef} />
 
             </div>
-            <ChartInput messages={messages} sessionId={sessionId} onSendMessage={onSendMessage} loading={loading} setLoading={setLoading} handleNewChat={handleNewChat} setShowWarning={setShowWarning} handleLogout={handleLogout}/>
+            <ChartInput messages={messages} sessionId={sessionId} onSendMessage={onSendMessage} loading={loading} setLoading={setLoading} handleNewChat={handleNewChat} setShowWarning={setShowWarning} handleLogout={handleLogout} />
         </div>
     );
 };

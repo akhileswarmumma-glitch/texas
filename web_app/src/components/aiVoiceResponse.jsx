@@ -8,6 +8,7 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}, initialSessionI
   const [isVoiceActive, setIsVoiceActive] = useState(false);
   const [micLevel, setMicLevel] = useState(0);
   const [speakingPaused, setSpeakingPaused] = useState(false);
+  const [progressLabel, setProgressLabel] = useState('');
 
   const wsRef = useRef(null);
   const voiceActiveRef = useRef(false);
@@ -134,6 +135,7 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}, initialSessionI
 
     setIsVoiceActive(false);
     setStatus('disconnected');
+    setProgressLabel('');
     setLoading?.(false);
     setSpeakingPaused(false);
   }, [setLoading]);
@@ -176,6 +178,7 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}, initialSessionI
       const nextSessionId = String(requestedSessionId || initialSessionId || fallbackSessionId).trim();
       voiceSessionIdRef.current = nextSessionId || null;
       previousResponseIdRef.current = null;
+      setProgressLabel('');
     }
 
     const voiceSessionId = voiceSessionIdRef.current;
@@ -323,22 +326,30 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}, initialSessionI
               break;
             }
 
-            case 'status':
-              if (data.text === 'barge_in') {
+            case 'status': {
+              const statusText = data.text || data.state || '';
+              const label = typeof data.label === 'string' ? data.label.trim() : '';
+              if (label) setProgressLabel(label);
+
+              if (statusText === 'barge_in') {
                 // Instantly silence speaker output when user interrupts
                 audioPlaybackRef.current?.flush();
+                setProgressLabel('');
                 setStatus('listening');
               } else {
-                setStatus(data.text);
+                setStatus(statusText);
               }
               break;
+            }
 
             case 'audio_chunk':
+              setProgressLabel('');
               if (!speakingPaused) setStatus('speaking');
               audioPlaybackRef.current?.enqueue(data.data);
               break;
 
             case 'agent_audio':
+              setProgressLabel('');
               setLoading?.(false);
               // server sent a ready-to-play audio clip (e.g. mp3)
               try {
@@ -374,6 +385,7 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}, initialSessionI
               break;
 
             case 'agent_text_delta':
+              setProgressLabel('');
               setLoading?.(false);
               if (typeof callbackRef.current === 'function') {
                 callbackRef.current(data.delta || '', 'ai', { streaming: true });
@@ -382,6 +394,7 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}, initialSessionI
 
             case 'user_text':
               {
+                setProgressLabel('');
                 const transcript = [data.text, data.user_text, data.transcript, data.content]
                   .find((value) => typeof value === 'string' && value.trim());
                 if (transcript && typeof callbackRef.current === 'function') {
@@ -392,6 +405,7 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}, initialSessionI
               break;
 
             case 'agent_text':
+              setProgressLabel('');
               if (typeof data.response_id === 'string' && data.response_id.trim()) {
                 previousResponseIdRef.current = data.response_id.trim();
               }
@@ -408,7 +422,7 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}, initialSessionI
 
 
             case 'consent':
-              
+              setProgressLabel('');
               setLoading?.(false);
               if (typeof callbackRef.current === 'function') {
                 callbackRef.current(
@@ -473,6 +487,7 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}, initialSessionI
             }
 
             case 'error':
+              setProgressLabel('');
               console.error('Voice Agent Error:', data.text);
               setLoading?.(false);
               if (typeof callbackRef.current === 'function') {
@@ -521,6 +536,7 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}, initialSessionI
 
         setIsVoiceActive(false);
         setStatus('disconnected');
+        setProgressLabel('');
         setLoading?.(false);
         setSpeakingPaused(false);
       };
@@ -543,6 +559,7 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}, initialSessionI
 
       setIsVoiceActive(false);
       setStatus('disconnected');
+      setProgressLabel('');
       setLoading?.(false);
 
       // Preserve saved IDs and displayed messages after recovery failure.
@@ -601,6 +618,7 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}, initialSessionI
     stopCapture,
     suspendCapture,
     status,
+    progressLabel,
     sessionId,
     micLevel,
     speakingPaused,
