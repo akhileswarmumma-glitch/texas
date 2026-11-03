@@ -13,7 +13,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse, RedirectResponse
 from azure.cosmos.aio import CosmosClient
 from datetime import datetime, timedelta, timezone
-from models.auth_models import DeleteResponse, SSOToken, SuccessResponse, UserData, UserDetailResponse
+from backend_for_frontend.models.auth_models import DeleteResponse, SSOToken, SuccessResponse, UserData, UserDetailResponse
 from utils.utils import decode_jwt_token
 from utils.session_cache import (
     get_cached_session,
@@ -414,8 +414,16 @@ async def get_user_details(token: str = Depends(get_current_session)):
 async def logout(response: Response, session_id: str = Cookie(None)):
     if session_id:
         await invalidate_cached_session(session_id)
+    
     response.delete_cookie(
         key="session_id",
         path="/"
+    )
+    user_oid = await get_user_oid(session_id)
+    if not user_oid:
+        raise HTTPException(status_code=401, detail="Session invalid or expired.")
+    await container_sessions.delete_item(
+        item=session_id,
+        partition_key=user_oid
     )
     return DeleteResponse(message="Success")

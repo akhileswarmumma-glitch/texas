@@ -28,7 +28,7 @@ import websockets
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from websockets.exceptions import ConnectionClosed
 
-from backend_for_frontend.router.auth import get_current_session
+from router.auth import get_current_session
 from utils.utils import get_ws_logger, user_from_session
 
 BACKEND_URL_VOICE = os.environ.get("BACKEND_URL_VOICE", "ws://localhost:3001")
@@ -45,7 +45,9 @@ async def _send_json_safe(ws: WebSocket, payload: dict) -> None:
         pass
 
 
-async def _receive_init_session_id(websocket: WebSocket) -> Optional[str]:
+async def _receive_init_session_id(
+    websocket: WebSocket,
+) -> Optional[tuple[Optional[str], Optional[str]]]:
     try:
         raw = await asyncio.wait_for(websocket.receive_text(), timeout=INIT_HANDSHAKE_TIMEOUT_S)
     except (asyncio.TimeoutError, WebSocketDisconnect):
@@ -57,7 +59,13 @@ async def _receive_init_session_id(websocket: WebSocket) -> Optional[str]:
     if msg.get("type") != "init":
         return None
     session_id = (msg.get("session_id") or "").strip()
-    return session_id or None
+    previous_response_id = msg.get("previous_response_id")
+    if msg.get("type") == "init":
+        print("previous response-->",previous_response_id)
+    return (
+        session_id.strip() or None,
+        (previous_response_id or "").strip() or None,
+    )
 
 
 def _open_upstream_connection(url: str, headers: dict):
@@ -171,7 +179,12 @@ async def voice_chat_relay(
     await websocket.accept()
     start_time = time.perf_counter()
 
-    session_id = await _receive_init_session_id(websocket)
+    init_data = await _receive_init_session_id(websocket)
+
+    print("init data is --==>",init_data)
+    session_id, previous_response_id = init_data or (None, None)
+
+    print("session id is -=>",session_id, "previous reponse id is==>",previous_response_id)
     if not session_id:
         logger.log({
             "event": "bff_voice_init_failed",
@@ -186,6 +199,7 @@ async def voice_chat_relay(
             "message": "expected first frame {\"type\":\"init\",\"session_id\":\"...\"}",
         })
         await websocket.close(code=1008)
+
         return
 
     backend_ws_url = f"{BACKEND_URL_VOICE.rstrip('/')}/chat"
@@ -225,8 +239,10 @@ async def voice_chat_relay(
                     "foundry_token": foundry_token,
                     "speech_token": speech_token,
                     "session_id": session_id,
+                    "previous_response_id": previous_response_id,
                 })
             )
+            
         except Exception as connect_err:
             logger.log({
                 "event": "bff_voice_upstream_connect_error",

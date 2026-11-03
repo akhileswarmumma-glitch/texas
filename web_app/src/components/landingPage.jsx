@@ -699,16 +699,34 @@ function ChatExperience({
   );
 
   const populateQuery = useCallback(
-    async (text) => { 
-      // place query into input instead of sending
-      if (isVoiceActive) return;
-      await onNewChat();
+    async (text) => {
+      if (loading || isVoiceActive) return;
+
+      const inquiry = text.trim();
+      if (!inquiry) return;
+
       setMode("text");
-      setDraft(text);
-      // focus the textarea after it renders
-      setTimeout(() => textareaRef.current?.focus(), 50);
+      setDraft("");
+      setLoading(true);
+      addMessage(inquiry, "user");
+
+      try {
+        const conversationId = sessionId || await onNewChat();
+        if (!conversationId) {
+          throw new Error("Conversation could not be initialized.");
+        }
+        void sendTextMessage(inquiry, conversationId);
+      } catch (error) {
+        console.error("Failed to send quick inquiry:", error);
+        setLoading(false);
+        addMessage(
+          "Unable to start the conversation. Please try again.",
+          "ai",
+          { error: true },
+        );
+      }
     },
-    [isVoiceActive, onNewChat],
+    [addMessage, isVoiceActive, loading, onNewChat, sendTextMessage, sessionId],
   );
 
   const requestModeChange = useCallback(
@@ -1275,11 +1293,9 @@ function ChatExperience({
               the floor.
             </p>
             <p className="text-[var(--secondary-contrast)] max-w-[750px] mx-auto mb-3 text-sm sm:text-base">
-              Roadie Ranger is your helpdesk assistant for HR, payroll, IT,
-              store ops, travel, and compliance questions. Can't find an answer?
-              It opens a ticket and tracks it for you.
+              I can help with questions about HR, payroll, IT, store ops, travel, and compliance. If I can’t find the answer, I can open a ticket and help you keep track of it.
             </p>
-            <div className="mt-4 text-[var(--primary-bg)] font-extrabold text-xs sm:mt-6 sm:text-sm">Need help right now? I'm just a tap away.</div>
+            <div className="mt-4 text-[var(--primary-bg)] font-extrabold text-xs sm:mt-6 sm:text-sm">Just let me know what you need.</div>
           </div>
         )}
 
@@ -1457,11 +1473,12 @@ function ChatExperience({
             )}
 
             {mode === "voice" && (
+              // bg-[#f6f1e6]
               <div className="flex-1 flex flex-col gap-3 rounded-2xl border-emerald-800 bg-[#f6f1e6] p-4">
                 {/* <p className="text-black">Coming soon... please switch to text mode to continue.</p> */}
                 <div className="flex items-center gap-4">
                   <div className="flex-1">
-                    <div className="mt-3 flex items-center gap-3">
+                    <div className="flex items-center gap-3">
                       <div className="w-full">
                         {/* <CurrentResponsePlayer
                           audioCurrentTime={audioCurrentTime}
@@ -1477,7 +1494,7 @@ function ChatExperience({
                         /> */}
                       </div>
                     </div>
-                    <div className="flex items-center justify-center mt-5 mb-2">
+                    <div className="flex items-center justify-center">
                       {/* <span className="text-[10px] font-extrabold tracking-wider" style={{ color: "#9aa2b1" }}>CURRENT RESPONSE</span> */}
                       <span
                         className="text-[11px] font-semibold"
@@ -1509,10 +1526,10 @@ function ChatExperience({
                           disabled={!audioUrl}
                           aria-label={isPlaying ? "Pause response" : "Play response"}
                           title={isPlaying ? "Pause response" : "Play response"}
-                          className="flex h-14 w-14 flex-shrink-0 cursor-pointer items-center justify-center rounded-full text-white shadow-md disabled:cursor-not-allowed disabled:opacity-40"
+                          className="flex h-11 w-11 flex-shrink-0 cursor-pointer items-center justify-center rounded-full text-white shadow-md disabled:cursor-not-allowed disabled:opacity-40"
                           style={{ background: "var(--success-default)" }}
                         >
-                          {isPlaying ? <FiPause size={20} /> : <FiPlay size={20} />}
+                          {isPlaying ? <FiPause size={17} /> : <FiPlay size={15} />}
                         </button>
                         {/* <button
                           type="button"
@@ -1628,7 +1645,7 @@ function ChatExperience({
                                     ? "Click to mute microphone"
                                     : "Click to unmute microphone"
                           }
-                          className={`w-14 h-14 cursor-pointer rounded-full grid place-items-center text-2xl shadow-md transition-colors ${
+                          className={`h-11 w-11 cursor-pointer rounded-full grid place-items-center text-2xl shadow-md transition-colors ${
                             isVoiceActive
                               ? isRecording
                                 ? "bg-[var(--primary-default)] text-white"
@@ -1638,17 +1655,19 @@ function ChatExperience({
                             isAudioCapturing ? "mic-recording" : ""
                           }`}
                         >
-                          {isRecording ? "🎤" : "🎙️"}
+                          <span className="text-[17px]">
+                            {isRecording ? "🎤" : "🎙️"}
+                          </span>
                         </button>
                         <button
                           type="button"
                           onClick={() => setShowDisconnectWarning(true)}
                           aria-label="Close voice chat"
                           title="Close voice chat"
-                          className="flex h-14 w-14 flex-shrink-0 cursor-pointer items-center justify-center rounded-full text-white shadow-md transition-opacity hover:opacity-90"
+                          className="flex h-11 w-11 flex-shrink-0 cursor-pointer items-center justify-center rounded-full text-white shadow-md transition-opacity hover:opacity-90"
                           style={{ background: "var(--danger-default)" }}
                         >
-                          <FiX size={22} />
+                          <FiX size={17} />
                         </button>
                         {/* <button
                           type="button"
@@ -1764,7 +1783,7 @@ function ChatExperience({
               void handleLogoClick();
             }}
             message="Closing voice chat will end this conversation and return you to the home screen. Would you like to continue?"
-            continueLabel="Close voice chat"
+            continueLabel="Continue"
           />
 
           <WarningPopUp

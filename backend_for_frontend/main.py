@@ -21,7 +21,6 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from router.auth import router as auth_route, init_cosmos, aclose_cosmos
 from router.text_chat import router as text_chat_route
-from router.cookies import router as cookie_route
 from router.voice_chat import router as voice_route
 from utils.nr_logger import build_logger, traffic_source_ctx
 from utils.utils import classify_status, friendly_message
@@ -95,6 +94,87 @@ ENABLE_APIS = os.getenv("ENABLE_APIS", "false").lower() == "true"
 
 
 # ---------------------------------------------------------------------------
+# F1 / F2 / F3 -- Content-Security-Policy, Permissions-Policy, anti-clickjacking
+#
+# CSP_MODE (env var):
+#   "report-only" (default) -- full CSP is sent as Content-Security-Policy-Report-Only:
+#                              the browser only LOGS violations in the console, nothing
+#                              is blocked, so functionality cannot break. A minimal
+#                              ENFORCED "frame-ancestors" policy is sent alongside it,
+#                              because frame-ancestors is ignored in Report-Only mode.
+#   "enforce"               -- full CSP is sent as Content-Security-Policy (blocking).
+#   "off"                   -- no CSP header (emergency rollback without a redeploy).
+#
+# CSP_CONNECT_SRC_EXTRA (env var, optional): extra space/comma separated hosts for
+#   connect-src, e.g. "https://login.microsoftonline.com wss://other.txrh.com".
+#   wss://CANONICAL_HOST is added automatically so the voice WebSocket works even
+#   on browsers that do not match 'self' against ws/wss.
+# ---------------------------------------------------------------------------
+CSP_MODE = os.getenv("CSP_MODE", "report-only").strip().lower()
+if CSP_MODE not in ("report-only", "enforce", "off"):
+    CSP_MODE = "report-only"
+
+_csp_connect = ["'self'"]
+_canonical_host = os.getenv("CANONICAL_HOST", "").strip().lower()
+if _canonical_host:
+    _csp_connect.append(f"wss://{_canonical_host}")
+_csp_connect += [
+    h for h in os.getenv("CSP_CONNECT_SRC_EXTRA", "").replace(",", " ").split() if h
+]
+
+CONTENT_SECURITY_POLICY = "; ".join([
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data:",
+    "font-src 'self'",
+    f"connect-src {' '.join(dict.fromkeys(_csp_connect))}",
+    "media-src 'self' blob:",
+    "worker-src 'self' blob:",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-src 'none'",
+    "frame-ancestors 'self'",
+])
+
+# Enforced even while the full policy is still in Report-Only (F3).
+FRAME_ANCESTORS_POLICY = "frame-ancestors 'self'"
+
+# FastAPI Swagger/ReDoc load scripts/styles from a CDN and use inline scripts,
+# so CSP is skipped for them (they only exist when ENABLE_APIS=true).
+_CSP_EXEMPT_PREFIXES = ("/docs", "/redoc", "/openapi.json")
+
+# microphone=(self): voice chat needs the mic. autoplay=(self): TTS replies must play.
+# Deprecated / unrecognised features (ambient-light-sensor, battery, document-domain,
+# speaker-selection) are intentionally omitted -- they only cause console warnings.
+PERMISSIONS_POLICY = ", ".join([
+    "accelerometer=()",
+    "autoplay=(self)",
+    "camera=()",
+    "display-capture=()",
+    "encrypted-media=()",
+    "gamepad=()",
+    "geolocation=()",
+    "gyroscope=()",
+    "hid=()",
+    "idle-detection=()",
+    "magnetometer=()",
+    "microphone=(self)",
+    "midi=()",
+    "payment=()",
+    "picture-in-picture=()",
+    "publickey-credentials-get=(self)",
+    "screen-wake-lock=()",
+    "serial=()",
+    "sync-xhr=()",
+    "usb=()",
+    "web-share=()",
+    "xr-spatial-tracking=()",
+])
+
+
+# ---------------------------------------------------------------------------
 # CORS configuration.
 #
 # Production-safe default:
@@ -104,7 +184,7 @@ ENABLE_APIS = os.getenv("ENABLE_APIS", "false").lower() == "true"
 #   environment variable when cross-origin browser access is required.
 # ---------------------------------------------------------------------------
 allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "").strip()
-
+print(f"ALLOWED_ORIGINS are--==>:{allowed_origins_env}")
 ALLOWED_ORIGINS = (
     [
         origin.strip()
@@ -114,6 +194,9 @@ ALLOWED_ORIGINS = (
     if allowed_origins_env
     else ["*"]
 )
+print(f"ALLOWED_ORIGINS_Formated:{ALLOWED_ORIGINS}")
+if "*" in ALLOWED_ORIGINS:
+    raise RuntimeError("ALLOWED_ORIGINS must not contain '*' when credentials are enabled.")
 
 
 # ---------------------------------------------------------------------------
@@ -234,7 +317,6 @@ app.add_middleware(CanonicalHostRedirectMiddleware)
 
 app.include_router(auth_route)
 app.include_router(text_chat_route, prefix="/api")
-app.include_router(cookie_route)
 app.include_router(voice_route)
 
 
@@ -314,6 +396,20 @@ async def nr_access_logger(request: Request, call_next):
 
         # OWASP recommends disabling the deprecated browser XSS filter.
         response.headers["X-XSS-Protection"] = "0"
+
+        # F2 -- Permissions-Policy
+        response.headers["Permissions-Policy"] = PERMISSIONS_POLICY
+
+        # F3 -- anti-clickjacking (legacy header; CSP frame-ancestors is below)
+        response.headers["X-Frame-Options"] = "SAMEORIGIN"
+
+        # F1 / F3 -- Content-Security-Policy
+        if CSP_MODE != "off" and not path.startswith(_CSP_EXEMPT_PREFIXES):
+            if CSP_MODE == "enforce":
+                response.headers["Content-Security-Policy"] = CONTENT_SECURITY_POLICY
+            else:
+                response.headers["Content-Security-Policy-Report-Only"] = CONTENT_SECURITY_POLICY
+                response.headers["Content-Security-Policy"] = FRAME_ANCESTORS_POLICY
 
         # --------------------------------------------------
         # Sensitive response cache protection
@@ -516,4 +612,5 @@ if __name__ == "__main__":
         port=int(os.environ.get("PORT", "5500")),
         workers=int(os.environ.get("UVICORN_WORKERS", "3")),
         ws="websockets",  # resolves to GracefulWebSocketProtocol via monkeypatch above
+        server_header=False,
     )

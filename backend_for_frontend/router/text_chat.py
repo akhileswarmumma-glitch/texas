@@ -3,9 +3,9 @@ import os
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 import httpx
-from models.auth_models import ConversationResponse
-from models.chat_model import ChatRequest
-from backend_for_frontend.router.auth import get_current_session
+from backend_for_frontend.models.auth_models import ConversationResponse
+from backend_for_frontend.models.chat_model import ChatRequest
+from router.auth import get_current_session
 from utils.utils import create_session, get_logger, get_http_client, user_from_session
 
 router = APIRouter(tags=["Chat"])
