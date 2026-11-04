@@ -24,6 +24,8 @@ const useTextAgent = (onAgentMessage, setLoading, handleLogout, initialSessionId
   const currentDeltaRef = useRef('');
   const conversationIdRef = useRef(initialSessionId || null);
   const previousResponseIdRef = useRef('');
+  const interactionIdRef = useRef('');
+  const cacheHitRef = useRef('miss');
   const abortControllerRef = useRef(null);
 
   useEffect(() => {
@@ -38,6 +40,8 @@ const useTextAgent = (onAgentMessage, setLoading, handleLogout, initialSessionId
     abortControllerRef.current = null;
     conversationIdRef.current = initialSessionId;
     previousResponseIdRef.current = '';
+    interactionIdRef.current = '';
+    cacheHitRef.current = 'miss';
     currentDeltaRef.current = '';
     setCurrentDelta('');
     setProgressLabel('');
@@ -97,6 +101,13 @@ const useTextAgent = (onAgentMessage, setLoading, handleLogout, initialSessionId
   };
 
   const handleFrame = (frame) => {
+    if (Object.prototype.hasOwnProperty.call(frame, 'interaction_id')) {
+      interactionIdRef.current = frame.interaction_id ?? '';
+    }
+    if (Object.prototype.hasOwnProperty.call(frame, 'cache_hit')) {
+      cacheHitRef.current = frame.cache_hit ?? 'miss';
+    }
+
     switch (frame.type) {
       case 'status': {
         const label = typeof frame.label === 'string' ? frame.label.trim() : '';
@@ -225,9 +236,12 @@ const useTextAgent = (onAgentMessage, setLoading, handleLogout, initialSessionId
     const requestedId = typeof requestedConversationId === 'string'
       ? requestedConversationId.trim()
       : '';
-    if (requestedId) {
+    if (requestedId && requestedId !== conversationIdRef.current) {
       conversationIdRef.current = requestedId;
       setSessionId(requestedId);
+      previousResponseIdRef.current = '';
+      interactionIdRef.current = null;
+      cacheHitRef.current = 'miss';
     }
 
     currentDeltaRef.current = '';
@@ -245,6 +259,7 @@ const useTextAgent = (onAgentMessage, setLoading, handleLogout, initialSessionId
     abortControllerRef.current = controller;
 
     try {
+      console.log("interaction_id and cache_hit:", interactionIdRef.current, cacheHitRef.current);
       const response = await fetch(CHAT_ENDPOINT, {
         method: 'POST',
         headers: {
@@ -256,6 +271,8 @@ const useTextAgent = (onAgentMessage, setLoading, handleLogout, initialSessionId
           user_message: text,
           conversation_id: conversationIdRef.current,
           previous_response_id: previousResponseIdRef.current || '',
+          interaction_id: interactionIdRef.current,
+          cache_hit: cacheHitRef.current,
         }),
       });
       if (response.status === 401) {

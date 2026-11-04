@@ -19,6 +19,8 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}, initialSessionI
   const agentSpeakingRef = useRef(false);
   const voiceSessionIdRef = useRef(null);
   const previousResponseIdRef = useRef(null);
+  const interactionIdRef = useRef(null);
+  const cacheHitRef = useRef('miss');
 
   const reconnectingRef = useRef(false);
   const connectingRef = useRef(false);
@@ -57,6 +59,8 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}, initialSessionI
     // Intentional stop means the next chat starts fresh.
     voiceSessionIdRef.current = null;
     previousResponseIdRef.current = null;
+    interactionIdRef.current = null;
+    cacheHitRef.current = 'miss';
     setSessionId(null);
     voiceActiveRef.current = false;
 
@@ -178,6 +182,8 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}, initialSessionI
       const nextSessionId = String(requestedSessionId || initialSessionId || fallbackSessionId).trim();
       voiceSessionIdRef.current = nextSessionId || null;
       previousResponseIdRef.current = null;
+        interactionIdRef.current = null;
+        cacheHitRef.current = 'miss';
       setProgressLabel('');
     }
 
@@ -245,6 +251,8 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}, initialSessionI
           ...(resume && previousResponseIdRef.current
             ? { previous_response_id: previousResponseIdRef.current }
             : {}),
+          interaction_id: interactionIdRef.current,
+          cache_hit: cacheHitRef.current,
         }));
 
         // Do not start mic capture here; push-to-talk will initiate listening when user presses the mic.
@@ -317,6 +325,12 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}, initialSessionI
             return;
           }
           console.debug('VoiceAgent: ws message type=', data.type);
+          if (Object.prototype.hasOwnProperty.call(data, 'interaction_id')) {
+            interactionIdRef.current = data.interaction_id ?? null;
+          }
+          if (Object.prototype.hasOwnProperty.call(data, 'cache_hit')) {
+            cacheHitRef.current = data.cache_hit ?? 'miss';
+          }
           switch (data.type) {
             case 'session_id': {
               if (typeof data.id === 'string' && data.id.trim()) {
@@ -409,6 +423,10 @@ const useVoiceAgent = (onAgentMessage, setLoading, options = {}, initialSessionI
               if (typeof data.response_id === 'string' && data.response_id.trim()) {
                 previousResponseIdRef.current = data.response_id.trim();
               }
+              if (typeof data.interaction_id === 'string' && data.interaction_id.trim()) {
+                interactionIdRef.current = data.interaction_id.trim();
+              }
+
               setLoading?.(false);
               if (typeof callbackRef.current === 'function') {
                 callbackRef.current(data.text || '', 'ai', {
