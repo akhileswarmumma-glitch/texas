@@ -880,6 +880,12 @@ function ChatExperience({
     ? voiceProgressLabel
     : textProgressLabel;
 
+  useEffect(() => {
+    if (mode === "text" && messages.length === 0) {
+      addMessage("Hi, this is Roadie Ranger. How can I help you?", "ai");
+    }
+  }, [addMessage, messages.length, mode]);
+
   const inputPlaceholder = "Write a message...";
 
   const handleModeSelection = useCallback(
