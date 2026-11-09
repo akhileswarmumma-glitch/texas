@@ -412,6 +412,12 @@ function ChatExperience({
     });
   }, []);
 
+  const removeMessageById = useCallback((messageId) => {
+    setMessages((previous) =>
+      previous.filter((item) => item.message_id !== messageId),
+    );
+  }, []);
+
   const handleLogout = useCallback(async () => {
     await onLogout();
   }, [onLogout]);
@@ -523,6 +529,7 @@ function ChatExperience({
       onAudio: handleAudio,
       onInterrupt: handleInterrupt,
       onNotice: setVoiceNotice,
+      onRemoveMessage: removeMessageById,
     },
     sessionId,
   );
@@ -879,12 +886,6 @@ function ChatExperience({
   const activeProgressLabel = mode === "voice"
     ? voiceProgressLabel
     : textProgressLabel;
-
-  useEffect(() => {
-    if (mode === "text" && messages.length === 0) {
-      addMessage("Hi, this is Roadie Ranger. How can I help you?", "ai");
-    }
-  }, [addMessage, messages.length, mode]);
 
   const inputPlaceholder = "Write a message...";
 
@@ -1328,8 +1329,8 @@ function ChatExperience({
         )}
 
         {mode === null && (
-          <div className="w-full flex flex-col items-center justify-center px-2 py-3 sm:px-4 sm:py-4 mt-4">
-            {/* <div className="relative w-full">
+          <div className="w-full flex flex-col justify-center px-2 py-3 sm:px-4 sm:py-4 mt-4">
+            <div className="relative w-full">
               <textarea
                 ref={textareaRef}
                 className="block w-full min-h-[56px] max-h-[150px] resize-none overflow-y-auto rounded-2xl border border-emerald-800 bg-[#f6f1e6] px-3 py-4 pr-20 text-sm text-[var(--secondary-contrast)] placeholder:text-[var(--text-muted)] focus:outline-none sm:text-base"
@@ -1391,39 +1392,7 @@ function ChatExperience({
                   </button>
                 )}
               </div>
-            </div> */}
-             <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
-              <button
-                type="button"
-                onClick={() => handleModeSelection("text")}
-                className="flex items-center cursor-pointer justify-center gap-2 rounded-lg border border-[var(--neutral-300)] bg-[var(--white-100)] px-4 py-2.5 text-sm font-bold text-[var(--text-muted)] transition hover:border-[var(--primary-default)] sm:px-5 sm:py-3"
-              >
-                <FiMessageSquare className="text-base" />
-                Text Mode
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleModeSelection("voice")}
-                className="flex items-center cursor-pointer justify-center gap-2 rounded-lg border border-[var(--neutral-300)] bg-[var(--white-100)] px-4 py-2.5 text-sm font-bold text-[var(--text-muted)] transition hover:border-[var(--primary-default)] sm:px-5 sm:py-3"
-              >
-                <FiMic className="text-base" />
-                Voice Mode
-              </button>
             </div>
-            <div className="flex-1 w-full mt-5 min-h-[46px] rounded-2xl border border-dashed border-emerald-800/60 bg-[#f6f1e6]/60 px-4 py-3.5 flex items-center justify-center gap-2.5 sm:py-4">
-                <p className="m-0 text-sm text-[var(--text-muted)] font-medium sm:text-base flex items-center flex-wrap gap-x-1.5 justify-center">
-                  <span>Pick</span>
-                  <span className="inline-flex items-center gap-1 text-[var(--secondary-contrast)] font-bold">
-                    <FiMessageSquare className="text-base opacity-60" /> Text
-                  </span>
-                  <span>or</span>
-                  <span className="inline-flex items-center gap-1 text-[var(--secondary-contrast)] font-bold">
-                    <FiMic className="text-base opacity-60" /> Voice
-                  </span>
-                  <span>mode above to start chatting</span>
-                </p>
-              </div>
 
             {!conversationStarted && !modeSelected && (
               <section className="mt-6">
