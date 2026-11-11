@@ -3,7 +3,7 @@ import TexasLogo from "../assets/texas-logo.png";
 import Designer from "../assets/designer3.png";
 
 /* ------------------------------------------------------------------ */
-/* STATIC PREVIEW DATA (design only, no functionality yet)             */
+/* TOOLS + API                                                         */
 /* ------------------------------------------------------------------ */
 const TOOLS = [
   {
@@ -22,14 +22,12 @@ const TOOLS = [
 
 const CONSENT_API = "https://roadieranger-dev.txrh.com/api/consent/verify";
 
-
+// status values: pending | checking | needs | popup | verify | ok | error
 const LABEL = {
   pending: "Waiting",
   checking: "Checking consent...",
-  cosmos: "Checking saved consent...",
-  agent: "Checking with agent...",
   needs: "Consent required",
-  popup: "Consent window open",
+  popup: "Waiting for consent",
   verify: "Verifying consent...",
   ok: "Consent present",
   error: "Check failed",
@@ -38,13 +36,11 @@ const LABEL = {
 const ICON = {
   pending: "-",
   checking: "..",
-  cosmos: "..",
-  agent: "..",
   needs: "!",
-  popup: "..",
+  popup: "!",
   verify: "..",
   ok: "✓",
-  error: "!",
+  error: "..",
 };
 
 /* ------------------------------------------------------------------ */
@@ -56,11 +52,12 @@ const iconBase =
 const iconStyle = (s) => {
   if (s === "ok")
     return "border-[var(--success-default)] bg-[var(--success-default)] text-[var(--success-contrast)]";
-  if (s === "needs" || s === "error")
+  if (s === "needs" || s === "popup")
     return "border-[var(--warning-default)] text-[var(--warning-default)]";
+  if (s === "error") return "border-[#0f6cbd] text-[#0f6cbd]"; // wireframe blue
   if (s === "pending")
     return "border-[var(--neutral-400)] text-[var(--text-muted)]";
-  return "border-[var(--primary-lighter)] text-[var(--primary-lighter)]"; // busy states
+  return "border-[var(--primary-lighter)] text-[var(--primary-lighter)]"; // checking / verify
 };
 
 const Spinner = () => (
@@ -73,75 +70,11 @@ const Spinner = () => (
 /* ------------------------------------------------------------------ */
 /* COMPONENT                                                           */
 /* ------------------------------------------------------------------ */
-// const ConsentPage = () => {
-//   const [status, setStatus] = useState(["checking", "pending"]);
-//   const [cur] = useState(0);
-//   const [tool1ConsentRequired, setTool1ConsentRequired] = useState(true)
-//   const [tool2ConsentRequired, setTool2ConsentRequired] = useState(true)
-
-//   const total = TOOLS.length;
-//   const tool = TOOLS[cur];
-
-//   const checkConsent = async () => {
-//     setStatus((prev) => {
-//       const updated = [...prev];
-//       updated[cur] = "checking";
-//       return updated;
-//     });
-
-//     try {
-//       const response = await fetch(
-//         "https://roadieranger-dev.txrh.com/api/consent/verify",{
-//           method: "POST",
-//           headers: {
-//             'Content-Type': 'application/json',
-//             },
-//           credentials: "include",
-//           body: JSON.stringify({
-//             tool: "txrh-tool-RoadieRangerDev-6279-srch-dev"
-//           })
-//         }
-//       );
-
-//       if (!response.ok) {
-//         throw new Error("Failed to check consent");
-//       }
-
-//       const data = await response.json();
-
-//       console.log("Consent API response:", data);
-
-//       // TEMPORARY:
-//       // Simulate consent not available
-//       setStatus((prev) => {
-//         const updated = [...prev];
-//         updated[cur] = "needs";
-//         return updated;
-//       });
-
-//       return data;
-//     } catch (error) {
-//       console.error("Consent check failed:", error);
-
-//       setStatus((prev) => {
-//         const updated = [...prev];
-//         updated[cur] = "needs";
-//         return updated;
-//       });
-
-//       return null;
-//     }
-//   };
-
-//   // ------------------------------------------------------------
-//   useEffect(() => {
-//     checkConsent();
-//   }, []);
-
 const ConsentPage = () => {
-  const [status, setStatus] = useState(["checking", "pending"]);
+  const [status, setStatus] = useState(TOOLS.map((_, i) => (i === 0 ? "checking" : "pending")));
   const [links, setLinks] = useState(TOOLS.map(() => ""));
   const [cur, setCur] = useState(0);
+  const [notice, setNotice] = useState(""); // red message shown after a failed Verify
   const hasRun = useRef(false); // stops the double call in React StrictMode (dev)
 
   const total = TOOLS.length;
@@ -167,15 +100,23 @@ const ConsentPage = () => {
     return response.json();
   };
 
-  // Checks tool 1. If consent is NOT required, checks tool 2.
+  // start        = index of the tool to (re)check first
+  // afterConsent = true when the user clicked "Verify consent" (shows the verify loader)
   // Stops at the first tool that needs consent.
-  const runChecks = async () => {
-    setStatus(TOOLS.map((_, i) => (i === 0 ? "checking" : "pending")));
-    setLinks(TOOLS.map(() => ""));
+  const runChecks = async (start = 0, afterConsent = false) => {
+    setNotice("");
+    setStatus((prev) =>
+      prev.map((s, idx) =>
+        idx < start ? s : idx === start ? (afterConsent ? "verify" : "checking") : "pending"
+      )
+    );
+    setLinks((prev) => prev.map((l, idx) => (idx < start ? l : "")));
 
-    for (let i = 0; i < TOOLS.length; i++) {
+    for (let i = start; i < TOOLS.length; i++) {
+      const isVerify = afterConsent && i === start;
+
       setCur(i);
-      setToolStatus(i, "checking");
+      setToolStatus(i, isVerify ? "verify" : "checking");
 
       try {
         const data = await verifyTool(TOOLS[i].toolId);
@@ -183,7 +124,10 @@ const ConsentPage = () => {
 
         if (data.consent_required) {
           setToolLink(i, data.consent_link || "");
-          setToolStatus(i, "needs");
+          if (isVerify) {
+            setNotice("We couldn't confirm consent yet. Please provide consent and try again.");
+          }
+          setToolStatus(i, "needs"); // Provide consent button shows again
           return; // user has to give consent before we go further
         }
 
@@ -200,6 +144,8 @@ const ConsentPage = () => {
     const link = links[cur];
     if (!link) return;
     window.open(link, "_blank", "noopener,noreferrer");
+    setNotice("");
+    setToolStatus(cur, "popup"); // show "Verify consent" button right away, no loader
   };
 
   useEffect(() => {
@@ -292,7 +238,7 @@ const ConsentPage = () => {
                     </div>
                   </div>
                   <div className="ml-auto max-w-[170px] text-right text-[length:var(--body-xs-size)] leading-snug text-[var(--text-muted)]">
-                    {s === "checking" && <Spinner />}
+                    {(s === "checking" || s === "verify") && <Spinner />}
                     {LABEL[s]}
                   </div>
                 </div>
@@ -301,50 +247,95 @@ const ConsentPage = () => {
           </div>
 
           {/* Action panel */}
+          <div
+            aria-live="polite"
+            className="my-3 min-h-[96px] rounded-[10px] border border-dashed border-[var(--neutral-400)] bg-[var(--main-bg)] p-[14px]"
+          >
             {status[cur] === "checking" && (
-                <div className="flex items-center text-sm text-[var(--text-muted)]">
-                    <Spinner />
-                    <span>Checking your consent for {tool.name}...</span>
-                </div>
+              <div className="flex items-center text-sm text-[var(--text-muted)]">
+                <Spinner />
+                <span>Checking your consent for {tool.name}...</span>
+              </div>
+            )}
+
+            {status[cur] === "needs" && (
+              <>
+                {notice && (
+                  <p className="text-sm text-[var(--danger-default)] font-semibold mb-2">
+                    {notice}
+                  </p>
                 )}
 
-                {status[cur] === "needs" && (
-                <>
-                    <p className="text-sm">
-                    <strong>{tool.name}</strong> needs your permission to act on your behalf.
-                    </p>
+                <p className="text-sm">
+                  <strong>{tool.name}</strong> needs your permission to act on your behalf.
+                </p>
 
-                    <button
+                <button
+                  type="button"
+                  onClick={handleConsentClick}
+                  disabled={!links[cur]}
+                  className="text-[10px] p-3 mt-2 rounded-[5px] font-extrabold text-white bg-[var(--tertiary-shade)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Provide consent for {tool.name}
+                </button>
+              </>
+            )}
+
+            {status[cur] === "popup" && (
+              <>
+                <p className="text-sm">
+                  Finish giving consent for <strong>{tool.name}</strong> in the new tab,
+                  then come back here and click <strong>Verify consent</strong>.
+                </p>
+
+                <div className="flex items-center gap-4 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => runChecks(cur, true)}
+                    className="text-[10px] p-3 rounded-[5px] font-extrabold text-white bg-[var(--success-default)] cursor-pointer"
+                  >
+                    Verify consent
+                  </button>
+
+                  <button
                     type="button"
                     onClick={handleConsentClick}
-                    disabled={!links[cur]}
-                    className="text-[10px] p-3 mt-2 rounded-[5px] font-extrabold text-white bg-[var(--tertiary-shade)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                    Provide consent for {tool.name}
-                    </button>
-                </>
-                )}
+                    className="text-xs underline text-[var(--text-muted)] cursor-pointer bg-transparent border-none"
+                  >
+                    Open consent page again
+                  </button>
+                </div>
+              </>
+            )}
 
-                {status[cur] === "error" && (
-                <>
-                    <p className="text-sm text-[var(--danger-default)] font-semibold">
-                    We couldn't check consent for {tool.name}. Please try again.
-                    </p>
-                    <button
-                    type="button"
-                    onClick={runChecks}
-                    className="text-[10px] p-3 mt-2 rounded-[5px] font-extrabold text-white bg-[var(--tertiary-shade)] cursor-pointer"
-                    >
-                    Try again
-                    </button>
-                </>
-                )}
+            {status[cur] === "verify" && (
+              <div className="flex items-center text-sm text-[var(--text-muted)]">
+                <Spinner />
+                <span>Verifying consent for {tool.name}...</span>
+              </div>
+            )}
 
-                {status[cur] === "ok" && (
-                <p className="text-sm text-[var(--success-default)] font-bold">
-                    Consent already provided for {tool.name}.
+            {status[cur] === "error" && (
+              <>
+                <p className="text-sm text-[var(--danger-default)] font-semibold">
+                  We couldn't check consent for {tool.name}. Please try again.
                 </p>
-                )}
+                <button
+                  type="button"
+                  onClick={() => runChecks(cur)}
+                  className="text-[10px] p-3 mt-2 rounded-[5px] font-extrabold text-white bg-[var(--tertiary-shade)] cursor-pointer"
+                >
+                  Try again
+                </button>
+              </>
+            )}
+
+            {status[cur] === "ok" && (
+              <p className="text-sm text-[var(--success-default)] font-bold">
+                Consent already provided for {tool.name}.
+              </p>
+            )}
+          </div>
         </div>
       </div>
     </div>
