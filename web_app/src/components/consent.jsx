@@ -20,14 +20,14 @@ const TOOLS = [
   },
 ];
 
-const CONSENT_API = "https://roadieranger-dev.txrh.com/api/consent/verify";
+// const CONSENT_API = "https://roadieranger-dev.txrh.com/api/consent/verify";
+const CONSENT_API = "http://127.0.0.1:8000/get_consent"
 
-// status values: pending | checking | needs | popup | verify | ok | error
 const LABEL = {
   pending: "Waiting",
   checking: "Checking consent...",
   needs: "Consent required",
-  popup: "Waiting for consent",
+  popup: "Consent Window Open",
   verify: "Verifying consent...",
   ok: "Consent present",
   error: "Check failed",
@@ -37,10 +37,10 @@ const ICON = {
   pending: "-",
   checking: "..",
   needs: "!",
-  popup: "!",
+  popup: "..",
   verify: "..",
   ok: "✓",
-  error: "..",
+  error: "!",
 };
 
 /* ------------------------------------------------------------------ */
@@ -52,9 +52,9 @@ const iconBase =
 const iconStyle = (s) => {
   if (s === "ok")
     return "border-[var(--success-default)] bg-[var(--success-default)] text-[var(--success-contrast)]";
-  if (s === "needs" || s === "popup")
+  if (s === "needs" || s === "error")
     return "border-[var(--warning-default)] text-[var(--warning-default)]";
-  if (s === "error") return "border-[#0f6cbd] text-[#0f6cbd]"; // wireframe blue
+  if (s === "popup") return "border-[#0f6cbd] text-[#0f6cbd]"; // wireframe blue
   if (s === "pending")
     return "border-[var(--neutral-400)] text-[var(--text-muted)]";
   return "border-[var(--primary-lighter)] text-[var(--primary-lighter)]"; // checking / verify
