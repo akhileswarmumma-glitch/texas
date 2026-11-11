@@ -11,6 +11,7 @@
 :root{
     /* ===== Clark IONIC — Light Mode semantic tokens ===== */
     --primary-bg: #FCA702;
+    --main-bg: #faf5ea;
 
     --primary-default:#2E7D32;
     --primary-light:#286E2C;

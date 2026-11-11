@@ -4,6 +4,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import LoginPage from "./components/loginPage.jsx";
 import LandingPage from "./components/landingPage.jsx";
 import { resumeToPipeableStream } from "react-dom/server";
+import ConsentPage from "./components/consent.jsx";
 
 function App() {
   const [loading, setLoading] = useState(true);
@@ -48,7 +49,7 @@ function App() {
           isAuthenticated ? (
             <Navigate to="/" replace />
           ) : (
-            <LoginPage />
+            <ConsentPage />
           )
         }
       />
