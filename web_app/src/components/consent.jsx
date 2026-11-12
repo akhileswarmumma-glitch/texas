@@ -70,7 +70,7 @@ const Spinner = () => (
 /* ------------------------------------------------------------------ */
 /* COMPONENT                                                           */
 /* ------------------------------------------------------------------ */
-const ConsentPage = () => {
+const ConsentPage = ({ onComplete }) => {
   const [status, setStatus] = useState(TOOLS.map((_, i) => (i === 0 ? "checking" : "pending")));
   const [links, setLinks] = useState(TOOLS.map(() => ""));
   const [cur, setCur] = useState(0);
@@ -137,6 +137,10 @@ const ConsentPage = () => {
         setToolStatus(i, "error");
         return;
       }
+    }
+
+    if (typeof onComplete === "function") {
+      onComplete();
     }
   };
 
