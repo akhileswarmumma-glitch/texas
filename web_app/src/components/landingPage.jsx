@@ -19,6 +19,7 @@ import {
 import ReactMarkdown from "react-markdown";
 import "./markdown.css";
 import remarkGfm from "remark-gfm";
+import { Dropdown } from "./dropDown.jsx";
 import useTextAgent from "./aiTextResponse.jsx";
 import useVoiceAgent from "./aiVoiceResponse.jsx";
 import WarningPopUp from "./warningPopUp.jsx";
@@ -114,30 +115,81 @@ function CurrentResponsePlayer({
   );
 }
 
-const QUICK_INQUIRIES = [
-  {
-    category: "HR & Benefits",
-    text: "How do I enroll in or update my benefits?",
-  },
-  {
-    category: "HR & Payroll",
-    text: "How do I update my W-4 or tax withholding forms?",
-  },
-  {
-    category: "POS & Billing",
-    text: "How do I replace or redeem a damaged gift card?",
-  },
-  {
-    category: "Finance & Ops",
-    text: "How do I contact travel, expense or vendor support?",
-  },
-  {
-    text: "How to access my W2?",
-  },
-  {
-    text: "How to access my paystub?",
-  },
-];
+// const QUICK_INQUIRIES = [
+//   {
+//     category: "HR & Benefits",
+//     text: "How do I enroll in or update my benefits?",
+//   },
+//   {
+//     category: "HR & Payroll",
+//     text: "How do I update my W-4 or tax withholding forms?",
+//   },
+//   {
+//     category: "POS & Billing",
+//     text: "How do I replace or redeem a damaged gift card?",
+//   },
+//   {
+//     category: "Finance & Ops",
+//     text: "How do I contact travel, expense or vendor support?",
+//   },
+//   {
+//     text: "How to access my W2?",
+//   },
+//   {
+//     text: "How to access my paystub?",
+//   },
+// ];
+
+const QUICK_INQUIRIES = {
+  en: [
+    {
+      category: "HR & Benefits",
+      text: "How do I enroll in or update my benefits?",
+    },
+    {
+      category: "HR & Payroll",
+      text: "How do I update my W-4 or tax withholding forms?",
+    },
+    {
+      category: "POS & Billing",
+      text: "How do I replace or redeem a damaged gift card?",
+    },
+    {
+      category: "Finance & Ops",
+      text: "How do I contact travel, expense or vendor support?",
+    },
+    {
+      text: "How to access my W2?",
+    },
+    {
+      text: "How to access my paystub?",
+    },
+  ],
+  es: [
+    {
+      category: "RR. HH. y Beneficios",
+      text: "¿Cómo me inscribo o actualizo mis beneficios?",
+    },
+    {
+      category: "RR. HH. y Nómina",
+      text: "¿Cómo actualizo mi formulario W-4 o mis retenciones de impuestos?",
+    },
+    {
+      category: "POS y Facturación",
+      text: "¿Cómo reemplazo o canjeo una tarjeta de regalo dañada?",
+    },
+    {
+      category: "Finanzas y Operaciones",
+      text: "¿Cómo contacto al soporte de viajes, gastos o proveedores?",
+    },
+    {
+      text: "¿Cómo accedo a mi formulario W-2?",
+    },
+    {
+      text: "¿Cómo accedo a mi recibo de pago?",
+    },
+  ],
+};
 
 function AgentAvatar() {
   return (
@@ -346,6 +398,7 @@ function ChatExperience({
   const textareaRef = useRef(null);
   const [loading, setLoading] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [selectedLanguage, setSelectedLanguage] = useState("en");
   const messagesEndRef = useRef(null);
   const profileRef = useRef(null);
   const wasVoiceActive = useRef(false);
@@ -1262,6 +1315,47 @@ function ChatExperience({
               </button> */}
             </div>
           )}
+
+          {/* <label className="group relative inline-flex items-center">
+            <span className="sr-only">Select language</span>
+
+            <select
+              aria-label="Select language"
+              value={selectedLanguage}
+              onChange={(event) => setSelectedLanguage(event.target.value)}
+              className="cursor-pointer appearance-none rounded-full border border-white/25 bg-[var(--maroon-primary)] py-1.5 pl-8 pr-8 text-xs font-semibold tracking-wide text-white shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-white/50 hover:brightness-110 focus:border-white focus:outline-none focus:ring-2 focus:ring-white/30"
+            >
+              <option value="en" className="bg-white p-2 font-medium text-gray-900">
+                English
+              </option>
+              <option value="es" className="bg-white font-medium text-gray-900">
+                Español
+              </option>
+            </select>
+
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="pointer-events-none absolute right-2.5 h-3.5 w-3.5 text-white/80 transition-transform duration-200 group-hover:text-white"
+            >
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </label> */}
+          <Dropdown
+            ariaLabel="Select language"
+            value={selectedLanguage}
+            onChange={setSelectedLanguage}
+            options={[
+              { value: "en", label: "English" },
+              { value: "es", label: "Español" },
+            ]}
+          />
+
           <div className="relative" ref={profileRef}>
             <button
               type="button"
@@ -1299,16 +1393,41 @@ function ChatExperience({
         {!conversationStarted && !modeSelected && (
           <div className="text-center transition-all">
             <h1 className="m-0 mb-3 text-[var(--secondary-contrast)] text-2xl leading-tight font-extrabold tracking-tight sm:mb-4 sm:text-3xl md:text-4xl lg:text-5xl">
-              Hey{firstName ? ` ${firstName}` : ""}, how can we help today?
+              {selectedLanguage === "es"
+                ? `Hola${firstName ? ` ${firstName}` : ""}, ¿cómo podemos ayudarte hoy?`
+                : `Hey${firstName ? ` ${firstName}` : ""}, how can we help today?`}
             </h1>
             <p className="text-[var(--secondary-contrast)] max-w-[750px] mx-auto mb-2 text-sm sm:mb-3 sm:text-base">
-              <strong>I'm Roadie Ranger</strong> — your quick-answer sidekick on
-              the floor.
+              {selectedLanguage === "es" ? (
+              <>
+                  <strong>Soy Roadie Ranger</strong> — tu compañero de respuestas rápidas en
+                  el piso.
+                </>
+              ) : (
+                <>
+                  <strong>I&apos;m Roadie Ranger</strong> — your quick-answer sidekick on
+                  the floor.
+                </>
+              )}
             </p>
             <p className="text-[var(--secondary-contrast)] max-w-[750px] mx-auto mb-3 text-sm sm:text-base">
-              I can help with questions about HR, payroll, IT, store ops, travel, and compliance. If I can’t find the answer, I can open a ticket and help you keep track of it.
+              {selectedLanguage === "es" ? (
+                <>
+                  Puedo ayudarte con preguntas sobre Recursos Humanos, nómina, TI,
+                  operaciones de tienda, viajes y cumplimiento. Si no encuentro la
+                  respuesta, puedo abrir un ticket y ayudarte a darle seguimiento.
+                </>
+              ) : (
+                <>
+                  I can help with questions about HR, payroll, IT, store ops, travel, and
+                  compliance. If I can’t find the answer, I can open a ticket and help you
+                  keep track of it.
+                </>
+              )}
             </p>
-            <div className="mt-4 text-[var(--primary-bg)] font-extrabold text-xs sm:mt-6 sm:text-sm">Just let me know what you need.</div>
+            <div className="mt-4 text-[var(--primary-bg)] font-extrabold text-xs sm:mt-6 sm:text-sm">
+              {selectedLanguage === "es" ? "Solo dime qué necesitas." : "Just let me know what you need."}
+            </div>
           </div>
         )}
 
@@ -1397,7 +1516,7 @@ function ChatExperience({
             {!conversationStarted && !modeSelected && (
               <section className="mt-6">
                 <div className="flex flex-wrap items-center justify-center gap-2">
-                  {QUICK_INQUIRIES.map((inquiry) => (
+                  {(QUICK_INQUIRIES[selectedLanguage] || QUICK_INQUIRIES.en).map((inquiry) => (
                     <button
                       key={inquiry.text}
                       type="button"

@@ -7,44 +7,44 @@ import ConsentPage from "./components/consent.jsx";
 
 function App() {
   const [loading, setLoading] = useState(true);
-  const [isAuthenticated, setAuthenticated] = useState(false);
+  const [isAuthenticated, setAuthenticated] = useState(true);
   const [needsConsent, setNeedsConsent] = useState(false);
 
-  useEffect(() => {
-    checkAuth();
-  }, []);
+  // useEffect(() => {
+  //   checkAuth();
+  // }, []);
 
-  const checkAuth = async () => {
-    try {
-      const apiBase = (import.meta.env.VITE_API_BASE || '').replace(/\/+$|\/+$/, '');
-      const response = await fetch(`${apiBase || ''}/auth/me`, {
-        method: "POST",
-        credentials: "include",
-      });
+  // const checkAuth = async () => {
+  //   try {
+  //     const apiBase = (import.meta.env.VITE_API_BASE || '').replace(/\/+$|\/+$/, '');
+  //     const response = await fetch(`${apiBase || ''}/auth/me`, {
+  //       method: "POST",
+  //       credentials: "include",
+  //     });
 
-      if (response.ok) {
-        setAuthenticated(true);
-        setNeedsConsent(true);
-      } else {
-        setAuthenticated(false);
-        setNeedsConsent(false);
-      }
-    } catch (error) {
-      console.error(error);
-      setAuthenticated(false);
-      setNeedsConsent(false);
-    } finally {
-      setLoading(false);
-    }
-  };
+  //     if (response.ok) {
+  //       setAuthenticated(true);
+  //       setNeedsConsent(true);
+  //     } else {
+  //       setAuthenticated(false);
+  //       setNeedsConsent(false);
+  //     }
+  //   } catch (error) {
+  //     console.error(error);
+  //     setAuthenticated(false);
+  //     setNeedsConsent(false);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
   const handleConsentComplete = () => {
     setNeedsConsent(false);
   };
 
-  if (loading) {
-    return <div>Loading...</div>;
-  }
+  // if (loading) {
+  //   return <div>Loading...</div>;
+  // }
 
   return (
     <Routes>
