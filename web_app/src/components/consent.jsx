@@ -8,20 +8,21 @@ import Designer from "../assets/designer3.png";
 const TOOLS = [
   {
     key: "snow_mcp",
-    toolId: "txrh-tool-RoadieRangerDev-6279-srch-dev",
-    name: "ServiceNow (SNOW) MCP tool",
-    desc: "Create and track support tickets",
+    // toolId: import.meta.env.VITE_SNOW_MCP_TOOL || "",
+    toolId: "txrh-tool-RoadieRangerDev-6279-StoSup-pHmO",
+    name: "ServiceNow Support",
+    desc: "Access knowledge articles and manage support tickets.",
   },
   {
     key: "tool_2",
-    toolId: "txrh-tool-RoadieRangerDev-6279-StoSup-pHmO",
-    name: "Tool 2",
-    desc: "Second tool (name to be confirmed)",
+    // toolId: import.meta.env.VITE_AI_SEARCH_MCP_TOOL || "",
+    toolId: "txrh-tool-RoadieRangerDev-6279-srch-dev",
+    name: "Knowledge Search",
+    desc: "Find relevant knowledge resources for your questions.",
   },
 ];
 
-// const CONSENT_API = "https://roadieranger-dev.txrh.com/api/consent/verify";
-const CONSENT_API = "http://127.0.0.1:8000/get_consent"
+const CONSENT_API = "https://roadieranger-dev.txrh.com/api/consent/verify";
 
 const LABEL = {
   pending: "Waiting",
@@ -63,7 +64,7 @@ const iconStyle = (s) => {
 const Spinner = () => (
   <span
     aria-hidden="true"
-    className="inline-block h-[14px] w-[14px] mr-2 align-[-2px] rounded-full border-2 border-[var(--primary-lighter)] border-r-transparent animate-spin motion-reduce:animate-none"
+    className="inline-block h-[14px] w-[14px] mr-2 align-[-2px] rounded-full border-2 border-[var(--primary-lighter)] border-r-transparent animate-spin"
   />
 );
 
@@ -180,7 +181,7 @@ const ConsentPage = ({ onComplete }) => {
             One quick step before we get started.
           </h2>
           <p className="mt-5 text-[var(--neutral-200)] max-w-[500px] text-xl leading-8">
-            Roadie Ranger needs your permission to use a few tools on your
+            Roadie Ranger needs your permission to use a few services on your
             behalf. We'll check each one, and you only need to approve the ones
             that are missing.
           </p>
@@ -193,9 +194,9 @@ const ConsentPage = ({ onComplete }) => {
       {/* RIGHT PANEL */}
       <div className="flex flex-1 items-center justify-center bg-[var(--main-bg)] px-4">
         <div className="w-[90%] max-w-[520px] bg-[var(--white-100)] rounded-[22px] p-8 shadow-[0_10px_30px_rgba(0,0,0,0.12)]">
-          <h3 className="text-[var(--primary-lighter)]">Connecting your tools</h3>
+          <h3 className="text-[var(--primary-lighter)]">Connecting your services</h3>
           <p className="mt-1 text-[length:var(--body-xs-size)] text-[var(--text-muted)]">
-            Tool {cur + 1} of {total}
+            Service {cur + 1} of {total}
           </p>
 
           {/* Progress segments */}
