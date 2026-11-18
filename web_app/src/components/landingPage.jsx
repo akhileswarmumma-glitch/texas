@@ -941,6 +941,7 @@ function ChatExperience({
     : textProgressLabel;
 
   const inputPlaceholder = "Write a message...";
+  const showQuickInquiries = mode !== "voice";
 
   const handleModeSelection = useCallback(
     async (nextMode) => {
@@ -1388,7 +1389,11 @@ function ChatExperience({
       </header>
 
       <section
-        className={`mx-auto w-full max-w-[900px] px-3 py-6 flex-1 flex flex-col min-h-0 sm:px-4 sm:py-8 md:py-10 lg:py-5 ${conversationStarted ? "" : ""}`}
+        className={
+          !conversationStarted && mode === null
+            ? "mx-auto w-full max-w-[950px] px-3 py-6 flex-1 flex flex-col min-h-0 sm:px-4 sm:py-8 md:py-10 lg:py-5"
+            : "mx-auto w-full px-3 py-6 flex-1 flex flex-col min-h-0 sm:px-4 sm:py-8 md:py-10 lg:py-5"
+        }
       >
         {!conversationStarted && !modeSelected && (
           <div className="text-center transition-all">
@@ -1433,17 +1438,348 @@ function ChatExperience({
 
         {!conversationStarted && !modeSelected ? null : (
           <div
-            className="flex flex-col gap-3 sm:gap-4 flex-1 min-h-0 overflow-visible p-1 sm:p-2"
-            role="log"
-            aria-live="polite"
+            className={
+              !showQuickInquiries
+                ? "flex w-full min-h-0 flex-1 flex-col"
+                : "flex w-full min-h-0 flex-1 flex-col gap-4 lg:flex-row lg:items-stretch"
+            }
           >
-            {messages.map((item) => (
-              <MessageBubble key={item.id} item={item} mode={mode} />
-            ))}
-            {(loading || activeProgressLabel) && (
-              <TypingIndicator label={activeProgressLabel} />
+            <div className={!showQuickInquiries ? "flex min-w-0 w-full flex-1 flex-col min-h-0" : "flex min-w-0 flex-1 flex-col min-h-0"}>
+              <div
+                className="flex min-h-0 flex-1 flex-col gap-3 overflow-visible p-1 sm:gap-4 sm:p-2 lg:pr-4"
+                role="log"
+                aria-live="polite"
+              >
+                {messages.map((item) => (
+                  <MessageBubble key={item.id} item={item} mode={mode} />
+                ))}
+                {(loading || activeProgressLabel) && (
+                  <TypingIndicator label={activeProgressLabel} />
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+
+              <section
+                className={
+                  !showQuickInquiries
+                    ? "sticky bottom-0 z-10 mt-auto w-full shrink-0 bg-[#faf5ea] pt-2 pb-0"
+                    : "sticky bottom-0 z-10 mt-auto w-full max-w-[900px] shrink-0 bg-[#faf5ea] pt-2 pb-0"
+                }
+              >
+                <div className="flex items-end gap-2 sm:gap-3">
+                  {mode === "text" && (
+                    <div className="relative flex-1">
+                      <textarea
+                        ref={textareaRef}
+                        className="block w-full min-h-[45px] max-h-[150px] resize-none overflow-y-auto rounded-2xl border border-emerald-800 bg-[#f6f1e6] px-3 py-4 pr-20 text-sm text-[var(--secondary-contrast)] placeholder:text-[var(--text-muted)] focus:outline-none sm:text-base"
+                        value={draft}
+                        rows={1}
+                        disabled={isVoiceActive}
+                        placeholder={inputPlaceholder}
+                        onChange={(event) => {
+                          const textarea = event.target;
+                          textarea.style.height = "auto";
+                          textarea.style.height = `${Math.min(
+                            textarea.scrollHeight,
+                            150,
+                          )}px`;
+                          setDraft(textarea.value);
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" && !event.shiftKey) {
+                            event.preventDefault();
+                            void startLandingTextChat();
+                          }
+                        }}
+                      />
+
+                      <div className="absolute right-4 top-1/2 flex -translate-y-1/2 items-center gap-2">
+                        {!draft.trim() && (
+                          <button
+                            type="button"
+                            disabled={loading}
+                            title="Start voice chat"
+                            onClick={() => handleModeSelection("voice")}
+                            className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--primary-default)] text-white transition-colors cursor-pointer disabled:opacity-50"
+                            aria-label="Start voice chat"
+                          >
+                            <svg
+                              viewBox="0 0 32 32"
+                              width="24"
+                              height="24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2.2"
+                              strokeLinecap="round"
+                              aria-hidden="true"
+                            >
+                              <path d="M5 13v6 M9 9v14 M13 5v22 M17 11v10 M21 8v16 M25 13v6" />
+                            </svg>
+                          </button>
+                        )}
+
+                        {draft.trim() && (
+                          <button
+                            type="button"
+                            disabled={loading || isVoiceActive}
+                            onClick={() => void startLandingTextChat()}
+                            className="flex h-9 w-9 items-center justify-center rounded-full border cursor-pointer bg-[var(--secondary-contrast)] text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
+                            aria-label="Send message"
+                          >
+                            <FiArrowUp className="text-lg" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {mode === "voice" && (
+                    <div className="flex-1 flex flex-col gap-3 rounded-2xl border-emerald-800 bg-[#f6f1e6] p-4">
+                      <div className="flex items-center gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3">
+                            <div className="w-full" />
+                          </div>
+                          <div className="flex items-center justify-center">
+                            <span
+                              className="text-[11px] font-semibold"
+                              style={{ color: "#5b8cff" }}
+                            >
+                              {npStateLabel}
+                            </span>
+                          </div>
+                          <div className="relative flex min-h-14 w-full items-center justify-center">
+                            <div className="flex flex-row items-center justify-center gap-6">
+                              <button
+                                type="button"
+                                onClick={handlePlaybackToggle}
+                                disabled={!audioUrl}
+                                aria-label={isPlaying ? "Pause response" : "Play response"}
+                                title={isPlaying ? "Pause response" : "Play response"}
+                                className="flex h-11 w-11 flex-shrink-0 cursor-pointer items-center justify-center rounded-full text-white shadow-md disabled:cursor-not-allowed disabled:opacity-40"
+                                style={{ background: "var(--success-default)" }}
+                              >
+                                {isPlaying ? <FiPause size={17} /> : <FiPlay size={15} />}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleMicClick}
+                                disabled={loading || !isVoiceActive}
+                                onMouseDown={async (e) => {
+                                  e.preventDefault();
+                                  if (!isVoiceActive || !pttMode || loading) return;
+                                  try {
+                                    suspendCapture();
+                                    setIsRecording(true);
+                                    if (loading) return;
+                                    if (agentSpeaking || isPlaying) {
+                                      handleInterrupt();
+                                      await new Promise((resolve) =>
+                                        setTimeout(resolve, 1000),
+                                      );
+                                    }
+                                    await startCapture();
+                                  } catch (err) {
+                                    console.error(err);
+                                    setIsRecording(false);
+                                  }
+                                }}
+                                onMouseUp={async (e) => {
+                                  e.preventDefault();
+                                  if (!isVoiceActive || !pttMode) return;
+                                  try {
+                                    stopCapture();
+                                  } catch (err) {
+                                    console.error(err);
+                                  }
+                                  setIsRecording(false);
+                                }}
+                                onMouseLeave={async (e) => {
+                                  if (!isVoiceActive || !pttMode) return;
+                                  try {
+                                    stopCapture();
+                                  } catch (err) {
+                                    console.error(err);
+                                  }
+                                  setIsRecording(false);
+                                }}
+                                onTouchStart={async (e) => {
+                                  e.preventDefault();
+                                  if (!isVoiceActive || !pttMode || loading) return;
+                                  try {
+                                    suspendCapture();
+                                    setIsRecording(true);
+                                    if (loading) return;
+                                    if (agentSpeaking || isPlaying) {
+                                      handleInterrupt();
+                                      await new Promise((resolve) =>
+                                        setTimeout(resolve, 1000),
+                                      );
+                                    }
+                                    await startCapture();
+                                  } catch (err) {
+                                    console.error(err);
+                                    setIsRecording(false);
+                                  }
+                                }}
+                                onTouchEnd={async (e) => {
+                                  e.preventDefault();
+                                  if (!isVoiceActive || !pttMode) return;
+                                  try {
+                                    stopCapture();
+                                  } catch (err) {
+                                    console.error(err);
+                                  }
+                                  setIsRecording(false);
+                                }}
+                                title={
+                                  listeningBlocked
+                                    ? listeningStatusText
+                                    : pttMode
+                                      ? "Hold to talk"
+                                      : isRecording
+                                        ? "Click to mute"
+                                        : "Click to unmute"
+                                }
+                                aria-label={
+                                  !isVoiceActive
+                                    ? "Connect first to speak"
+                                    : listeningBlocked
+                                      ? listeningStatusText
+                                      : pttMode
+                                        ? "Hold to speak"
+                                        : isRecording
+                                          ? "Click to mute microphone"
+                                          : "Click to unmute microphone"
+                                }
+                                className={`h-11 w-11 cursor-pointer rounded-full grid place-items-center text-2xl shadow-md transition-colors ${
+                                  isVoiceActive
+                                    ? isRecording
+                                      ? "bg-[var(--primary-default)] text-white"
+                                      : "bg-[var(--primary-bg)] text-white"
+                                    : "bg-[var(--primary-bg)] text-white"
+                                } ${loading ? "opacity-50 cursor-not-allowed" : ""} ${
+                                  isAudioCapturing ? "mic-recording" : ""
+                                }`}
+                              >
+                                <span className="text-[17px]">
+                                  {isRecording ? "🎤" : "🎙️"}
+                                </span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setShowDisconnectWarning(true)}
+                                aria-label="Close voice chat"
+                                title="Close voice chat"
+                                className="flex h-11 w-11 flex-shrink-0 cursor-pointer items-center justify-center rounded-full text-white shadow-md transition-opacity hover:opacity-90"
+                                style={{ background: "var(--danger-default)" }}
+                              >
+                                <FiX size={17} />
+                              </button>
+                            </div>
+                          </div>
+                          <div className="flex w-full justify-center mt-1 items-center gap-2 text-[10px] text-[var(--text-muted)]">
+                            <span>🎧</span>
+                            <span className="italic">
+                              For best voice recognition, use headphones or earbuds.
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <audio
+                        ref={audioRef}
+                        id="player"
+                        className="hidden"
+                        onLoadedMetadata={() => {
+                          try {
+                            setAudioDuration(audioRef.current?.duration || 0);
+                          } catch (_) {
+                            setAudioDuration(0);
+                          }
+                        }}
+                        onTimeUpdate={() => {
+                          try {
+                            setAudioCurrentTime(audioRef.current?.currentTime || 0);
+                          } catch (_) {
+                            setAudioCurrentTime(0);
+                          }
+                        }}
+                        onPlaying={() => {
+                          setIsPlaying(true);
+                          notifyPlaybackStarted();
+                          setAgentSpeaking(true);
+                          setAgentSpeakingGate?.(true);
+                          playbackEndedNotifiedRef.current = false;
+                        }}
+                        onWaiting={() => {
+                          setIsPlaying(false);
+                        }}
+                        onPause={() => {
+                          setIsPlaying(false);
+                          setAgentSpeakingGate?.(false);
+                          if (suppressPauseNotifyRef.current) {
+                            suppressPauseNotifyRef.current = false;
+                            return;
+                          }
+                          if (!playbackEndedNotifiedRef.current) {
+                            playbackEndedNotifiedRef.current = true;
+                            notifyPlaybackEnded();
+                            setAgentSpeaking(false);
+                          }
+                        }}
+                        onEnded={() => {
+                          setIsPlaying(false);
+                          setAgentSpeakingGate?.(false);
+                          if (!playbackEndedNotifiedRef.current) {
+                            playbackEndedNotifiedRef.current = true;
+                            notifyPlaybackEnded();
+                            setAgentSpeaking(false);
+                          }
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              </section>
+            </div>
+
+            {showQuickInquiries && (
+              <aside className="hidden h-full shrink-0 self-stretch lg:block lg:w-[320px] xl:w-[360px]">
+                <div className="h-full rounded-2xl border border-emerald-800 bg-[#f8f2e8] p-3 shadow-sm">
+                  <div className="mb-3 flex items-center gap-2">
+                    <span className="text-base" aria-hidden="true">⚡</span>
+                    <h2 className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-[var(--primary-bg)]">
+                      {selectedLanguage === "es" ? "Consultas rápidas" : "Quick inquiries"}
+                    </h2>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    {(QUICK_INQUIRIES[selectedLanguage] || QUICK_INQUIRIES.en).map((inquiry) => (
+                      <button
+                        key={inquiry.text}
+                        type="button"
+                        onClick={() => {
+                          if (mode === "voice") return;
+                          populateQuery(inquiry.text);
+                        }}
+                        disabled={mode === "voice"}
+                        className={`w-full rounded-xl border border-[var(--primary-default)] bg-[var(--primary-contrast)] p-3 text-left transition hover:opacity-95 ${mode === "voice" ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                      >
+                        {/* {inquiry.category && (
+                          <div className="mb-1 text-[9px] font-bold uppercase tracking-[0.12em] text-[var(--primary-bg)]">
+                            {inquiry.category}
+                          </div>
+                        )} */}
+                        <div className="text-[11px] font-medium leading-relaxed text-[var(--secondary-contrast)]">
+                          {inquiry.text}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </aside>
             )}
-            <div ref={messagesEndRef} />
           </div>
         )}
 
@@ -1475,102 +1811,12 @@ function ChatExperience({
               />
 
               <div className="absolute right-4 top-1/2 flex -translate-y-1/2 items-center gap-2">
-              {!draft.trim() && (
-                <button
-                  type="button"
-                  disabled={loading}
-                  onClick={() => handleModeSelection("voice")}
-                  title="Start voice chat"
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--primary-default)] text-white transition-colors cursor-pointer disabled:opacity-50"
-                  aria-label="Start voice chat"
-                >
-                  <svg
-                    viewBox="0 0 32 32"
-                    width="24"
-                    height="24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.2"
-                    strokeLinecap="round"
-                    aria-hidden="true"
-                  >
-                    <path d="M5 13v6 M9 9v14 M13 5v22 M17 11v10 M21 8v16 M25 13v6" />
-                  </svg>
-                </button>
-              )}
-
-                {draft.trim() && (
-                  <button
-                    type="button"
-                    disabled={loading || isVoiceActive}
-                    onClick={() => void startLandingTextChat()}
-                    className="flex h-9 w-9 items-center justify-center rounded-full border cursor-pointer bg-[var(--secondary-contrast)] text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
-                    aria-label="Send message"
-                  >
-                    <FiArrowUp className="text-lg" />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {!conversationStarted && !modeSelected && (
-              <section className="mt-6">
-                <div className="flex flex-wrap items-center justify-center gap-2">
-                  {(QUICK_INQUIRIES[selectedLanguage] || QUICK_INQUIRIES.en).map((inquiry) => (
-                    <button
-                      key={inquiry.text}
-                      type="button"
-                      onClick={() => {
-                        if (mode === "voice") return;
-                        populateQuery(inquiry.text);
-                      }}
-                      disabled={mode === "voice"}
-                      className={`rounded-full border border-[var(--primary-default)] bg-[var(--primary-contrast)] px-3 py-2 text-left text-[11px] font-medium text-[var(--secondary-contrast)] transition hover:opacity-95 ${mode === "voice" ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
-                    >
-                      {inquiry.text}
-                    </button>
-                  ))}
-                </div>
-              </section>
-            )}
-          </div>
-        )}
-
-        <section className="sticky bottom-0 z-10 mt-auto w-full shrink-0 bg-[#faf5ea] pt-2 pb-0">
-          <div className="flex items-end gap-2 sm:gap-3">
-            {mode === "text" && (
-              <div className="relative flex-1">
-                <textarea
-                  ref={textareaRef}
-                  className="block w-full min-h-[56px] max-h-[150px] resize-none overflow-y-auto rounded-2xl border border-emerald-800 bg-[#f6f1e6] px-3 py-4 pr-20 text-sm text-[var(--secondary-contrast)] placeholder:text-[var(--text-muted)] focus:outline-none sm:text-base"
-                  value={draft}
-                  rows={1}
-                  disabled={isVoiceActive}
-                  placeholder={inputPlaceholder}
-                  onChange={(event) => {
-                    const textarea = event.target;
-                    textarea.style.height = "auto";
-                    textarea.style.height = `${Math.min(
-                      textarea.scrollHeight,
-                      150,
-                    )}px`;
-                    setDraft(textarea.value);
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" && !event.shiftKey) {
-                      event.preventDefault();
-                      void startLandingTextChat();
-                    }
-                  }}
-                />
-
-                <div className="absolute right-4 top-1/2 flex -translate-y-1/2 items-center gap-2">
                 {!draft.trim() && (
                   <button
                     type="button"
                     disabled={loading}
-                    title="Start voice chat"
                     onClick={() => handleModeSelection("voice")}
+                    title="Start voice chat"
                     className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--primary-default)] text-white transition-colors cursor-pointer disabled:opacity-50"
                     aria-label="Start voice chat"
                   >
@@ -1589,303 +1835,41 @@ function ChatExperience({
                   </button>
                 )}
 
-                  {draft.trim() && (
-                    <button
-                      type="button"
-                      disabled={loading || isVoiceActive}
-                      onClick={() => void startLandingTextChat()}
-                      className="flex h-9 w-9 items-center justify-center rounded-full border cursor-pointer bg-[var(--secondary-contrast)] text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
-                      aria-label="Send message"
-                    >
-                      <FiArrowUp className="text-lg" />
-                    </button>
-                  )}
-                </div>
+                {draft.trim() && (
+                  <button
+                    type="button"
+                    disabled={loading || isVoiceActive}
+                    onClick={() => void startLandingTextChat()}
+                    className="flex h-9 w-9 items-center justify-center rounded-full border cursor-pointer bg-[var(--secondary-contrast)] text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
+                    aria-label="Send message"
+                  >
+                    <FiArrowUp className="text-lg" />
+                  </button>
+                )}
               </div>
-            )}
+            </div>
 
-            {mode === "voice" && (
-              // bg-[#f6f1e6]
-              <div className="flex-1 flex flex-col gap-3 rounded-2xl border-emerald-800 bg-[#f6f1e6] p-4">
-                {/* <p className="text-black">Coming soon... please switch to text mode to continue.</p> */}
-                <div className="flex items-center gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3">
-                      <div className="w-full">
-                        {/* <CurrentResponsePlayer
-                          audioCurrentTime={audioCurrentTime}
-                          audioDuration={audioDuration}
-                          isPlaying={isPlaying}
-                          stateLabel={npStateLabel}
-                          onSeek={(t) => {
-                            if (!audioRef.current) return;
-                            audioRef.current.currentTime = t;
-                            setAudioCurrentTime(t);
-                          }}
-                          onReplay={handleReplay}
-                        /> */}
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-center">
-                      {/* <span className="text-[10px] font-extrabold tracking-wider" style={{ color: "#9aa2b1" }}>CURRENT RESPONSE</span> */}
-                      <span
-                        className="text-[11px] font-semibold"
-                        style={{ color: "#5b8cff" }}
-                      >
-                        {npStateLabel}
-                      </span>
-                    </div>
-                    <div className="relative flex min-h-14 w-full items-center justify-center">
-                      {/* <button
-                        type="button"
-                        onClick={togglePttMode}
-                        aria-pressed={pttMode}
-                        title="Toggle Push-to-talk mode"
-                        className="absolute left-0 flex items-center gap-2"
-                      >
-                        <span className={`relative inline-block w-9 h-5 rounded-full transition-colors ${pttMode ? 'bg-[var(--primary-bg)]' : 'bg-gray-300'}`}>
-                          <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${pttMode ? 'translate-x-4' : 'translate-x-0'}`} />
-                        </span>
-                        <span className="text-[10px] font-bold text-[var(--secondary-contrast)] whitespace-nowrap">
-                          Push-to-talk
-                        </span>
-                      </button> */}
-
-                      <div className="flex flex-row items-center justify-center gap-6">
-                        <button
-                          type="button"
-                          onClick={handlePlaybackToggle}
-                          disabled={!audioUrl}
-                          aria-label={isPlaying ? "Pause response" : "Play response"}
-                          title={isPlaying ? "Pause response" : "Play response"}
-                          className="flex h-11 w-11 flex-shrink-0 cursor-pointer items-center justify-center rounded-full text-white shadow-md disabled:cursor-not-allowed disabled:opacity-40"
-                          style={{ background: "var(--success-default)" }}
-                        >
-                          {isPlaying ? <FiPause size={17} /> : <FiPlay size={15} />}
-                        </button>
-                        {/* <button
-                          type="button"
-                          onClick={() => startVoiceSession()}
-                          disabled={isVoiceActive}
-                          className={`inline-flex cursor-pointer items-center gap-1.5 px-2 py-1 text-xs rounded-md font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed ${isVoiceActive
-                            ? "bg-[var(--primary-default)] text-white"
-                            : "bg-[var(--primary-bg)]"
-                            }`}
-                        >
-                          {isVoiceActive ? <FiCheckCircle aria-hidden="true" /> : <FiLink aria-hidden="true" />}
-                          {isVoiceActive ? "Connected" : "Connect"}
-                        </button> */}
-                        <button
-                          type="button"
-                          onClick={handleMicClick}
-                          disabled={loading || !isVoiceActive}
-                          onMouseDown={async (e) => {
-                            e.preventDefault();
-                            if (!isVoiceActive || !pttMode || loading) return;
-
-                            try {
-                              suspendCapture();
-                              setIsRecording(true);
-
-                              if (loading) return; // unchanged — nothing to interrupt yet
-
-                              if (agentSpeaking || isPlaying) {
-                                handleInterrupt();
-                                await new Promise((resolve) =>
-                                  setTimeout(resolve, 1000),
-                                );
-                              }
-
-                              await startCapture();
-                            } catch (err) {
-                              console.error(err);
-                              setIsRecording(false);
-                            }
-                          }}
-                          onMouseUp={async (e) => {
-                            e.preventDefault();
-                            if (!isVoiceActive || !pttMode) return;
-                            try {
-                              stopCapture();
-                            } catch (err) {
-                              console.error(err);
-                            }
-                            setIsRecording(false);
-                          }}
-                          onMouseLeave={async (e) => {
-                            if (!isVoiceActive || !pttMode) return;
-                            try {
-                              stopCapture();
-                            } catch (err) {
-                              console.error(err);
-                            }
-                            setIsRecording(false);
-                          }}
-                          onTouchStart={async (e) => {
-                            e.preventDefault();
-                            if (!isVoiceActive || !pttMode || loading) return;
-
-                            try {
-                              suspendCapture();
-                              setIsRecording(true);
-
-                              // Still thinking, no audio yet — nothing to interrupt.
-                              if (loading) return;
-
-                              // Agent audio is currently playing — stop it and let the output
-                              // actually go silent before we start forwarding mic audio.
-                              if (agentSpeaking || isPlaying) {
-                                handleInterrupt();
-                                await new Promise((resolve) =>
-                                  setTimeout(resolve, 1000),
-                                );
-                              }
-
-                              await startCapture();
-                            } catch (err) {
-                              console.error(err);
-                              setIsRecording(false);
-                            }
-                          }}
-                          onTouchEnd={async (e) => {
-                            e.preventDefault();
-                            if (!isVoiceActive || !pttMode) return;
-                            try {
-                              stopCapture();
-                            } catch (err) {
-                              console.error(err);
-                            }
-                            setIsRecording(false);
-                          }}
-                          title={
-                            listeningBlocked
-                              ? listeningStatusText
-                              : pttMode
-                                ? "Hold to talk"
-                                : isRecording
-                                  ? "Click to mute"
-                                  : "Click to unmute"
-                          }
-                          aria-label={
-                            !isVoiceActive
-                              ? "Connect first to speak"
-                              : listeningBlocked
-                                ? listeningStatusText
-                                : pttMode
-                                  ? "Hold to speak"
-                                  : isRecording
-                                    ? "Click to mute microphone"
-                                    : "Click to unmute microphone"
-                          }
-                          className={`h-11 w-11 cursor-pointer rounded-full grid place-items-center text-2xl shadow-md transition-colors ${
-                            isVoiceActive
-                              ? isRecording
-                                ? "bg-[var(--primary-default)] text-white"
-                                : "bg-[var(--primary-bg)] text-white"
-                              : "bg-[var(--primary-bg)] text-white"
-                          } ${loading ? "opacity-50 cursor-not-allowed" : ""} ${
-                            isAudioCapturing ? "mic-recording" : ""
-                          }`}
-                        >
-                          <span className="text-[17px]">
-                            {isRecording ? "🎤" : "🎙️"}
-                          </span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setShowDisconnectWarning(true)}
-                          aria-label="Close voice chat"
-                          title="Close voice chat"
-                          className="flex h-11 w-11 flex-shrink-0 cursor-pointer items-center justify-center rounded-full text-white shadow-md transition-opacity hover:opacity-90"
-                          style={{ background: "var(--danger-default)" }}
-                        >
-                          <FiX size={17} />
-                        </button>
-                        {/* <button
-                          type="button"
-                          onClick={() => setShowDisconnectWarning(true)}
-                          disabled={!isVoiceActive}
-                          className={`inline-flex items-center gap-1.5 px-2 py-1 text-xs rounded-md font-semibold transition ${!isVoiceActive
-                            ? 'opacity-50 cursor-not-allowed bg-white text-[var(--text-muted)]'
-                            : 'bg-[var(--danger-default)] text-white cursor-pointer'
-                            }`}
-                        >
-                          <FiPower aria-hidden="true" />
-                          Disconnect
-                        </button> */}
-                      </div>
-                    </div>
-                    {/* <div className="mt-3 flex items-center justify-center">
-                      <div className="inline-flex items-center gap-2 rounded-lg border border-[var(--neutral-300)] bg-[var(--white-100)] px-3 py-2 text-[10px] text-[var(--text-muted)]">
-                        <span>🎧</span>
-                        <span className="italic" >
-                          For best voice recognition, use headphones or earbuds.
-                        </span>
-                      </div>
-                    </div> */}
-                    <div className="flex w-full justify-center mt-1 items-center gap-2 text-[10px] text-[var(--text-muted)]">
-                      <span>🎧</span>
-                      <span className="italic">
-                        For best voice recognition, use headphones or earbuds.
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <audio
-                  ref={audioRef}
-                  id="player"
-                  className="hidden"
-                  onLoadedMetadata={() => {
-                    try {
-                      setAudioDuration(audioRef.current?.duration || 0);
-                    } catch (_) {
-                      setAudioDuration(0);
-                    }
-                  }}
-                  onTimeUpdate={() => {
-                    try {
-                      setAudioCurrentTime(audioRef.current?.currentTime || 0);
-                    } catch (_) {
-                      setAudioCurrentTime(0);
-                    }
-                  }}
-                  onPlaying={() => {
-                    setIsPlaying(true);
-                    notifyPlaybackStarted();
-                    setAgentSpeaking(true);
-                    setAgentSpeakingGate?.(true);
-                    playbackEndedNotifiedRef.current = false;
-                  }}
-                  onWaiting={() => {
-                    setIsPlaying(false);
-                  }}
-                  onPause={() => {
-                    setIsPlaying(false);
-                    setAgentSpeakingGate?.(false);
-                    if (suppressPauseNotifyRef.current) {
-                      suppressPauseNotifyRef.current = false;
-                      return;
-                    }
-                    if (!playbackEndedNotifiedRef.current) {
-                      playbackEndedNotifiedRef.current = true;
-                      notifyPlaybackEnded();
-                      setAgentSpeaking(false);
-                    }
-                  }}
-                  onEnded={() => {
-                    setIsPlaying(false);
-                    setAgentSpeakingGate?.(false);
-                    if (!playbackEndedNotifiedRef.current) {
-                      playbackEndedNotifiedRef.current = true;
-                      notifyPlaybackEnded();
-                      setAgentSpeaking(false);
-                    }
-                  }}
-                />
+            <section className="mt-6">
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                {(QUICK_INQUIRIES[selectedLanguage] || QUICK_INQUIRIES.en).map((inquiry) => (
+                  <button
+                    key={inquiry.text}
+                    type="button"
+                    onClick={() => {
+                      if (mode === "voice") return;
+                      populateQuery(inquiry.text);
+                    }}
+                    disabled={mode === "voice"}
+                    className={`rounded-full border border-[var(--primary-default)] bg-[var(--primary-contrast)] px-3 py-2 text-left text-[11px] font-medium text-[var(--secondary-contrast)] transition hover:opacity-95 ${mode === "voice" ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                  >
+                    {inquiry.text}
+                  </button>
+                ))}
               </div>
-            )}
+            </section>
           </div>
+        )}
+
           {/* Mode switch warning popup */}
           {/* Mode switch warning popup */}
           <WarningPopUp
@@ -1925,7 +1909,6 @@ function ChatExperience({
             singleAction
             cancelLabel="Dismiss"
           />
-        </section>
 
       </section>
     </main>
