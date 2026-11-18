@@ -480,6 +480,7 @@ function ChatExperience({
     setLoading,
     handleLogout,
     sessionId,
+    selectedLanguage,
   );
 
   const audioRef = useRef(null);
@@ -585,6 +586,7 @@ function ChatExperience({
       onRemoveMessage: removeMessageById,
     },
     sessionId,
+    selectedLanguage,
   );
 
   const handlePlaybackToggle = useCallback(() => {

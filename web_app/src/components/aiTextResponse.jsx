@@ -12,7 +12,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 const API_BASE = (import.meta.env.VITE_API_BASE || '').replace(/\/+$/, '');
 const CHAT_ENDPOINT = API_BASE ? `${API_BASE}/api/chatV1` : '/api/chatV1'; // same-origin BFF route; adjust if BFF is on a different host
 
-const useTextAgent = (onAgentMessage, setLoading, handleLogout, initialSessionId = "") => {
+const useTextAgent = (onAgentMessage, setLoading, handleLogout, initialSessionId = "", selectedLanguage = "en") => {
   const [messages, setMessages] = useState([]);
   const [currentDelta, setCurrentDelta] = useState('');
   const [status, setStatus] = useState('disconnected'); // 'disconnected' | 'connecting' | 'connected' | 'streaming'
@@ -269,6 +269,7 @@ const useTextAgent = (onAgentMessage, setLoading, handleLogout, initialSessionId
         signal: controller.signal,
         body: JSON.stringify({
           user_message: text,
+          user_selected_language: selectedLanguage,
           conversation_id: conversationIdRef.current,
           previous_response_id: previousResponseIdRef.current || '',
           interaction_id: interactionIdRef.current,

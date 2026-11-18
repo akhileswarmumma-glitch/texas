@@ -64,7 +64,8 @@ const useVoiceAgent = (
   onAgentMessage,
   setLoading,
   options = {},
-  initialSessionId = ''
+  initialSessionId = '',
+  selectedLanguage = 'en'
 ) => {
   const [status, setStatus] = useState('disconnected');
   const [sessionId, setSessionId] = useState(null);
@@ -82,6 +83,8 @@ const useVoiceAgent = (
 
   const callbackRef = useRef(onAgentMessage);
   const optionsRef = useRef(options);
+  const languageRef = useRef(selectedLanguage);
+  languageRef.current = selectedLanguage;
 
   // Long-lived callbacks read the latest values from these refs.
   const statusRef = useRef('disconnected');
@@ -612,6 +615,7 @@ const useVoiceAgent = (
             ws.send(
               JSON.stringify({
                 type: 'init',
+                user_selected_language: languageRef.current,
                 ...(voiceSessionId
                   ? { session_id: voiceSessionId }
                   : {}),
