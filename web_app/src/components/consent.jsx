@@ -9,20 +9,21 @@ const TOOLS = [
   {
     key: "snow_mcp",
     // toolId: import.meta.env.VITE_SNOW_MCP_TOOL || "",
-    toolId: "txrh-tool-RoadieRangerDev-6279-StoSup-pHmO",
+    toolId: "snow",
     name: "ServiceNow Support",
     desc: "Access knowledge articles and manage support tickets.",
   },
   {
     key: "tool_2",
     // toolId: import.meta.env.VITE_AI_SEARCH_MCP_TOOL || "",
-    toolId: "txrh-tool-RoadieRangerDev-6279-srch-dev",
+    toolId: "ai-search",
     name: "Knowledge Search",
     desc: "Find relevant knowledge resources for your questions.",
   },
 ];
 
-const CONSENT_API = "https://roadieranger-dev.txrh.com/api/consent/verify";
+const apiBase = (import.meta.env.VITE_API_BASE || '').replace(/\/+$|\/+$/, '');
+const CONSENT_API = `${apiBase || ''}/api/consent/verify`
 
 const LABEL = {
   pending: "Waiting",
