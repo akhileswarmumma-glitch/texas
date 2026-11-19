@@ -10,6 +10,7 @@ const TOOLS = [
     key: "snow_mcp",
     // toolId: import.meta.env.VITE_SNOW_MCP_TOOL || "",
     toolId: "snow",
+    toolName: "Snow-Check-Consent",
     name: "ServiceNow Support",
     desc: "Access knowledge articles and manage support tickets.",
   },
@@ -17,11 +18,11 @@ const TOOLS = [
     key: "tool_2",
     // toolId: import.meta.env.VITE_AI_SEARCH_MCP_TOOL || "",
     toolId: "ai-search",
+    toolName: "AI-Search-Check-Consent",
     name: "Knowledge Search",
     desc: "Find relevant knowledge resources for your questions.",
   },
 ];
-
 const apiBase = (import.meta.env.VITE_API_BASE || '').replace(/\/+$|\/+$/, '');
 const CONSENT_API = `${apiBase || ''}/api/consent/verify`
 
@@ -89,12 +90,12 @@ const ConsentPage = ({ onComplete }) => {
     setLinks((prev) => prev.map((l, idx) => (idx === i ? value : l)));
 
   // One API call for one tool
-  const verifyTool = async (toolId) => {
+  const verifyTool = async (toolId,toolName) => {
     const response = await fetch(CONSENT_API, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify({ tool: toolId }),
+      body: JSON.stringify({ tool: toolId, agent_name: toolName }),
     });
     if (!response.ok) {
       throw new Error(`Consent check failed: ${response.status}`);
@@ -121,7 +122,7 @@ const ConsentPage = ({ onComplete }) => {
       setToolStatus(i, isVerify ? "verify" : "checking");
 
       try {
-        const data = await verifyTool(TOOLS[i].toolId);
+        const data = await verifyTool(TOOLS[i].toolId, TOOLS[i].toolName);
         console.log("Consent API response:", data);
 
         if (data.consent_required) {
@@ -264,7 +265,7 @@ const ConsentPage = ({ onComplete }) => {
               </div>
             )}
 
-            {status[cur] === "needs" && (
+            {(status[cur] === "needs" || status[cur] === "popup") && (
               <>
                 {notice && (
                   <p className="text-sm text-[var(--danger-default)] font-semibold mb-2">
@@ -274,41 +275,28 @@ const ConsentPage = ({ onComplete }) => {
 
                 <p className="text-sm">
                   <strong>{tool.name}</strong> needs your permission to act on your behalf.
+                    Click <strong>Provide consent</strong> to approve it in a new tab, then come
+                    back here and click <strong>Verify consent
+                  </strong>.
                 </p>
 
-                <button
-                  type="button"
-                  onClick={handleConsentClick}
-                  disabled={!links[cur]}
-                  className="text-[10px] p-3 mt-2 rounded-[5px] font-extrabold text-white bg-[var(--tertiary-shade)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Provide consent for {tool.name}
-                </button>
-              </>
-            )}
-
-            {status[cur] === "popup" && (
-              <>
-                <p className="text-sm">
-                  Finish giving consent for <strong>{tool.name}</strong> in the new tab,
-                  then come back here and click <strong>Verify consent</strong>.
-                </p>
-
-                <div className="flex items-center gap-4 mt-2">
+                <div className="flex items-center gap-3 mt-2">
                   <button
                     type="button"
-                    onClick={() => runChecks(cur, true)}
-                    className="text-[10px] p-3 rounded-[5px] font-extrabold text-white bg-[var(--success-default)] cursor-pointer"
+                    onClick={handleConsentClick}
+                    disabled={!links[cur]}
+                    className="text-[10px] p-3 rounded-[5px] font-extrabold text-white bg-[var(--tertiary-shade)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Verify consent
+                    Provide consent for {tool.name}
                   </button>
 
                   <button
                     type="button"
-                    onClick={handleConsentClick}
-                    className="text-xs underline text-[var(--text-muted)] cursor-pointer bg-transparent border-none"
+                    onClick={() => runChecks(cur, true)}
+                    disabled={status[cur] !== "popup"}
+                    className="text-[10px] p-3 rounded-[5px] font-extrabold text-white bg-[var(--success-default)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Open consent page again
+                    Verify consent
                   </button>
                 </div>
               </>
