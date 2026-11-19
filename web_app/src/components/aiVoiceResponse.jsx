@@ -271,7 +271,7 @@ const useVoiceAgent = (
     }
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
     if (!audioCaptureRef.current) return;   // mic wasn't ready yet (created in onopen)
-    try { wsRef.current.send(JSON.stringify({ type: 'start_listening' })); } catch (e) { console.warn('start_listening failed', e); }
+    try { wsRef.current.send(JSON.stringify({ type: 'start_listening',user_selected_language: languageRef.current })); } catch (e) { console.warn('start_listening failed', e); }
 
     audioCaptureRef.current.setEnabled(true);
     setStatus('listening');
