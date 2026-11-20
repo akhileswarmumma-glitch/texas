@@ -1,0 +1,120 @@
+{
+  "header": {
+    "online": "En línea ahora",
+    "new_chat": "Nuevo chat",
+    "select_language": "Seleccionar idioma",
+    "logout": "Cerrar sesión"
+  },
+  "landing": {
+    "greeting": "Hola {{name}}, ¿cómo podemos ayudarte hoy?",
+    "greeting_default": "Hola, ¿cómo podemos ayudarte hoy?",
+    "intro_bold": "Soy Roadie Ranger",
+    "intro_sub": " — tu compañero de respuestas rápidas en el piso.",
+    "description": "Puedo ayudarte con preguntas sobre Recursos Humanos, nómina, TI, operaciones de tienda, viajes y cumplimiento. Si no encuentro la respuesta, puedo abrir un ticket y ayudarte a darle seguimiento.",
+    "prompt_cta": "Solo dime qué necesitas."
+  },
+  "chat": {
+    "placeholder": "Escribe un mensaje...",
+    "quick_inquiries_title": "Consultas rápidas",
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "sources_used": "{{count}} fuentes utilizadas",
+    "grant_consent": "Otorgar consentimiento",
+    "cancel": "Cancelar",
+    "thinking": "Roadie Ranger está pensando...",
+    "error_start": "No se pudo iniciar la conversación. Por favor, inténtalo de nuevo."
+  },
+  "voice": {
+    "listening_paused": "Escucha pausada mientras Roadie Ranger piensa",
+    "hold_to_talk": "Mantén presionado para hablar",
+    "click_to_mute": "Haz clic para silenciar",
+    "click_to_unmute": "Haz clic para activar el micrófono",
+    "headphone_tip": "Para un mejor reconocimiento de voz, usa audífonos o auriculares.",
+    "state": {
+      "reconnecting": "reconectando...",
+      "idle": "inactivo",
+      "thinking": "pensando...",
+      "speaking": "hablando...",
+      "listening": "escuchando...",
+      "paused": "pausado"
+    }
+  },
+  "warnings": {
+    "default_message": "Para cambiar de modelo a mitad de la conversación, crea un nuevo chat",
+    "switch_to_voice": "Cambiar al modo de voz cerrará esta conversación de texto. ¿Deseas continuar?",
+    "switch_to_text": "Cambiar al modo de texto cerrará esta conversación de voz. ¿Deseas continuar?",
+    "switch_default": "¿Estás seguro de que deseas cambiar de modo?",
+    "close_voice": "Cerrar el chat de voz finalizará esta conversación y volverás a la pantalla de inicio. ¿Deseas continuar?",
+    "continue": "Continuar",
+    "dismiss": "Cerrar"
+  },
+  "quick_inquiries": [
+    {
+      "category": "RR. HH. y Beneficios",
+      "text": "¿Cómo me inscribo o actualizo mis beneficios?"
+    },
+    {
+      "category": "RR. HH. y Nómina",
+      "text": "¿Cómo actualizo mi formulario W-4 o mis retenciones de impuestos?"
+    },
+    {
+      "category": "POS y Facturación",
+      "text": "¿Cómo reemplazo o canjeo una tarjeta de regalo dañada?"
+    },
+    {
+      "category": "Finanzas y Operaciones",
+      "text": "¿Cómo contacto al soporte de viajes, gastos o proveedores?"
+    },
+    {
+      "text": "¿Cómo accedo a mi formulario W-2?"
+    },
+    {
+      "text": "¿Cómo accedo a mi recibo de pago?"
+    }
+  ],
+  "login": {
+    "hero_title": "Tu hogar para soporte y respuestas.",
+    "hero_subtitle": "Inicia sesión y conéctate con Roadie Ranger para obtener la ayuda que necesitas en Recursos Humanos, nómina, TI y más, todo en un solo lugar.",
+    "copyright": "© {{year}} Portal Web Principal de Texas Roadhouse. Todos los derechos reservados.",
+    "card_title": "Bienvenido de nuevo, Roadie",
+    "card_subtitle": "Inicia sesión con tu cuenta de la empresa para acceder al portal de soporte para empleados.",
+    "login_button": "Iniciar sesión",
+    "sso_notice": "Serás redirigido de forma segura para iniciar sesión mediante inicio de sesión único (SSO)."
+  },
+  "consent": {
+    "hero_title": "Un paso rápido antes de comenzar.",
+    "hero_subtitle": "Roadie Ranger necesita tu permiso para usar algunos servicios en tu nombre. Revisaremos cada uno y solo tendrás que aprobar los que falten.",
+    "card_title": "Conectando tus servicios",
+    "progress": "Servicio {{current}} de {{total}}",
+    "tools": {
+      "snow_mcp": {
+        "name": "Soporte de ServiceNow",
+        "desc": "Accede a artículos de conocimiento y gestiona tickets de soporte."
+      },
+      "tool_2": {
+        "name": "Búsqueda de Conocimiento",
+        "desc": "Encuentra recursos de conocimiento relevantes para tus preguntas."
+      }
+    },
+    "status": {
+      "pending": "En espera",
+      "checking": "Verificando consentimiento...",
+      "needs": "Consentimiento requerido",
+      "popup": "Ventana de consentimiento abierta",
+      "verify": "Confirmando consentimiento...",
+      "ok": "Consentimiento otorgado",
+      "error": "Error en la verificación"
+    },
+    "actions": {
+      "checking_message": "Verificando tu consentimiento para {{toolName}}...",
+      "needs_notice": "Aún no pudimos confirmar el consentimiento. Por favor, otórgalo e inténtalo de nuevo.",
+      "consent_instructions": "<bold>{{toolName}}</bold> necesita tu permiso para actuar en tu nombre. Haz clic en <bold>Otorgar consentimiento</bold> para aprobarlo en una nueva pestaña, luego regresa aquí y haz clic en <bold>Verificar consentimiento</bold>.",
+      "provide_consent_btn": "Otorgar consentimiento para {{toolName}}",
+      "verify_consent_btn": "Verificar consentimiento",
+      "verifying_message": "Confirmando consentimiento para {{toolName}}...",
+      "error_message": "No pudimos verificar el consentimiento para {{toolName}}. Por favor, inténtalo de nuevo.",
+      "retry_btn": "Intentar de nuevo",
+      "ok_message": "Ya se ha otorgado el consentimiento para {{toolName}}."
+    }
+  }
+}

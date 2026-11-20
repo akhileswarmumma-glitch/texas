@@ -14,6 +14,8 @@ import {
   FiCheckCircle,
   FiPower,
   FiArrowUp,
+  FiCopy,
+  FiCheck,
   FiX,
 } from "react-icons/fi";
 import ReactMarkdown from "react-markdown";
@@ -24,6 +26,7 @@ import useTextAgent from "./aiTextResponse.jsx";
 import useVoiceAgent from "./aiVoiceResponse.jsx";
 import WarningPopUp from "./warningPopUp.jsx";
 import texasLogo from "../assets/texas-logo.png";
+import { useTranslation } from "react-i18next";
 
 function formatDuration(t) {
   if (!t && t !== 0) return "0:00";
@@ -140,56 +143,56 @@ function CurrentResponsePlayer({
 //   },
 // ];
 
-const QUICK_INQUIRIES = {
-  en: [
-    {
-      category: "HR & Benefits",
-      text: "How do I enroll in or update my benefits?",
-    },
-    {
-      category: "HR & Payroll",
-      text: "How do I update my W-4 or tax withholding forms?",
-    },
-    {
-      category: "POS & Billing",
-      text: "How do I replace or redeem a damaged gift card?",
-    },
-    {
-      category: "Finance & Ops",
-      text: "How do I contact travel, expense or vendor support?",
-    },
-    {
-      text: "How to access my W2?",
-    },
-    {
-      text: "How to access my paystub?",
-    },
-  ],
-  es: [
-    {
-      category: "RR. HH. y Beneficios",
-      text: "¿Cómo me inscribo o actualizo mis beneficios?",
-    },
-    {
-      category: "RR. HH. y Nómina",
-      text: "¿Cómo actualizo mi formulario W-4 o mis retenciones de impuestos?",
-    },
-    {
-      category: "POS y Facturación",
-      text: "¿Cómo reemplazo o canjeo una tarjeta de regalo dañada?",
-    },
-    {
-      category: "Finanzas y Operaciones",
-      text: "¿Cómo contacto al soporte de viajes, gastos o proveedores?",
-    },
-    {
-      text: "¿Cómo accedo a mi formulario W-2?",
-    },
-    {
-      text: "¿Cómo accedo a mi recibo de pago?",
-    },
-  ],
-};
+// const QUICK_INQUIRIES = {
+//   en: [
+//     {
+//       category: "HR & Benefits",
+//       text: "How do I enroll in or update my benefits?",
+//     },
+//     {
+//       category: "HR & Payroll",
+//       text: "How do I update my W-4 or tax withholding forms?",
+//     },
+//     {
+//       category: "POS & Billing",
+//       text: "How do I replace or redeem a damaged gift card?",
+//     },
+//     {
+//       category: "Finance & Ops",
+//       text: "How do I contact travel, expense or vendor support?",
+//     },
+//     {
+//       text: "How to access my W2?",
+//     },
+//     {
+//       text: "How to access my paystub?",
+//     },
+//   ],
+//   es: [
+//     {
+//       category: "RR. HH. y Beneficios",
+//       text: "¿Cómo me inscribo o actualizo mis beneficios?",
+//     },
+//     {
+//       category: "RR. HH. y Nómina",
+//       text: "¿Cómo actualizo mi formulario W-4 o mis retenciones de impuestos?",
+//     },
+//     {
+//       category: "POS y Facturación",
+//       text: "¿Cómo reemplazo o canjeo una tarjeta de regalo dañada?",
+//     },
+//     {
+//       category: "Finanzas y Operaciones",
+//       text: "¿Cómo contacto al soporte de viajes, gastos o proveedores?",
+//     },
+//     {
+//       text: "¿Cómo accedo a mi formulario W-2?",
+//     },
+//     {
+//       text: "¿Cómo accedo a mi recibo de pago?",
+//     },
+//   ],
+// };
 
 function AgentAvatar() {
   return (
@@ -217,25 +220,99 @@ const markdownRendor = {
 };
 
 const MessageBubble = memo(function MessageBubble({ item, mode }) {
+  const { t } = useTranslation()
   const [showResources, setShowResources] = useState(false);
   const [showConsent, setShowConsent] = useState(true);
+  const [copied, setCopied] = useState(false);
+  const contentRef = useRef(null);
+
   const resources = item.resources || [];
   const needsConsent = Boolean(item.link) || Boolean(item.consentRequired);
+  const isAgent = item.sender !== "user";
+
+  const handleCopy = useCallback(async () => {
+    const container = contentRef.current;
+    if (!container && !item.message) return;
+
+    const htmlContent = container ? container.innerHTML : item.message;
+    // innerText preserves visual table tabs/newlines and list structure better than raw markdown
+    const plainText = container?.innerText?.trim() || item.message || "";
+
+    try {
+      if (navigator.clipboard && window.ClipboardItem) {
+        const htmlBlob = new Blob([htmlContent], { type: "text/html" });
+        const textBlob = new Blob([plainText], { type: "text/plain" });
+
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            "text/html": htmlBlob,
+            "text/plain": textBlob,
+          }),
+        ]);
+      } else {
+        await navigator.clipboard.writeText(plainText);
+      }
+
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      // Fallback for older browsers or non-HTTPS contexts
+      try {
+        const range = document.createRange();
+        if (container) {
+          range.selectNodeContents(container);
+          const selection = window.getSelection();
+          selection?.removeAllRanges();
+          selection?.addRange(range);
+          document.execCommand("copy");
+          selection?.removeAllRanges();
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        }
+      } catch (fallbackErr) {
+        console.error("Failed to copy agent response:", fallbackErr);
+      }
+    }
+  }, [item.message]);
 
   return (
     <div
       className={`flex gap-3 items-start ${item.sender === "user" ? "justify-end" : ""}`}
     >
-      {/* {item.sender !== "user" && <AgentAvatar />} */}
       <div
         className={`max-w-[90%] p-3.5 rounded-xl text-sm break-words ${item.sender === "user" ? "bg-[var(--success-contrast)] border border-[var(--primary-bg)] text-[var(--secondary-contrast)] rounded-br-[4px]" : "bg-[#F2E8D2] border-l-2 border-[var(--maroon-primary)] text-[var(--secondary-contrast)] rounded-bl-[4px]"}`}
       >
-        {item.sender !== "user" && (
-          <div className="text-[var(--maroon-primary)] text-xs font-extrabold mb-1">
-            ✦ Roadie Ranger
+        {isAgent && (
+          <div className="flex items-center justify-between gap-4 mb-1">
+            <div className="text-[var(--maroon-primary)] text-xs font-extrabold">
+              ✦ Roadie Ranger
+            </div>
+
+            {!item.streaming && item.message && (
+              <button
+                type="button"
+                onClick={handleCopy}
+                title={copied ? "Copied!" : "Copy response"}
+                aria-label={copied ? "Copied response" : "Copy response"}
+                className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold text-[var(--maroon-primary)] hover:bg-black/5 transition-colors cursor-pointer"
+              >
+                {copied ? (
+                  <>
+                    <FiCheck className="text-xs text-[var(--success-default)]" />
+                    <span>{t("chat.copied")}</span>
+                  </>
+                ) : (
+                  <>
+                    <FiCopy className="text-xs" />
+                    <span>{t("chat.copy")}</span>
+                  </>
+                )}
+              </button>
+            )}
           </div>
         )}
-        <div className="chat-markdown">
+
+        <div ref={contentRef} className="chat-markdown">
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={markdownRendor}
@@ -285,14 +362,14 @@ const MessageBubble = memo(function MessageBubble({ item, mode }) {
               }}
               className="rounded-md bg-yellow-400 text-black px-3 py-1 text-sm font-bold"
             >
-              Grant Consent
+              {t("chat.grant_consent")}
             </button>
             <button
               type="button"
               onClick={() => setShowConsent(false)}
               className="rounded-md border px-3 py-1 text-sm"
             >
-              Cancel
+              {t("chat.cancel")}
             </button>
           </div>
         )}
@@ -302,6 +379,7 @@ const MessageBubble = memo(function MessageBubble({ item, mode }) {
 });
 
 function TypingIndicator({ label }) {
+  const { t } = useTranslation();
   return (
     <div className="flex gap-3 items-start">
       <AgentAvatar />
@@ -372,7 +450,7 @@ function TypingIndicator({ label }) {
             "
           />
 
-          <span className="sr-only">Roadie Ranger is thinking...</span>
+          <span className="sr-only">{t("chat.thinking")}</span>
         </div>
       </div>
     </div>
@@ -398,7 +476,8 @@ function ChatExperience({
   const textareaRef = useRef(null);
   const [loading, setLoading] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState("en");
+  const { t, i18n } = useTranslation();
+  const selectedLanguage = i18n.resolvedLanguage || "en";
   const messagesEndRef = useRef(null);
   const profileRef = useRef(null);
   const wasVoiceActive = useRef(false);
@@ -627,12 +706,12 @@ function ChatExperience({
 
   const listeningBlocked = loading || agentSpeaking || isPlaying;
   const listeningStatusText = loading
-    ? "Listening paused while Roadie Ranger thinks"
+    ? t("voice.listening_paused")
     : pttMode
-      ? "Hold to talk"
+      ? t("voice.hold_to_talk")
       : isRecording
-        ? "Click to mute"
-        : "Click to unmute";
+        ? t("voice.click_to_mute")
+        : t("voice.click_to_unmute")
 
   // Pulse only when:
   // 1. voice session is connected
@@ -676,18 +755,18 @@ function ChatExperience({
 
   const npStateLabel =
     voiceStatus === "reconnecting"
-      ? "reconnecting..."
+      ? t("voice.state.reconnecting")
       : !isVoiceActive
-        ? "idle"
+        ? t("voice.state.idle")
         : loading
-          ? "thinking..."
+          ? t("voice.state.thinking")
           : isPlaying || agentSpeaking
-            ? "speaking..."
+            ? t("voice.state.speaking")
             : isAudioCapturing
-              ? "listening..."
+              ? t("voice.state.listening")
               : speakingPaused && audioUrl
-                ? "paused"
-                : "idle";
+                ? t("voice.state.paused")
+                : t("voice.state.idle")
 
   // useEffect(() => {
   //   if (wasVoiceActive.current && !isVoiceActive) {
@@ -752,7 +831,7 @@ function ChatExperience({
     } catch (error) {
       console.error("Failed to start landing text chat:", error);
       setLoading(false);
-      addMessage("Unable to start the conversation. Please try again.", "ai", { error: true });
+      addMessage(t("chat.error_start"), "ai", { error: true });
     }
   }, [addMessage, draft, isVoiceActive, loading, onNewChat, sendTextMessage, sessionId]);
 
@@ -942,7 +1021,7 @@ function ChatExperience({
     ? voiceProgressLabel
     : textProgressLabel;
 
-  const inputPlaceholder = "Write a message...";
+  const inputPlaceholder = t("chat.placeholder");
   const showQuickInquiries = mode !== "voice";
 
   const handleModeSelection = useCallback(
@@ -1251,7 +1330,7 @@ function ChatExperience({
             </div>
             <div className="text-[9px] text-emerald-300 mt-0.5 flex items-center sm:text-[10px]">
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--success-default)] mr-1.5" />{" "}
-              Online now
+              {t("header.online")}
             </div>
             {modeSelected && sessionId && (
               <div
@@ -1298,7 +1377,7 @@ function ChatExperience({
               >
                 <FiPlus className="text-[10px] sm:text-xs" />
                 <FiMessageSquare className="text-xs sm:hidden" />
-                <span className="hidden sm:inline">New Chat</span>
+                <span className="hidden sm:inline">{t("header.new_chat")}</span>
               </button>
 
               {/* Voice Chat */}
@@ -1358,6 +1437,15 @@ function ChatExperience({
               { value: "es", label: "Español" },
             ]}
           /> */}
+          <Dropdown
+            ariaLabel={t("header.select_language")}
+            value={selectedLanguage}
+            onChange={(lang) => i18n.changeLanguage(lang)}
+            options={[
+              { value: "en", label: "English" },
+              { value: "es", label: "Español" },
+            ]}
+          />
 
           <div className="relative" ref={profileRef}>
             <button
@@ -1382,7 +1470,7 @@ function ChatExperience({
                   onClick={onLogout}
                   className="w-full flex items-center justify-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
                 >
-                  <FiLogOut size={16} /> Logout
+                  <FiLogOut size={16} /> {t("header.logout")}
                 </button>
               </div>
             )}
@@ -1400,40 +1488,19 @@ function ChatExperience({
         {!conversationStarted && !modeSelected && (
           <div className="text-center transition-all">
             <h1 className="m-0 mb-3 text-[var(--secondary-contrast)] text-2xl leading-tight font-extrabold tracking-tight sm:mb-4 sm:text-3xl md:text-4xl lg:text-5xl">
-              {selectedLanguage === "es"
-                ? `Hola${firstName ? ` ${firstName}` : ""}, ¿cómo podemos ayudarte hoy?`
-                : `Hey${firstName ? ` ${firstName}` : ""}, how can we help today?`}
+              {firstName
+                ? t("landing.greeting", { name: firstName })
+                : t("landing.greeting_default")}
             </h1>
             <p className="text-[var(--secondary-contrast)] max-w-[750px] mx-auto mb-2 text-sm sm:mb-3 sm:text-base">
-              {selectedLanguage === "es" ? (
-              <>
-                  <strong>Soy Roadie Ranger</strong> — tu compañero de respuestas rápidas en
-                  el piso.
-                </>
-              ) : (
-                <>
-                  <strong>I&apos;m Roadie Ranger</strong> — your quick-answer sidekick on
-                  the floor.
-                </>
-              )}
+              <strong>{t("landing.intro_bold")}</strong>
+              {t("landing.intro_sub")}
             </p>
             <p className="text-[var(--secondary-contrast)] max-w-[750px] mx-auto mb-3 text-sm sm:text-base">
-              {selectedLanguage === "es" ? (
-                <>
-                  Puedo ayudarte con preguntas sobre Recursos Humanos, nómina, TI,
-                  operaciones de tienda, viajes y cumplimiento. Si no encuentro la
-                  respuesta, puedo abrir un ticket y ayudarte a darle seguimiento.
-                </>
-              ) : (
-                <>
-                  I can help with questions about HR, payroll, IT, store ops, travel, and
-                  compliance. If I can’t find the answer, I can open a ticket and help you
-                  keep track of it.
-                </>
-              )}
+              {t("landing.description")}
             </p>
             <div className="mt-4 text-[var(--primary-bg)] font-extrabold text-xs sm:mt-6 sm:text-sm">
-              {selectedLanguage === "es" ? "Solo dime qué necesitas." : "Just let me know what you need."}
+              {t("landing.prompt_cta")}
             </div>
           </div>
         )}
@@ -1465,7 +1532,7 @@ function ChatExperience({
                 className={
                   !showQuickInquiries
                     ? "sticky bottom-0 z-10 mt-auto w-full shrink-0 bg-[#faf5ea] pt-2 pb-0"
-                    : "sticky bottom-0 z-10 mt-auto w-full max-w-[900px] shrink-0 bg-[#faf5ea] pt-2 pb-0"
+                    : "sticky bottom-0 z-10 mt-auto w-full shrink-0 bg-[#faf5ea] pt-2 pb-0"
                 }
               >
                 <div className="flex items-end gap-2 sm:gap-3">
@@ -1683,7 +1750,7 @@ function ChatExperience({
                           <div className="flex w-full justify-center mt-1 items-center gap-2 text-[10px] text-[var(--text-muted)]">
                             <span>🎧</span>
                             <span className="italic">
-                              For best voice recognition, use headphones or earbuds.
+                              {t("voice.headphone_tip")}
                             </span>
                           </div>
                         </div>
@@ -1752,12 +1819,12 @@ function ChatExperience({
                   <div className="mb-3 flex items-center gap-2">
                     <span className="text-base" aria-hidden="true">⚡</span>
                     <h2 className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-[var(--primary-bg)]">
-                      {selectedLanguage === "es" ? "Consultas rápidas" : "Quick inquiries"}
+                      {t("chat.quick_inquiries_title")}
                     </h2>
                   </div>
 
                   <div className="flex flex-col gap-2">
-                    {(QUICK_INQUIRIES[selectedLanguage] || QUICK_INQUIRIES.en).map((inquiry) => (
+                    {(t("quick_inquiries", { returnObjects: true }) || []).map((inquiry) => (
                       <button
                         key={inquiry.text}
                         type="button"
@@ -1853,7 +1920,7 @@ function ChatExperience({
 
             <section className="mt-6">
               <div className="flex flex-wrap items-center justify-center gap-2">
-                {(QUICK_INQUIRIES[selectedLanguage] || QUICK_INQUIRIES.en).map((inquiry) => (
+                {(t("quick_inquiries", { returnObjects: true }) || []).map((inquiry) => (
                   <button
                     key={inquiry.text}
                     type="button"
@@ -1883,10 +1950,10 @@ function ChatExperience({
             onContinue={confirmModeChange}
             message={
               pendingMode === "voice"
-                ? "Switching to voice mode will close this text conversation. Would you like to continue?"
+                ? t("warnings.switch_to_voice")
                 : pendingMode === "text"
-                  ? "Switching to text mode will close this voice conversation. Would you like to continue?"
-                  : "Are you sure you want to switch modes?"
+                  ? t("warnings.switch_to_text")
+                  : t("warnings.switch_default")
             }
           />
 
@@ -1900,8 +1967,8 @@ function ChatExperience({
               setShowDisconnectWarning(false);
               void handleLogoClick();
             }}
-            message="Closing voice chat will end this conversation and return you to the home screen. Would you like to continue?"
-            continueLabel="Continue"
+            message={t("warnings.close_voice")}
+            continueLabel={t("warnings.continue")}
           />
 
           <WarningPopUp
@@ -1909,7 +1976,7 @@ function ChatExperience({
             onClose={() => setVoiceNotice("")}
             message={voiceNotice}
             singleAction
-            cancelLabel="Dismiss"
+            cancelLabel={t("warnings.dismiss")}
           />
 
       </section>

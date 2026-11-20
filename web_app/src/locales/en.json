@@ -1,0 +1,120 @@
+{
+  "header": {
+    "online": "Online now",
+    "new_chat": "New Chat",
+    "select_language": "Select language",
+    "logout": "Logout"
+  },
+  "landing": {
+    "greeting": "Hey {{name}}, how can we help today?",
+    "greeting_default": "Hey, how can we help today?",
+    "intro_bold": "I'm Roadie Ranger",
+    "intro_sub": " — your quick-answer sidekick on the floor.",
+    "description": "I can help with questions about HR, payroll, IT, store ops, travel, and compliance. If I can’t find the answer, I can open a ticket and help you keep track of it.",
+    "prompt_cta": "Just let me know what you need."
+  },
+  "chat": {
+    "placeholder": "Write a message...",
+    "quick_inquiries_title": "Quick inquiries",
+    "copy": "Copy",
+    "copied": "Copied",
+    "sources_used": "{{count}} Sources Used",
+    "grant_consent": "Grant Consent",
+    "cancel": "Cancel",
+    "thinking": "Roadie Ranger is thinking...",
+    "error_start": "Unable to start the conversation. Please try again."
+  },
+  "voice": {
+    "listening_paused": "Listening paused while Roadie Ranger thinks",
+    "hold_to_talk": "Hold to talk",
+    "click_to_mute": "Click to mute",
+    "click_to_unmute": "Click to unmute",
+    "headphone_tip": "For best voice recognition, use headphones or earbuds.",
+    "state": {
+      "reconnecting": "reconnecting...",
+      "idle": "idle",
+      "thinking": "thinking...",
+      "speaking": "speaking...",
+      "listening": "listening...",
+      "paused": "paused"
+    }
+  },
+  "quick_inquiries": [
+    {
+      "category": "HR & Benefits",
+      "text": "How do I enroll in or update my benefits?"
+    },
+    {
+      "category": "HR & Payroll",
+      "text": "How do I update my W-4 or tax withholding forms?"
+    },
+    {
+      "category": "POS & Billing",
+      "text": "How do I replace or redeem a damaged gift card?"
+    },
+    {
+      "category": "Finance & Ops",
+      "text": "How do I contact travel, expense or vendor support?"
+    },
+    {
+      "text": "How to access my W2?"
+    },
+    {
+      "text": "How to access my paystub?"
+    }
+  ],
+  "login": {
+    "hero_title": "Your Home for Support & Answers.",
+    "hero_subtitle": "Sign in and connect with Roadie Ranger to get help you need across HR, payroll, IT, and more, all in one place.",
+    "copyright": "© {{year}} Texas Roadhouse Core Web Portal. All rights reserved.",
+    "card_title": "Welcome Back, Roadie",
+    "card_subtitle": "Sign in with your company account to access the employee support portal.",
+    "login_button": "Login",
+    "sso_notice": "You'll be securely redirected to sign in via Single Sign-On (SSO)."
+  },
+  "warnings": {
+    "default_message": "To switch model in middle create a new chat",
+    "switch_to_voice": "Switching to voice mode will close this text conversation. Would you like to continue?",
+    "switch_to_text": "Switching to text mode will close this voice conversation. Would you like to continue?",
+    "switch_default": "Are you sure you want to switch modes?",
+    "close_voice": "Closing voice chat will end this conversation and return you to the home screen. Would you like to continue?",
+    "continue": "Continue",
+    "dismiss": "Dismiss"
+  },
+  "consent": {
+    "hero_title": "One quick step before we get started.",
+    "hero_subtitle": "Roadie Ranger needs your permission to use a few services on your behalf. We'll check each one, and you only need to approve the ones that are missing.",
+    "card_title": "Connecting your services",
+    "progress": "Service {{current}} of {{total}}",
+    "tools": {
+      "snow_mcp": {
+        "name": "ServiceNow Support",
+        "desc": "Access knowledge articles and manage support tickets."
+      },
+      "tool_2": {
+        "name": "Knowledge Search",
+        "desc": "Find relevant knowledge resources for your questions."
+      }
+    },
+    "status": {
+      "pending": "Waiting",
+      "checking": "Checking consent...",
+      "needs": "Consent required",
+      "popup": "Consent Window Open",
+      "verify": "Verifying consent...",
+      "ok": "Consent present",
+      "error": "Check failed"
+    },
+    "actions": {
+      "checking_message": "Checking your consent for {{toolName}}...",
+      "needs_notice": "We couldn't confirm consent yet. Please provide consent and try again.",
+      "consent_instructions": "<bold>{{toolName}}</bold> needs your permission to act on your behalf. Click <bold>Provide consent</bold> to approve it in a new tab, then come back here and click <bold>Verify consent</bold>.",
+      "provide_consent_btn": "Provide consent for {{toolName}}",
+      "verify_consent_btn": "Verify consent",
+      "verifying_message": "Verifying consent for {{toolName}}...",
+      "error_message": "We couldn't check consent for {{toolName}}. Please try again.",
+      "retry_btn": "Try again",
+      "ok_message": "Consent already provided for {{toolName}}."
+    }
+  }
+}
