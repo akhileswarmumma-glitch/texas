@@ -1022,7 +1022,7 @@ function ChatExperience({
     : textProgressLabel;
 
   const inputPlaceholder = t("chat.placeholder");
-  const showQuickInquiries = mode !== "voice";
+  const showQuickInquiries = mode
 
   const handleModeSelection = useCallback(
     async (nextMode) => {
@@ -1482,7 +1482,7 @@ function ChatExperience({
         className={
           !conversationStarted && mode === null
             ? "mx-auto w-full max-w-[950px] px-3 py-6 flex-1 flex flex-col min-h-0 sm:px-4 sm:py-8 md:py-10 lg:py-5"
-            : "mx-auto w-full px-3 py-6 flex-1 flex-col min-h-0 sm:px-4 sm:py-8 md:py-10 lg:py-5"
+            : "mx-auto w-full px-3 py-6 flex-1 flex flex-col min-h-0 sm:px-4 sm:py-8 md:py-10 lg:py-5"
         }
       >
         {!conversationStarted && !modeSelected && (
@@ -1814,16 +1814,16 @@ function ChatExperience({
             </div>
 
             {showQuickInquiries && (
-              <aside className="hidden h-full shrink-0 self-stretch lg:block lg:w-[320px] lg:sticky lg:top-[168px] lg:h-[calc(100vh-168px)] xl:w-[360px]">
-                <div className="overflow-y-auto rounded-2xl border border-emerald-800 bg-[#f8f2e8] p-3 shadow-sm">
-                  <div className="mb-3 flex items-center gap-2">
+              <aside className="hidden shrink-0 lg:block lg:w-[320px] lg:sticky lg:top-[108px] lg:self-start lg:h-[calc(100vh-108px)] xl:w-[360px]">
+                <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-emerald-800 bg-[#f8f2e8] shadow-sm">
+                  <div className="flex shrink-0 items-center gap-2 px-3 pt-3 pb-2">
                     <span className="text-base" aria-hidden="true">⚡</span>
-                    <h2 className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-[var(--primary-bg)]">
+                    <h5 className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-[var(--primary-bg)]">
                       {t("chat.quick_inquiries_title")}
-                    </h2>
+                    </h5>
                   </div>
 
-                  <div className="flex flex-col gap-2">
+                  <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3 pb-3 [scrollbar-gutter:stable]">
                     {(t("quick_inquiries", { returnObjects: true }) || []).map((inquiry) => (
                       <button
                         key={inquiry.text}
@@ -1840,8 +1840,12 @@ function ChatExperience({
                             {inquiry.category}
                           </div>
                         )} */}
-                        <div className="text-[11px] font-medium leading-relaxed text-[var(--secondary-contrast)]">
-                          {inquiry.text}
+                        <div
+                          className={`text-[11px] font-medium leading-relaxed text-[var(--secondary-contrast)] ${
+                            mode === "voice" ? "italic" : ""
+                          }`}
+                        >
+                          {mode === "voice" ? `“${inquiry.text}”` : inquiry.text}
                         </div>
                       </button>
                     ))}
