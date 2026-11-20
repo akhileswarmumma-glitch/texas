@@ -1,6 +1,9 @@
 import { useEffect, useState, useRef } from "react";
+import { useTranslation, Trans } from "react-i18next";
 import TexasLogo from "../assets/texas-logo.png";
 import Designer from "../assets/designer3.png";
+import { Dropdown } from "./dropDown.jsx";
+
 
 /* ------------------------------------------------------------------ */
 /* TOOLS + API                                                         */
@@ -8,7 +11,6 @@ import Designer from "../assets/designer3.png";
 const TOOLS = [
   {
     key: "snow_mcp",
-    // toolId: import.meta.env.VITE_SNOW_MCP_TOOL || "",
     toolId: "snow",
     toolName: "Snow-Check-Consent",
     name: "ServiceNow Support",
@@ -16,25 +18,13 @@ const TOOLS = [
   },
   {
     key: "tool_2",
-    // toolId: import.meta.env.VITE_AI_SEARCH_MCP_TOOL || "",
     toolId: "ai-search",
     toolName: "AI-Search-Check-Consent",
     name: "Knowledge Search",
     desc: "Find relevant knowledge resources for your questions.",
   },
 ];
-const apiBase = (import.meta.env.VITE_API_BASE || '').replace(/\/+$|\/+$/, '');
-const CONSENT_API = `${apiBase || ''}/api/consent/verify`
-
-const LABEL = {
-  pending: "Waiting",
-  checking: "Checking consent...",
-  needs: "Consent required",
-  popup: "Consent Window Open",
-  verify: "Verifying consent...",
-  ok: "Consent present",
-  error: "Check failed",
-};
+const CONSENT_API = "http://127.0.0.1:8000/get_consent";
 
 const ICON = {
   pending: "-",
@@ -57,10 +47,10 @@ const iconStyle = (s) => {
     return "border-[var(--success-default)] bg-[var(--success-default)] text-[var(--success-contrast)]";
   if (s === "needs" || s === "error")
     return "border-[var(--warning-default)] text-[var(--warning-default)]";
-  if (s === "popup") return "border-[#0f6cbd] text-[#0f6cbd]"; // wireframe blue
+  if (s === "popup") return "border-[#0f6cbd] text-[#0f6cbd]";
   if (s === "pending")
     return "border-[var(--neutral-400)] text-[var(--text-muted)]";
-  return "border-[var(--primary-lighter)] text-[var(--primary-lighter)]"; // checking / verify
+  return "border-[var(--primary-lighter)] text-[var(--primary-lighter)]";
 };
 
 const Spinner = () => (
@@ -74,14 +64,22 @@ const Spinner = () => (
 /* COMPONENT                                                           */
 /* ------------------------------------------------------------------ */
 const ConsentPage = ({ onComplete }) => {
-  const [status, setStatus] = useState(TOOLS.map((_, i) => (i === 0 ? "checking" : "pending")));
+  const { t, i18n } = useTranslation();
+  const selectedLanguage = (i18n.resolvedLanguage || i18n.language || "en")
+    .split("-")[0]
+    .toLowerCase();
+
+  const [status, setStatus] = useState(
+    TOOLS.map((_, i) => (i === 0 ? "checking" : "pending"))
+  );
   const [links, setLinks] = useState(TOOLS.map(() => ""));
   const [cur, setCur] = useState(0);
-  const [notice, setNotice] = useState(""); // red message shown after a failed Verify
-  const hasRun = useRef(false); // stops the double call in React StrictMode (dev)
+  const [verifyFailed, setVerifyFailed] = useState(false);
+  const hasRun = useRef(false);
 
   const total = TOOLS.length;
   const tool = TOOLS[cur];
+  const currentToolName = t(`consent.tools.${tool.key}.name`);
 
   const setToolStatus = (i, value) =>
     setStatus((prev) => prev.map((s, idx) => (idx === i ? value : s)));
@@ -93,7 +91,10 @@ const ConsentPage = ({ onComplete }) => {
   const verifyTool = async (toolId,toolName) => {
     const response = await fetch(CONSENT_API, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Accept-Language": i18n.language,
+      },
       credentials: "include",
       body: JSON.stringify({ tool: toolId, agent_name: toolName }),
     });
@@ -103,11 +104,8 @@ const ConsentPage = ({ onComplete }) => {
     return response.json();
   };
 
-  // start        = index of the tool to (re)check first
-  // afterConsent = true when the user clicked "Verify consent" (shows the verify loader)
-  // Stops at the first tool that needs consent.
   const runChecks = async (start = 0, afterConsent = false) => {
-    setNotice("");
+    setVerifyFailed(false);
     setStatus((prev) =>
       prev.map((s, idx) =>
         idx < start ? s : idx === start ? (afterConsent ? "verify" : "checking") : "pending"
@@ -128,13 +126,13 @@ const ConsentPage = ({ onComplete }) => {
         if (data.consent_required) {
           setToolLink(i, data.consent_link || "");
           if (isVerify) {
-            setNotice("We couldn't confirm consent yet. Please provide consent and try again.");
+            setVerifyFailed(true);
           }
-          setToolStatus(i, "needs"); // Provide consent button shows again
-          return; // user has to give consent before we go further
+          setToolStatus(i, "needs");
+          return;
         }
 
-        setToolStatus(i, "ok"); // consent present, move on to next tool
+        setToolStatus(i, "ok");
       } catch (error) {
         console.error("Consent check failed:", error);
         setToolStatus(i, "error");
@@ -151,8 +149,8 @@ const ConsentPage = ({ onComplete }) => {
     const link = links[cur];
     if (!link) return;
     window.open(link, "_blank", "noopener,noreferrer");
-    setNotice("");
-    setToolStatus(cur, "popup"); // show "Verify consent" button right away, no loader
+    setVerifyFailed(false);
+    setToolStatus(cur, "popup");
   };
 
   useEffect(() => {
@@ -179,31 +177,42 @@ const ConsentPage = ({ onComplete }) => {
         </div>
 
         <div className="mt-[10%]">
-          <h2 className="font-black text-xl mb-5">
-            One quick step before we get started.
-          </h2>
+          <h2 className="font-black text-xl mb-5">{t("consent.hero_title")}</h2>
           <p className="mt-5 text-[var(--neutral-200)] max-w-[500px] text-xl leading-8">
-            Roadie Ranger needs your permission to use a few services on your
-            behalf. We'll check each one, and you only need to approve the ones
-            that are missing.
+            {t("consent.hero_subtitle")}
           </p>
           <div className="text-xs text-white/50 mt-[10%]">
-            &copy; 2026 Texas Roadhouse Core Web Portal. All rights reserved.
+            {t("login.copyright", { year: new Date().getFullYear() })}
           </div>
         </div>
       </div>
 
       {/* RIGHT PANEL */}
-      <div className="flex flex-1 items-center justify-center bg-[var(--main-bg)] px-4">
+      <div className="relative flex flex-1 items-center justify-center bg-[var(--main-bg)] px-4">
+        <div className="absolute top-5 right-6 z-10">
+          <Dropdown
+              ariaLabel={t("header.select_language")}
+              value={selectedLanguage}
+              onChange={(lang) => {
+                void i18n.changeLanguage(lang);
+              }}
+              options={[
+                  { value: "en", label: "English" },
+                  { value: "es", label: "Español" },
+              ]}
+          />
+        </div>
         <div className="w-[90%] max-w-[520px] bg-[var(--white-100)] rounded-[22px] p-8 shadow-[0_10px_30px_rgba(0,0,0,0.12)]">
-          <h3 className="text-[var(--primary-lighter)]">Connecting your services</h3>
+          <h3 className="text-[var(--primary-lighter)]">
+            {t("consent.card_title")}
+          </h3>
           <p className="mt-1 text-[length:var(--body-xs-size)] text-[var(--text-muted)]">
-            Service {cur + 1} of {total}
+            {t("consent.progress", { current: cur + 1, total })}
           </p>
 
           {/* Progress segments */}
           <div className="flex gap-[6px] my-[14px]">
-            {TOOLS.map((t, i) => {
+            {TOOLS.map((tItem, i) => {
               const s = status[i];
               const cls =
                 s === "ok"
@@ -213,7 +222,7 @@ const ConsentPage = ({ onComplete }) => {
                   : "bg-[var(--neutral-200)] border-[var(--neutral-300)]";
               return (
                 <div
-                  key={t.key}
+                  key={tItem.key}
                   className={`flex-1 h-[6px] rounded-[3px] border ${cls}`}
                 />
               );
@@ -222,11 +231,11 @@ const ConsentPage = ({ onComplete }) => {
 
           {/* Tool rows */}
           <div>
-            {TOOLS.map((t, i) => {
+            {TOOLS.map((tItem, i) => {
               const s = status[i];
               return (
                 <div
-                  key={t.key}
+                  key={tItem.key}
                   className={`flex items-center gap-3 rounded-[10px] bg-[var(--white-100)] px-3 py-[10px] mb-2 ${
                     i === cur
                       ? "border-2 border-[var(--success-default)]"
@@ -238,15 +247,15 @@ const ConsentPage = ({ onComplete }) => {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-[length:var(--body-s-size)] font-bold text-[var(--black-900)] leading-tight">
-                      {t.name}
+                      {t(`consent.tools.${tItem.key}.name`)}
                     </div>
                     <div className="text-[length:var(--body-xs-size)] leading-snug text-[var(--text-muted)]">
-                      {t.desc}
+                      {t(`consent.tools.${tItem.key}.desc`)}
                     </div>
                   </div>
                   <div className="ml-auto max-w-[170px] text-right text-[length:var(--body-xs-size)] leading-snug text-[var(--text-muted)]">
                     {(s === "checking" || s === "verify") && <Spinner />}
-                    {LABEL[s]}
+                    {t(`consent.status.${s}`)}
                   </div>
                 </div>
               );
@@ -261,23 +270,28 @@ const ConsentPage = ({ onComplete }) => {
             {status[cur] === "checking" && (
               <div className="flex items-center text-sm text-[var(--text-muted)]">
                 <Spinner />
-                <span>Checking your consent for {tool.name}...</span>
+                <span>
+                  {t("consent.actions.checking_message", {
+                    toolName: currentToolName,
+                  })}
+                </span>
               </div>
             )}
 
             {(status[cur] === "needs" || status[cur] === "popup") && (
               <>
-                {notice && (
+                {verifyFailed && (
                   <p className="text-sm text-[var(--danger-default)] font-semibold mb-2">
-                    {notice}
+                    {t("consent.actions.needs_notice")}
                   </p>
                 )}
 
                 <p className="text-sm">
-                  <strong>{tool.name}</strong> needs your permission to act on your behalf.
-                    Click <strong>Provide consent</strong> to approve it in a new tab, then come
-                    back here and click <strong>Verify consent
-                  </strong>.
+                  <Trans
+                    i18nKey="consent.actions.consent_instructions"
+                    values={{ toolName: currentToolName }}
+                    components={{ bold: <strong /> }}
+                  />
                 </p>
 
                 <div className="flex items-center gap-3 mt-2">
@@ -287,7 +301,9 @@ const ConsentPage = ({ onComplete }) => {
                     disabled={!links[cur]}
                     className="text-[10px] p-3 rounded-[5px] font-extrabold text-white bg-[var(--tertiary-shade)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Provide consent for {tool.name}
+                    {t("consent.actions.provide_consent_btn", {
+                      toolName: currentToolName,
+                    })}
                   </button>
 
                   <button
@@ -296,37 +312,45 @@ const ConsentPage = ({ onComplete }) => {
                     disabled={status[cur] !== "popup"}
                     className="text-[10px] p-3 rounded-[5px] font-extrabold text-white bg-[var(--success-default)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Verify consent
+                    {t("consent.actions.verify_consent_btn")}
                   </button>
                 </div>
               </>
             )}
-
+            
             {status[cur] === "verify" && (
               <div className="flex items-center text-sm text-[var(--text-muted)]">
                 <Spinner />
-                <span>Verifying consent for {tool.name}...</span>
+                <span>
+                  {t("consent.actions.verifying_message", {
+                    toolName: currentToolName,
+                  })}
+                </span>
               </div>
             )}
 
             {status[cur] === "error" && (
               <>
                 <p className="text-sm text-[var(--danger-default)] font-semibold">
-                  We couldn't check consent for {tool.name}. Please try again.
+                  {t("consent.actions.error_message", {
+                    toolName: currentToolName,
+                  })}
                 </p>
                 <button
                   type="button"
                   onClick={() => runChecks(cur)}
                   className="text-[10px] p-3 mt-2 rounded-[5px] font-extrabold text-white bg-[var(--tertiary-shade)] cursor-pointer"
                 >
-                  Try again
+                  {t("consent.actions.retry_btn")}
                 </button>
               </>
             )}
 
             {status[cur] === "ok" && (
               <p className="text-sm text-[var(--success-default)] font-bold">
-                Consent already provided for {tool.name}.
+                {t("consent.actions.ok_message", {
+                  toolName: currentToolName,
+                })}
               </p>
             )}
           </div>

@@ -1,13 +1,18 @@
+import { useTranslation } from "react-i18next";
+
 const WarningPopUp = ({
   isOpen,
   onClose,
   onContinue,
   message,
-  continueLabel = "Continue",
-  cancelLabel = "Cancel",
+  continueLabel,
+  cancelLabel,
   singleAction = false,
 }) => {
+  const { t } = useTranslation();
   if (!isOpen) return null;
+  const resolvedContinueLabel = continueLabel || t("warnings.continue");
+  const resolvedCancelLabel = cancelLabel || t("chat.cancel");
 
   const handleClose = (event) => {
     event?.stopPropagation?.();
@@ -31,7 +36,7 @@ const WarningPopUp = ({
       >
         <div className="text-3xl">⚠️</div>
         <p className="text-sm font-medium text-gray-800">
-          {message || "To switch model in middle create a new chat"}
+          {message || t("warnings.default_message")}
         </p>
         <div className="flex w-full gap-3">
           {!singleAction && (
@@ -40,7 +45,7 @@ const WarningPopUp = ({
               onClick={handleClose}
               className="flex-1 border py-2.5 px-4 rounded-[10px] bg-[var(--neutral-200)] text-[var(--secondary-contrast)] font-semibold cursor-pointer transition-transform duration-150 active:scale-95"
             >
-              {cancelLabel}
+              {resolvedCancelLabel}
             </button>
           )}
           <button
@@ -48,7 +53,7 @@ const WarningPopUp = ({
             onClick={handleContinue}
             className="flex-1 border py-2.5 px-4 rounded-[10px] bg-[var(--success-default)] text-[var(--secondary-default)] font-semibold cursor-pointer transition-transform duration-150 active:scale-95"
           >
-            {singleAction ? cancelLabel : continueLabel}
+            {singleAction ? resolvedCancelLabel : resolvedContinueLabel}
           </button>
         </div>
       </div>
