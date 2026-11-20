@@ -1349,7 +1349,7 @@ function ChatExperience({
               <path d="m6 9 6 6 6-6" />
             </svg>
           </label> */}
-          <Dropdown
+          {/* <Dropdown
             ariaLabel="Select language"
             value={selectedLanguage}
             onChange={setSelectedLanguage}
@@ -1357,7 +1357,7 @@ function ChatExperience({
               { value: "en", label: "English" },
               { value: "es", label: "Español" },
             ]}
-          />
+          /> */}
 
           <div className="relative" ref={profileRef}>
             <button
@@ -1394,7 +1394,7 @@ function ChatExperience({
         className={
           !conversationStarted && mode === null
             ? "mx-auto w-full max-w-[950px] px-3 py-6 flex-1 flex flex-col min-h-0 sm:px-4 sm:py-8 md:py-10 lg:py-5"
-            : "mx-auto w-full px-3 py-6 flex-1 flex flex-col min-h-0 sm:px-4 sm:py-8 md:py-10 lg:py-5"
+            : "mx-auto w-full px-3 py-6 flex-1 flex-col min-h-0 sm:px-4 sm:py-8 md:py-10 lg:py-5"
         }
       >
         {!conversationStarted && !modeSelected && (
@@ -1747,8 +1747,8 @@ function ChatExperience({
             </div>
 
             {showQuickInquiries && (
-              <aside className="hidden h-full shrink-0 self-stretch lg:block lg:w-[320px] xl:w-[360px]">
-                <div className="h-full rounded-2xl border border-emerald-800 bg-[#f8f2e8] p-3 shadow-sm">
+              <aside className="hidden h-full shrink-0 self-stretch lg:block lg:w-[320px] lg:sticky lg:top-[168px] lg:h-[calc(100vh-168px)] xl:w-[360px]">
+                <div className="overflow-y-auto rounded-2xl border border-emerald-800 bg-[#f8f2e8] p-3 shadow-sm">
                   <div className="mb-3 flex items-center gap-2">
                     <span className="text-base" aria-hidden="true">⚡</span>
                     <h2 className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-[var(--primary-bg)]">
