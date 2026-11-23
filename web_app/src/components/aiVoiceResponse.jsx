@@ -329,14 +329,13 @@ const useVoiceAgent = (
 
         voiceSessionIdRef.current = nextSessionId || null;
 
-        // Automatic recovery keeps the last completed response ID.
+        // Automatic recovery keeps the conversation continuation state.
         // A normal new chat clears it.
         if (!keepPreviousResponseId) {
           previousResponseIdRef.current = null;
+          interactionIdRef.current = null;
+          cacheHitRef.current = 'miss';
         }
-
-        interactionIdRef.current = null;
-        cacheHitRef.current = 'miss';
 
         // During automatic recovery, keep blocking push-to-talk until
         // the replacement microphone is ready.
@@ -626,7 +625,14 @@ const useVoiceAgent = (
                         previousResponseIdRef.current,
                     }
                   : {}),
-                interaction_id: interactionIdRef.current,
+                ...((resume || keepPreviousResponseId) &&
+                  interactionIdRef.current
+                  ? {
+                      interaction_id: interactionIdRef.current,
+                    }
+                  : {
+                      interaction_id: null,
+                    }),
                 cache_hit: cacheHitRef.current,
               })
             );
@@ -639,6 +645,10 @@ const useVoiceAgent = (
               previousResponseId:
                 resume || keepPreviousResponseId
                   ? previousResponseIdRef.current
+                  : null,
+              interactionId:
+                resume || keepPreviousResponseId
+                  ? interactionIdRef.current
                   : null,
               readyState: ws.readyState,
             });

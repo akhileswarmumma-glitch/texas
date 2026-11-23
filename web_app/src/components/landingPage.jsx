@@ -243,7 +243,7 @@ const MessageBubble = memo(function MessageBubble({ item, mode }) {
         const htmlBlob = new Blob([htmlContent], { type: "text/html" });
         const textBlob = new Blob([plainText], { type: "text/plain" });
 
-        await navigator.clipboard.write([
+      await navigator.clipboard.write([
           new ClipboardItem({
             "text/html": htmlBlob,
             "text/plain": textBlob,
@@ -476,6 +476,7 @@ function ChatExperience({
   const textareaRef = useRef(null);
   const [loading, setLoading] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [sessionIdCopied, setSessionIdCopied] = useState(false);
   const { t, i18n } = useTranslation();
   const selectedLanguage = i18n.resolvedLanguage || "en";
   const messagesEndRef = useRef(null);
@@ -1304,6 +1305,19 @@ function ChatExperience({
     // Create exactly one fresh conversation
     await onNewChat();
   }, [isVoiceActive, onNewChat, stopVoiceMode]);
+
+  const handleSessionIdCopy = useCallback(async () => {
+    if (!sessionId) return;
+
+    try {
+      await navigator.clipboard.writeText(sessionId);
+      setSessionIdCopied(true);
+      window.setTimeout(() => setSessionIdCopied(false), 2000);
+    } catch (error) {
+      console.error("Failed to copy conversation ID:", error);
+    }
+  }, [sessionId]);
+
   return (
     <main className="min-h-screen bg-[#faf5ea] text-gray-200 font-sans flex flex-col">
       <header className="flex items-center justify-between gap-2 border-b border-emerald-900 bg-[var(--maroon-primary)] px-3 py-2.5 sticky top-0 z-20 shrink-0 sm:px-5 md:px-8">
@@ -1356,6 +1370,15 @@ function ChatExperience({
                 >
                   {sessionId}
                 </span>
+                <button
+                  type="button"
+                  onClick={() => void handleSessionIdCopy()}
+                  title={sessionIdCopied ? "Copied!" : "Copy conversation ID"}
+                  aria-label={sessionIdCopied ? "Conversation ID copied" : "Copy conversation ID"}
+                  className="ml-1 inline-flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-full text-white/80 transition hover:bg-white/10 hover:text-white"
+                >
+                  {sessionIdCopied ? <FiCheck size={11} /> : <FiCopy size={11} />}
+                </button>
               </div>
             )}
           </div>
