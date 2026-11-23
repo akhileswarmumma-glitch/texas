@@ -15,7 +15,7 @@
   },
   "chat": {
     "placeholder": "Write a message...",
-    "quick_inquiries_title": "Quick inquiries",
+    "quick_inquiries_title": "Frequently Asked Questions",
     "copy": "Copy",
     "copied": "Copied",
     "sources_used": "{{count}} Sources Used",
