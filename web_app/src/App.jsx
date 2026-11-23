@@ -8,7 +8,7 @@ import ConsentPage from "./components/consent.jsx";
 function App() {
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setAuthenticated] = useState(true);
-  const [needsConsent, setNeedsConsent] = useState(true);
+  const [needsConsent, setNeedsConsent] = useState(false);
 
   // useEffect(() => {
   //   checkAuth();

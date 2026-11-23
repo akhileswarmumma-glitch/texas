@@ -39,7 +39,7 @@
       "paused": "paused"
     }
   },
-  "quick_inquiries": [
+    "quick_inquiries": [
     {
       "category": "HR & Benefits",
       "text": "How do I enroll in or update my benefits?"
@@ -61,6 +61,24 @@
     },
     {
       "text": "How to access my paystub?"
+    },
+    {
+      "text": "How to Borrow a Roadie"
+    },
+    {
+      "text": "How to Borrow a Manager"
+    },
+    {
+      "text": "How to reset my Txrh Live password"
+    },
+    {
+      "text": "How to reset my Pulse app password"
+    },
+    {
+      "text": "How to reset my .net password"
+    },
+    {
+      "text": "How to rehire employees"
     }
   ],
   "login": {

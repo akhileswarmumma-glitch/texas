@@ -48,7 +48,7 @@
     "continue": "Continuar",
     "dismiss": "Cerrar"
   },
-  "quick_inquiries": [
+    "quick_inquiries": [
     {
       "category": "RR. HH. y Beneficios",
       "text": "¿Cómo me inscribo o actualizo mis beneficios?"
@@ -70,6 +70,24 @@
     },
     {
       "text": "¿Cómo accedo a mi recibo de pago?"
+    },
+    {
+      "text": "Cómo pedir prestado a un Roadie"
+    },
+    {
+      "text": "Cómo pedir prestado a un gerente"
+    },
+    {
+      "text": "Cómo restablecer mi contraseña de Txrh Live"
+    },
+    {
+      "text": "Cómo restablecer mi contraseña de la app Pulse"
+    },
+    {
+      "text": "Cómo restablecer mi contraseña de .net"
+    },
+    {
+      "text": "Cómo recontratar empleados"
     }
   ],
   "login": {
