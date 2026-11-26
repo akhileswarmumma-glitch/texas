@@ -15,7 +15,7 @@
   },
   "chat": {
     "placeholder": "Write a message...",
-    "quick_inquiries_title": "Frequently Asked Questions",
+    "quick_inquiries_title": "FAQ's",
     "copy": "Copy",
     "copied": "Copied",
     "sources_used": "{{count}} Sources Used",
@@ -45,47 +45,19 @@
       "paused": "paused"
     }
   },
-    "quick_inquiries": [
-    {
-      "category": "HR & Benefits",
-      "text": "How do I enroll in or update my benefits?"
-    },
-    {
-      "category": "HR & Payroll",
-      "text": "How do I update my W-4 or tax withholding forms?"
-    },
-    {
-      "category": "POS & Billing",
-      "text": "How do I replace or redeem a damaged gift card?"
-    },
-    {
-      "category": "Finance & Ops",
-      "text": "How do I contact travel, expense or vendor support?"
-    },
-    {
-      "text": "How to access my W2?"
-    },
-    {
-      "text": "How to access my paystub?"
-    },
-    {
-      "text": "How to Borrow a Roadie"
-    },
-    {
-      "text": "How to Borrow a Manager"
-    },
-    {
-      "text": "How to reset my Txrh Live password"
-    },
-    {
-      "text": "How to reset my Pulse app password"
-    },
-    {
-      "text": "How to reset my .net password"
-    },
-    {
-      "text": "How to rehire employees"
-    }
+      "quick_inquiries": [
+    { "text": "How to access my W2?" },
+    { "text": "How to access my paystub?" },
+    { "text": "How do I update my personal details in Workday?" },
+    { "text": "How do I change my phone number?" },
+    { "text": "Where can I update my email address in Workday?" },
+    { "text": "How do I change my emergency contact?" },
+    { "text": "How do I change my legal name in Workday?" },
+    { "text": "How do I change my preferred name?" },
+    { "text": "How do I update my Social Security Number (SSN) in Workday?" },
+    { "text": "How to reset my TXRHLive password?" },
+    { "text": "How to reset my Pulse app password?" },
+    { "text": "How to reset my .Net password?" }
   ],
   "login": {
     "hero_title": "Your Home for Support & Answers.",

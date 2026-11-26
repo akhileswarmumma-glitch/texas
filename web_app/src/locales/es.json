@@ -54,47 +54,19 @@
     "continue": "Continuar",
     "dismiss": "Cerrar"
   },
-    "quick_inquiries": [
-    {
-      "category": "RR. HH. y Beneficios",
-      "text": "¿Cómo me inscribo o actualizo mis beneficios?"
-    },
-    {
-      "category": "RR. HH. y Nómina",
-      "text": "¿Cómo actualizo mi formulario W-4 o mis retenciones de impuestos?"
-    },
-    {
-      "category": "POS y Facturación",
-      "text": "¿Cómo reemplazo o canjeo una tarjeta de regalo dañada?"
-    },
-    {
-      "category": "Finanzas y Operaciones",
-      "text": "¿Cómo contacto al soporte de viajes, gastos o proveedores?"
-    },
-    {
-      "text": "¿Cómo accedo a mi formulario W-2?"
-    },
-    {
-      "text": "¿Cómo accedo a mi recibo de pago?"
-    },
-    {
-      "text": "Cómo pedir prestado a un Roadie"
-    },
-    {
-      "text": "Cómo pedir prestado a un gerente"
-    },
-    {
-      "text": "Cómo restablecer mi contraseña de Txrh Live"
-    },
-    {
-      "text": "Cómo restablecer mi contraseña de la app Pulse"
-    },
-    {
-      "text": "Cómo restablecer mi contraseña de .net"
-    },
-    {
-      "text": "Cómo recontratar empleados"
-    }
+      "quick_inquiries": [
+    { "text": "¿Cómo accedo a mi formulario W-2?" },
+    { "text": "¿Cómo accedo a mi recibo de pago?" },
+    { "text": "¿Cómo actualizo mis datos personales en Workday?" },
+    { "text": "¿Cómo cambio mi número de teléfono?" },
+    { "text": "¿Dónde puedo actualizar mi correo electrónico en Workday?" },
+    { "text": "¿Cómo cambio mi contacto de emergencia?" },
+    { "text": "¿Cómo cambio mi nombre legal en Workday?" },
+    { "text": "¿Cómo cambio mi nombre preferido?" },
+    { "text": "¿Cómo actualizo mi número de Seguro Social (SSN) en Workday?" },
+    { "text": "¿Cómo restablezco mi contraseña de TXRHLive?" },
+    { "text": "¿Cómo restablezco mi contraseña de la app Pulse?" },
+    { "text": "¿Cómo restablezco mi contraseña de .Net?" }
   ],
   "login": {
     "hero_title": "Tu hogar para soporte y respuestas.",

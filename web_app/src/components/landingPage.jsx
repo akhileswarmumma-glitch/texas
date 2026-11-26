@@ -387,7 +387,7 @@ const MessageBubble = memo(function MessageBubble({ item, mode, onAction, disabl
               onClick={() =>
                 onAction?.(actionT("chat.yes_action"))
               }
-              className="rounded-lg bg-[var(--success-default)] text-white px-3 py-1.5 text-xs font-bold cursor-pointer hover:opacity-90 disabled:opacity-50"
+              className="rounded-lg text-[var(--success-default)] bg-white px-3 py-1.5 text-xs font-bold cursor-pointer hover:opacity-90 disabled:opacity-50"
             >
               {mode === "voice" ? `“${actionT("chat.yes")}”` : actionT("chat.yes")}
             </button>
@@ -397,7 +397,7 @@ const MessageBubble = memo(function MessageBubble({ item, mode, onAction, disabl
               onClick={() =>
                 onAction?.(actionT("chat.no_action"))
               }
-              className="rounded-lg bg-[var(--danger-default)] text-white px-3 py-1.5 text-xs font-bold cursor-pointer hover:opacity-90 disabled:opacity-50"
+              className="rounded-lg text-[var(--danger-default)] bg-white px-3 py-1.5 text-xs font-bold cursor-pointer hover:opacity-90 disabled:opacity-50"
             >
               {mode === "voice" ? `“${actionT("chat.no")}”` : actionT("chat.no")}
             </button>
@@ -2120,7 +2120,7 @@ const LandingPage = () => {
       console.error("Failed to start new chat session:", error);
     }
     return "";
-  }, [handleLogout]);
+  }, []);
 
   // useEffect(() => {
   //   void handleNewChat();
