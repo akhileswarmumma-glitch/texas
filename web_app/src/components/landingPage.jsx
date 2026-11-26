@@ -236,6 +236,20 @@ const MessageBubble = memo(function MessageBubble({ item, mode, onAction, disabl
   const isCacheHit =
     (item.cache_hit || item.cacheHit || "").toString().toLowerCase() === "hit";
 
+  const normalizedMessage = String(item.message || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const isSatisfactionPrompt =
+    normalizedMessage.includes("are you satisfied with the response") ||
+    normalizedMessage.includes("are you satisfied") ||
+    normalizedMessage.includes("estas satisfecho con la respuesta") ||
+    normalizedMessage.includes("esta satisfecho con la respuesta");
+
   const handleCopy = useCallback(async () => {
     const container = contentRef.current;
     if (!container && !item.message) return;
@@ -379,7 +393,7 @@ const MessageBubble = memo(function MessageBubble({ item, mode, onAction, disabl
             </button>
           </div>
         )}
-        {isAgent && !item.streaming && isCacheHit && (
+        {isAgent && !item.streaming && isSatisfactionPrompt && (
           <div className={`flex flex-wrap gap-2 mt-3 pt-2 border-t border-black/10 ${mode === "voice" ? "italic cursor-not-allowed" : ""}`}>
             <button
               type="button"
