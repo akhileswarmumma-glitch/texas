@@ -98,6 +98,7 @@ const useVoiceAgent = (
 
   const interactionIdRef = useRef(null);
   const cacheHitRef = useRef('miss');
+  const responseLanguageRef = useRef(selectedLanguage || 'en');
 
   const reconnectingRef = useRef(false);
   const connectingRef = useRef(false);
@@ -851,6 +852,16 @@ const useVoiceAgent = (
               cacheHitRef.current = data.cache_hit ?? 'miss';
             }
 
+            if (
+              Object.prototype.hasOwnProperty.call(
+                data,
+                'response_language'
+              )
+            ) {
+              const language = String(data.response_language || '').toLowerCase();
+              responseLanguageRef.current = language === 'es' ? 'es' : 'en';
+            }
+
             switch (data.type) {
               case 'session_id': {
                 if (
@@ -1029,6 +1040,8 @@ const useVoiceAgent = (
                 if (typeof callbackRef.current === 'function') {
                   callbackRef.current(data.delta || '', 'ai', {
                     streaming: true,
+                    cache_hit: cacheHitRef.current,
+                    response_language: responseLanguageRef.current,
                   });
                 }
 
@@ -1099,6 +1112,8 @@ const useVoiceAgent = (
                       createMessageId(),
                     link: data.link || '',
                     ticketNumber: data.ticket_number ?? null,
+                    cache_hit: cacheHitRef.current,
+                    response_language: responseLanguageRef.current,
                   });
                 }
 

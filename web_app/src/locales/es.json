@@ -21,6 +21,12 @@
     "sources_used": "{{count}} fuentes utilizadas",
     "grant_consent": "Otorgar consentimiento",
     "cancel": "Cancelar",
+    "yes": "Sí",
+    "no": "No",
+    "summarize": "Resumir",
+    "yes_action": "Sí. Estoy satisfecho con la respuesta.",
+    "no_action": "No. No estoy satisfecho con la respuesta.",
+    "summarize_action": "Resume la respuesta.",
     "thinking": "Roadie Ranger está pensando...",
     "error_start": "No se pudo iniciar la conversación. Por favor, inténtalo de nuevo."
   },

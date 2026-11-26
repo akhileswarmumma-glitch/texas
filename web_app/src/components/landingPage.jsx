@@ -219,8 +219,11 @@ const markdownRendor = {
   },
 };
 
-const MessageBubble = memo(function MessageBubble({ item, mode }) {
-  const { t } = useTranslation()
+const MessageBubble = memo(function MessageBubble({ item, mode, onAction, disabled = false }) {
+  const { t, i18n } = useTranslation()
+  const responseLanguage = item.response_language === "es" ? "es" : "en";
+  const actionT = i18n.getFixedT(responseLanguage);
+
   const [showResources, setShowResources] = useState(false);
   const [showConsent, setShowConsent] = useState(true);
   const [copied, setCopied] = useState(false);
@@ -229,6 +232,9 @@ const MessageBubble = memo(function MessageBubble({ item, mode }) {
   const resources = item.resources || [];
   const needsConsent = Boolean(item.link) || Boolean(item.consentRequired);
   const isAgent = item.sender !== "user";
+
+  const isCacheHit =
+    (item.cache_hit || item.cacheHit || "").toString().toLowerCase() === "hit";
 
   const handleCopy = useCallback(async () => {
     const container = contentRef.current;
@@ -371,6 +377,40 @@ const MessageBubble = memo(function MessageBubble({ item, mode }) {
             >
               {t("chat.cancel")}
             </button>
+          </div>
+        )}
+        {isAgent && !item.streaming && isCacheHit && (
+          <div className={`flex flex-wrap gap-2 mt-3 pt-2 border-t border-black/10 ${mode === "voice" ? "italic" : ""}`}>
+            <button
+              type="button"
+              disabled={disabled || mode === "voice"}
+              onClick={() =>
+                onAction?.(actionT("chat.yes_action"))
+              }
+              className="rounded-lg bg-[var(--success-default)] text-white px-3 py-1.5 text-xs font-bold cursor-pointer hover:opacity-90 disabled:opacity-50"
+            >
+              {mode === "voice" ? `“${actionT("chat.yes")}”` : actionT("chat.yes")}
+            </button>
+            <button
+              type="button"
+              disabled={disabled || mode === "voice"}
+              onClick={() =>
+                onAction?.(actionT("chat.no_action"))
+              }
+              className="rounded-lg bg-[var(--danger-default)] text-white px-3 py-1.5 text-xs font-bold cursor-pointer hover:opacity-90 disabled:opacity-50"
+            >
+              {mode === "voice" ? `“${actionT("chat.no")}”` : actionT("chat.no")}
+            </button>
+            {/* <button
+              type="button"
+              disabled={disabled || mode === "voice"}
+              onClick={() =>
+                onAction?.(actionT("chat.summarize_action"))
+              }
+              className="rounded-lg bg-[var(--maroon-primary)] text-white px-3 py-1.5 text-xs font-bold cursor-pointer hover:opacity-90 disabled:opacity-50"
+            >
+              {actionT("chat.summarize")}
+            </button> */}
           </div>
         )}
       </div>
@@ -526,6 +566,8 @@ function ChatExperience({
                   link: meta.link || item.link,
                   resources: meta.resources || item.resources,
                   consentRequired: meta.consentRequired,
+                  cache_hit: meta.cache_hit || meta.cacheHit || item.cache_hit || item.cacheHit,
+                  response_language: meta.response_language || item.response_language,
                 }
               : item,
           );
@@ -1543,7 +1585,13 @@ function ChatExperience({
                 aria-live="polite"
               >
                 {messages.map((item) => (
-                  <MessageBubble key={item.id} item={item} mode={mode} />
+                  <MessageBubble
+                    key={item.id}
+                    item={item}
+                    mode={mode}
+                    onAction={populateQuery}
+                    disabled={loading || isVoiceActive}
+                  />
                 ))}
                 {(loading || activeProgressLabel) && (
                   <TypingIndicator label={activeProgressLabel} />
@@ -1614,7 +1662,8 @@ function ChatExperience({
                           <button
                             type="button"
                             disabled={loading || isVoiceActive}
-                            onClick={() => void startLandingTextChat()}
+                            onClick={() => void startLandingTextChat()
+                            }
                             className="flex h-9 w-9 items-center justify-center rounded-full border cursor-pointer bg-[var(--secondary-contrast)] text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
                             aria-label="Send message"
                           >
@@ -2051,16 +2100,18 @@ const LandingPage = () => {
   const handleNewChat = useCallback(async () => {
     try {
       const apiBase = (import.meta.env.VITE_API_BASE || "").replace(/\/+$/, "");
+
       const response = await fetch(`${apiBase || ""}/api/get_conversation_id`, {
         method: "GET",
         credentials: "include",
       });
       if (response.status === 401) {
         await handleLogout();
-        return;
+        return "";
       }
       if (response.ok) {
         const data = await response.json();
+
         const conversationId = data.conversation_id || "";
         setSessionId(conversationId);
         return conversationId;
@@ -2069,7 +2120,7 @@ const LandingPage = () => {
       console.error("Failed to start new chat session:", error);
     }
     return "";
-  }, []);
+  }, [handleLogout]);
 
   // useEffect(() => {
   //   void handleNewChat();

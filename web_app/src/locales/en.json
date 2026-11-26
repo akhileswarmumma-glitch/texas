@@ -21,6 +21,12 @@
     "sources_used": "{{count}} Sources Used",
     "grant_consent": "Grant Consent",
     "cancel": "Cancel",
+    "yes": "Yes",
+    "no": "No",
+    "summarize": "Summarize",
+    "yes_action": "Yes. I am satisfied with the response.",
+    "no_action": "No. I am not satisfied with the response.",
+    "summarize_action": "Summarize the response.",
     "thinking": "Roadie Ranger is thinking...",
     "error_start": "Unable to start the conversation. Please try again."
   },

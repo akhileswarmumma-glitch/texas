@@ -26,6 +26,7 @@ const useTextAgent = (onAgentMessage, setLoading, handleLogout, initialSessionId
   const previousResponseIdRef = useRef('');
   const interactionIdRef = useRef('');
   const cacheHitRef = useRef('miss');
+  const responseLanguageRef = useRef(selectedLanguage || 'en');
   const abortControllerRef = useRef(null);
 
   useEffect(() => {
@@ -42,6 +43,7 @@ const useTextAgent = (onAgentMessage, setLoading, handleLogout, initialSessionId
     previousResponseIdRef.current = '';
     interactionIdRef.current = '';
     cacheHitRef.current = 'miss';
+    responseLanguageRef.current = selectedLanguage || 'en';
     currentDeltaRef.current = '';
     setCurrentDelta('');
     setProgressLabel('');
@@ -107,6 +109,10 @@ const useTextAgent = (onAgentMessage, setLoading, handleLogout, initialSessionId
     if (Object.prototype.hasOwnProperty.call(frame, 'cache_hit')) {
       cacheHitRef.current = frame.cache_hit ?? 'miss';
     }
+    if (Object.prototype.hasOwnProperty.call(frame, 'response_language')) {
+      const language = String(frame.response_language || '').toLowerCase();
+      responseLanguageRef.current = language === 'es' ? 'es' : 'en';
+    }
 
     switch (frame.type) {
       case 'status': {
@@ -132,7 +138,10 @@ const useTextAgent = (onAgentMessage, setLoading, handleLogout, initialSessionId
         setCurrentDelta(nextDelta);
 
         if (typeof callbackRef.current === 'function') {
-          callbackRef.current(frame.content || '', 'ai', { streaming: true });
+          callbackRef.current(frame.content || '', 'ai', {
+            streaming: true,
+            response_language: responseLanguageRef.current,
+          });
         }
         setLoading?.(false);
         break;
@@ -147,7 +156,13 @@ const useTextAgent = (onAgentMessage, setLoading, handleLogout, initialSessionId
           callbackRef.current(
             frame.agent_response || 'Please provide the consent to access the tools',
             'ai',
-            { streaming: false, link: frame.link || '', consentRequired: true }
+            {
+              streaming: false,
+              link: frame.link || '',
+              consentRequired: true,
+              cache_hit: cacheHitRef.current,
+              response_language: responseLanguageRef.current,
+            }
           );
         }
         previousResponseIdRef.current = frame.response_id || previousResponseIdRef.current;
@@ -168,6 +183,8 @@ const useTextAgent = (onAgentMessage, setLoading, handleLogout, initialSessionId
             message_id: frame.response_id,
             ticketNumber: frame.ticket_number ?? null,
             link: frame.link || '',
+            cache_hit: cacheHitRef.current,
+            response_language: responseLanguageRef.current,
           });
         }
         previousResponseIdRef.current = frame.response_id || previousResponseIdRef.current;
@@ -215,7 +232,7 @@ const useTextAgent = (onAgentMessage, setLoading, handleLogout, initialSessionId
           callbackRef.current(
             userMessage,
             'ai',
-            { streaming: false, error: true }
+            { streaming: false, error: true, response_language: responseLanguageRef.current }
           );
         }
         setLoading?.(false);
@@ -242,6 +259,7 @@ const useTextAgent = (onAgentMessage, setLoading, handleLogout, initialSessionId
       previousResponseIdRef.current = '';
       interactionIdRef.current = null;
       cacheHitRef.current = 'miss';
+      responseLanguageRef.current = selectedLanguage || 'en';
     }
 
     currentDeltaRef.current = '';
@@ -258,6 +276,9 @@ const useTextAgent = (onAgentMessage, setLoading, handleLogout, initialSessionId
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
+    const outgoingInteractionId = interactionIdRef.current;
+    const outgoingCacheHit = cacheHitRef.current;
+    cacheHitRef.current = 'miss';
     try {
       console.log("interaction_id and cache_hit:", interactionIdRef.current, cacheHitRef.current);
       const response = await fetch(CHAT_ENDPOINT, {
@@ -273,7 +294,7 @@ const useTextAgent = (onAgentMessage, setLoading, handleLogout, initialSessionId
           conversation_id: conversationIdRef.current,
           previous_response_id: previousResponseIdRef.current || '',
           interaction_id: interactionIdRef.current,
-          cache_hit: cacheHitRef.current,
+          cache_hit: outgoingCacheHit,
         }),
       });
       if (response.status === 401) {
@@ -362,7 +383,8 @@ const useTextAgent = (onAgentMessage, setLoading, handleLogout, initialSessionId
             'ai',
             {
               streaming: false,
-              error: true
+              error: true,
+              response_language: responseLanguageRef.current
             }
           );
         }
