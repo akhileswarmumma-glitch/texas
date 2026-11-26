@@ -380,7 +380,7 @@ const MessageBubble = memo(function MessageBubble({ item, mode, onAction, disabl
           </div>
         )}
         {isAgent && !item.streaming && isCacheHit && (
-          <div className={`flex flex-wrap gap-2 mt-3 pt-2 border-t border-black/10 ${mode === "voice" ? "italic" : ""}`}>
+          <div className={`flex flex-wrap gap-2 mt-3 pt-2 border-t border-black/10 ${mode === "voice" ? "italic cursor-not-allowed" : ""}`}>
             <button
               type="button"
               disabled={disabled || mode === "voice"}
