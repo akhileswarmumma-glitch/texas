@@ -611,7 +611,11 @@ function ChatExperience({
     await onLogout();
   }, [onLogout]);
 
-  const { sendMessage: sendTextMessage, progressLabel: textProgressLabel } = useTextAgent(
+  const {
+    sendMessage: sendTextMessage,
+    progressLabel: textProgressLabel,
+    stop: stopTextStream,
+  } = useTextAgent(
     addMessage,
     setLoading,
     handleLogout,
@@ -953,8 +957,9 @@ function ChatExperience({
     }
 
     const nextMode = pendingMode;
+    stopTextStream?.();
+    setLoading(false);
     setMessages([]);
-    setDraft("");
     setMode(nextMode);
     setPendingMode(null);
     setShowModeWarning(false);
@@ -1053,6 +1058,8 @@ function ChatExperience({
   ]);
 
   const handleDisconnect = useCallback(async () => {
+    stopTextStream?.();
+    setLoading(false);
     setMessages([]);
     setDraft("");
     setIsRecording(false);
@@ -1084,6 +1091,8 @@ function ChatExperience({
   const handleModeSelection = useCallback(
     async (nextMode) => {
       if (!nextMode) return;
+      stopTextStream?.();
+      setLoading(false);
       setAgentSpeaking(false);
 
       if (mode === null) {
@@ -1341,6 +1350,9 @@ function ChatExperience({
   }, [stopCapture, stopVoiceSession]);
 
   const handleLogoClick = useCallback(async () => {
+    stopTextStream?.();
+    setLoading(false);
+
     // Prevent the isVoiceActive effect from also creating another conversation.
     // Without this, onNewChat() could be called twice.
     if (isVoiceActive) {
@@ -2083,7 +2095,7 @@ const LandingPage = () => {
     const cachedName = sessionStorage.getItem("userInfo");
     const cachedEmail = sessionStorage.getItem("userEmail");
     if (cachedName) setUserInfo(cachedName);
-    if (cachedEmail) setUserEmail(cachedEmail);
+       if (cachedEmail) setUserEmail(cachedEmail);
 
     const fetchUserDetails = async () => {
       try {

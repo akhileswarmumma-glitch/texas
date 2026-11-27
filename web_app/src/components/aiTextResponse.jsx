@@ -404,6 +404,8 @@ const useTextAgent = (onAgentMessage, setLoading, handleLogout, initialSessionId
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
+    currentDeltaRef.current = '';
+    setCurrentDelta('');
     setLoading?.(false);
     setStatus('connected');
     setProgressLabel('');
