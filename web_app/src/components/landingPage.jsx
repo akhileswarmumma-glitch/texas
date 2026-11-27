@@ -222,7 +222,7 @@ const markdownRendor = {
 const MessageBubble = memo(function MessageBubble({ item, mode, onAction, disabled = false }) {
   const { t, i18n } = useTranslation()
   const responseLanguage = item.response_language === "es" ? "es" : "en";
-  const actionT = i18n.getFixedT(responseLanguage);
+  // const actionT = i18n.getFixedT(responseLanguage);
 
   const [showResources, setShowResources] = useState(false);
   const [showConsent, setShowConsent] = useState(true);
@@ -249,6 +249,24 @@ const MessageBubble = memo(function MessageBubble({ item, mode, onAction, disabl
     normalizedMessage.includes("are you satisfied") ||
     normalizedMessage.includes("estas satisfecho con la respuesta") ||
     normalizedMessage.includes("esta satisfecho con la respuesta");
+
+  const englishPrompt =
+    normalizedMessage.includes("are you satisfied with the response") ||
+    normalizedMessage.includes("are you satisfied");
+
+  const spanishPrompt =
+    normalizedMessage.includes("estas satisfecho con la respuesta") ||
+    normalizedMessage.includes("esta satisfecho con la respuesta");
+
+  // "en" for the English prompt, "es" for the Spanish prompt,
+  // otherwise fall back to the currently selected UI language
+  const promptLanguage = englishPrompt
+    ? "en"
+    : spanishPrompt
+    ? "es"
+    : responseLanguage
+
+  const actionT = i18n.getFixedT(promptLanguage);
 
   const handleCopy = useCallback(async () => {
     const container = contentRef.current;
@@ -393,7 +411,7 @@ const MessageBubble = memo(function MessageBubble({ item, mode, onAction, disabl
             </button>
           </div>
         )}
-        {isAgent && !item.streaming && isSatisfactionPrompt && (
+        {isAgent && !item.streaming && (englishPrompt || spanishPrompt) && (
           <div className={`flex flex-wrap gap-2 mt-3 pt-2 border-t border-black/10 ${mode === "voice" ? "italic cursor-not-allowed" : ""}`}>
             <button
               type="button"
