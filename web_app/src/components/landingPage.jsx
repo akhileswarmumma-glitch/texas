@@ -219,7 +219,7 @@ const markdownRendor = {
   },
 };
 
-const MessageBubble = memo(function MessageBubble({ item, mode, onAction, disabled = false }) {
+const MessageBubble = memo(function MessageBubble({ item, mode, onAction, disabled = false, isLastAgentMessage = false }) {
   const { t, i18n } = useTranslation()
   const responseLanguage = item.response_language === "es" ? "es" : "en";
   // const actionT = i18n.getFixedT(responseLanguage);
@@ -411,7 +411,7 @@ const MessageBubble = memo(function MessageBubble({ item, mode, onAction, disabl
             </button>
           </div>
         )}
-        {isAgent && !item.streaming && (englishPrompt || spanishPrompt) && (
+        {isAgent && !item.streaming && isLastAgentMessage && (englishPrompt || spanishPrompt) && (
           <div className={`flex flex-wrap gap-2 mt-3 pt-2 border-t border-black/10 ${mode === "voice" ? "italic cursor-not-allowed" : ""}`}>
             <button
               type="button"
@@ -1104,7 +1104,16 @@ function ChatExperience({
     : textProgressLabel;
 
   const inputPlaceholder = t("chat.placeholder");
-  const showQuickInquiries = mode
+  const showQuickInquiries = mode;
+
+  const lastAgentMessageIndex = useMemo(() => {
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+      if (messages[index].sender !== "user" && !messages[index].streaming) {
+        return index;
+      }
+    }
+    return -1;
+  }, [messages]);
 
   const handleModeSelection = useCallback(
     async (nextMode) => {
@@ -1628,15 +1637,18 @@ function ChatExperience({
                 role="log"
                 aria-live="polite"
               >
-                {messages.map((item) => (
-                  <MessageBubble
-                    key={item.id}
-                    item={item}
-                    mode={mode}
-                    onAction={populateQuery}
-                    disabled={loading || isVoiceActive}
-                  />
-                ))}
+                {messages.map((item, index) => {
+                  return (
+                    <MessageBubble
+                      key={item.id}
+                      item={item}
+                      mode={mode}
+                      onAction={populateQuery}
+                      disabled={loading || isVoiceActive}
+                      isLastAgentMessage={index === lastAgentMessageIndex}
+                    />
+                  );
+                })}
                 {(loading || activeProgressLabel) && (
                   <TypingIndicator label={activeProgressLabel} />
                 )}
@@ -2073,6 +2085,7 @@ function ChatExperience({
                 ? t("warnings.switch_to_voice")
                 : pendingMode === "text"
                   ? t("warnings.switch_to_text")
+
                   : t("warnings.switch_default")
             }
           />
