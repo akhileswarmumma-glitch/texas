@@ -940,6 +940,48 @@ const useVoiceAgent = (
                 break;
               }
 
+              case 'interim_audio': {
+                setProgressLabel('');
+                setLoading?.(false);
+
+                try {
+                  const base64Audio =
+                    data.audio_base64 ||
+                    data.data ||
+                    data.audio ||
+                    '';
+
+                  if (
+                    typeof base64Audio === 'string' &&
+                    base64Audio.length > 0 &&
+                    typeof optionsRef.current.onAudio === 'function'
+                  ) {
+                    const binary = atob(base64Audio);
+                    const bytes = new Uint8Array(binary.length);
+
+                    for (let index = 0; index < binary.length; index += 1) {
+                      bytes[index] = binary.charCodeAt(index);
+                    }
+
+                    const format = data.format || 'audio/mpeg';
+                    const blob = new Blob([bytes], { type: format });
+                    const url = URL.createObjectURL(blob);
+
+                    // Reuse the same swap-and-play path as agent_audio.
+                    // The final agent_audio frame replaces this URL immediately.
+                    optionsRef.current.onAudio({
+                      url,
+                      blob,
+                      format,
+                    });
+                  }
+                } catch (err) {
+                  console.error('Failed to handle interim_audio:', err);
+                }
+
+                break;
+              }
+
               case 'agent_audio': {
                 agentProcessingRef.current = true;
                 setProgressLabel('');
